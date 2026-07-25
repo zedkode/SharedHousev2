@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: SharedHouse API
+  version: 1.0.0
+  description: Versioned public contract for the SharedHouse coordination platform.
+servers:
+  - url: http://localhost:3000
+    description: Synthetic local development environment
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      summary: Report API process health
+      tags:
+        - Operations
+      responses:
+        '200':
+          description: The API process is available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceHealth'
+components:
+  schemas:
+    ServiceHealth:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - service
+        - apiVersion
+        - checkedAt
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: api
+        apiVersion:
+          type: string
+          const: v1
+        checkedAt:
+          type: string
+          format: date-time
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - title
+        - status
+        - code
+        - correlationId
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+        correlationId:
+          type: string
+          format: uuid

@@ -1,0 +1,36 @@
+# JavaScript / TypeScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Kotlin / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+
+# Apple
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# IDE and operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Runtime output
+*.log
+tmp/

@@ -1,0 +1,40 @@
+{
+  "name": "sharedhouse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-first household coordination platform",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/admin-web",
+    "services/api",
+    "services/workers",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "build": "npm run build -w @sharedhouse/contracts && npm run build -w @sharedhouse/api && npm run build -w @sharedhouse/workers && npm run build -w @sharedhouse/admin-web",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build && npm run contracts:check",
+    "contracts:check": "node scripts/validate-openapi.mjs",
+    "dev:admin": "npm run dev -w @sharedhouse/admin-web",
+    "dev:api": "npm run dev -w @sharedhouse/api",
+    "dev:workers": "npm run dev -w @sharedhouse/workers",
+    "format": "prettier --write .github apps packages scripts services infra package.json tsconfig.base.json eslint.config.mjs",
+    "format:check": "prettier --check .github apps packages scripts services infra package.json tsconfig.base.json eslint.config.mjs",
+    "lint": "eslint apps/admin-web/src packages/contracts/src services/api/src services/api/test services/workers/src scripts",
+    "test": "npm run test -w @sharedhouse/api && npm run test -w @sharedhouse/workers && npm run test -w @sharedhouse/contracts",
+    "typecheck": "npm run build -w @sharedhouse/contracts && npm run typecheck -w @sharedhouse/api && npm run typecheck -w @sharedhouse/workers && npm run typecheck -w @sharedhouse/admin-web"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.65.0",
+    "yaml": "^2.8.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}
