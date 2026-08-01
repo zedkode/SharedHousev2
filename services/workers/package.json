@@ -14,7 +14,7 @@
     "@sharedhouse/contracts": "0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^26.1.2",
     "tsx": "^4.20.3",
     "vitest": "^4.1.10"
   }
