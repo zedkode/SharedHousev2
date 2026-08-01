@@ -34,3 +34,6 @@ Thumbs.db
 # Runtime output
 *.log
 tmp/
+
+# Superdesign temporary component conversion files
+.superdesign/tmp/

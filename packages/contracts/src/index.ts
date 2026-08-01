@@ -1,5 +1,20 @@
 export const API_VERSION = 'v1' as const;
 
+export const SUPPORTED_LOCALES = ['en', 'ro'] as const;
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
+export const HOUSEHOLD_CYCLE_TYPES = ['weekly', 'fourteen_day', 'calendar_month'] as const;
+export type HouseholdCycleType = (typeof HOUSEHOLD_CYCLE_TYPES)[number];
+
+export const CALENDAR_EVENT_TYPES = [
+  'household',
+  'maintenance',
+  'appointment',
+  'shopping',
+  'other',
+] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
 export interface ServiceHealth {
   readonly status: 'ok';
   readonly service: 'api' | 'workers';
@@ -23,4 +38,104 @@ export interface ProblemDetails {
 export interface Money {
   readonly minorUnits: number;
   readonly currency: string;
+}
+
+export interface AccountSummary {
+  readonly id: string;
+  readonly email: string;
+  readonly emailVerified: boolean;
+  readonly displayName: string;
+  readonly preferredLocale: SupportedLocale;
+}
+
+export interface RegisterRequest {
+  readonly email: string;
+  readonly password: string;
+  readonly displayName: string;
+  readonly preferredLocale: SupportedLocale;
+  readonly ageConfirmed: true;
+  readonly termsAccepted: true;
+  readonly marketingConsent: boolean;
+}
+
+export interface RegistrationAccepted {
+  readonly verificationRequired: true;
+  readonly developmentVerificationCode?: string;
+}
+
+export interface VerifyEmailRequest {
+  readonly email: string;
+  readonly code: string;
+  readonly deviceName?: string;
+}
+
+export interface SignInRequest {
+  readonly email: string;
+  readonly password: string;
+  readonly deviceName?: string;
+}
+
+export interface RefreshSessionRequest {
+  readonly refreshToken: string;
+}
+
+export interface SessionResponse {
+  readonly accessToken: string;
+  readonly refreshToken: string;
+  readonly accessTokenExpiresAt: string;
+  readonly refreshTokenExpiresAt: string;
+  readonly account: AccountSummary;
+}
+
+export interface HouseholdConfiguration {
+  readonly name: string;
+  readonly countryCode: string;
+  readonly timezone: string;
+  readonly currency: string;
+  readonly firstDayOfWeek: 1 | 6 | 7;
+  readonly cycleType: HouseholdCycleType;
+  readonly cycleAnchor: string;
+}
+
+export type CreateHouseholdRequest = HouseholdConfiguration;
+
+export type UpdateHouseholdRequest = HouseholdConfiguration;
+
+export interface HouseholdSummary extends HouseholdConfiguration {
+  readonly id: string;
+  readonly role: 'owner' | 'admin' | 'member' | 'read_only';
+  readonly status: 'active';
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CalendarEventConfiguration {
+  readonly title: string;
+  readonly description?: string | null;
+  readonly type: CalendarEventType;
+  readonly date: string;
+  readonly startTime?: string | null;
+  readonly endTime?: string | null;
+  readonly reminderMinutesBefore?: number | null;
+}
+
+export type CreateCalendarEventRequest = CalendarEventConfiguration;
+
+export type UpdateCalendarEventRequest = CalendarEventConfiguration;
+
+export interface CalendarEventSummary {
+  readonly id: string;
+  readonly householdId: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly type: CalendarEventType;
+  readonly date: string;
+  readonly startTime: string | null;
+  readonly endTime: string | null;
+  readonly reminderMinutesBefore: number | null;
+  readonly createdByUserId: string;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }

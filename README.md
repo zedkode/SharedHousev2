@@ -15,13 +15,19 @@ This repository contains the product definition, mobile architecture, backend sp
 Development started with `EPIC-01` on 25 July 2026. The first foundation slice includes:
 
 - npm workspaces for the NestJS API, workers, React administration portal and shared contracts;
-- a versioned `GET /v1/health` API boundary with an OpenAPI 3.1 contract;
-- a Kotlin Multiplatform domain module targeting Android, iOS and JVM tests;
+- a versioned OpenAPI 3.1 boundary for health, registration, email verification, rotating sessions,
+  account access and tenant-scoped household configuration;
+- Kotlin Multiplatform domain and Ktor network modules targeting Android, iOS and JVM tests;
+- an installable Android Compose application with a Material 3 light/dark/dynamic theme,
+  English/Romanian resources and real authentication and household setup/editing flows;
+- PostgreSQL-compatible migrations plus persistent embedded PGlite for Docker-free development;
 - synthetic-only local PostgreSQL, Redis and S3-compatible infrastructure definitions;
 - strict TypeScript checks, unit/API tests, dependency auditing and GitHub Actions CI.
 
-This is an engineering foundation, not a functional MVP. Identity, households, ledger, chores,
-shopping, notifications, store commerce and privacy workflows remain implementation work.
+The identity and initial household-configuration vertical is functional in local development, but
+this is not yet a production MVP. Real email delivery, Keystore-backed session persistence,
+distributed rate limiting, invitations, ledger, chores, shopping, notifications, store commerce
+and privacy workflows remain implementation work.
 
 ## Local development
 
@@ -31,8 +37,14 @@ an Android SDK. iOS compilation requires macOS and Xcode.
 ```powershell
 npm ci
 npm run check
+npm run smoke:api
 .\gradlew.bat :shared:domain:jvmTest
+.\gradlew.bat :shared:network:jvmTest
+.\gradlew.bat :apps:android:app:lintDebug :apps:android:app:testDebugUnitTest :apps:android:app:assembleDebug
 ```
+
+Android commands require `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) to point to an SDK containing
+platform 36. Debug APKs are written under `apps/android/app/build/outputs/apk/debug/`.
 
 Run individual development processes with:
 
@@ -42,8 +54,11 @@ npm run dev:workers
 npm run dev:admin
 ```
 
-The API listens on `http://localhost:3000` by default and exposes
-`GET http://localhost:3000/v1/health`.
+The API listens on `http://localhost:3000` by default. With no `DATABASE_URL`, development uses a
+persistent PGlite database under `tmp/sharedhouse-pglite`; registration responses include a local
+verification code only outside production. The Android debug build connects to
+`http://10.0.2.2:3000` from the emulator. Override it with the
+`SHAREDHOUSE_DEBUG_API_BASE_URL` Gradle property when testing against another local host.
 
 ## Start here
 

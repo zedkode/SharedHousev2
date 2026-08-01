@@ -13,18 +13,51 @@ if (contract?.openapi !== '3.1.0') {
   failures.push('The contract must use OpenAPI 3.1.0.');
 }
 
-if (contract?.info?.version !== '1.0.0') {
-  failures.push('The v1 contract must declare info.version 1.0.0.');
+if (contract?.info?.version !== '1.2.0') {
+  failures.push('The v1 contract must declare info.version 1.2.0.');
 }
 
-for (const requiredPath of ['/v1/health']) {
+for (const requiredPath of [
+  '/v1/health',
+  '/v1/auth/register',
+  '/v1/auth/verify-email',
+  '/v1/auth/sign-in',
+  '/v1/auth/refresh',
+  '/v1/auth/sign-out',
+  '/v1/account',
+  '/v1/households',
+  '/v1/households/{householdId}',
+]) {
   if (contract?.paths?.[requiredPath] === undefined) {
     failures.push(`Missing required path: ${requiredPath}`);
   }
 }
 
-if (/\b(password|token|secret)\s*:/iu.test(source)) {
-  failures.push('The checked-in contract appears to contain a secret-like literal.');
+function findSecretLikeLiteral(value, path = []) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => findSecretLikeLiteral(item, [...path, String(index)]));
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, child]) => {
+    const childPath = [...path, key];
+    const keyLooksSensitive = /(password|token|secret)/iu.test(key);
+    const isLiteral = typeof child === 'string' || typeof child === 'number';
+
+    if (keyLooksSensitive && isLiteral && !['format', 'description'].includes(key)) {
+      return [childPath.join('.')];
+    }
+
+    return findSecretLikeLiteral(child, childPath);
+  });
+}
+
+const secretLikeLiterals = findSecretLikeLiteral(contract);
+if (secretLikeLiterals.length > 0) {
+  failures.push(`Secret-like literal found at: ${secretLikeLiterals.join(', ')}`);
 }
 
 if (failures.length > 0) {

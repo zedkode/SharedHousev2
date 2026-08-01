@@ -1,0 +1,114 @@
+package com.sharedhouse.android.ui.settings
+
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sharedhouse.android.R
+import com.sharedhouse.android.platform.notifications.LocalTestNotificationResult
+import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
+import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.preferences.AppPreferences
+import com.sharedhouse.android.preferences.AppPreferencesRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+
+data class SettingsNotice(
+    @StringRes val messageResource: Int,
+    val isError: Boolean = false,
+)
+
+@Composable
+fun SettingsRoute(
+    repository: AppPreferencesRepository,
+    onBack: () -> Unit,
+    onOpenGuides: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenSecurity: () -> Unit,
+    onOpenLegal: () -> Unit,
+    onTutorialRequested: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLanguageChanged: (AppLanguage) -> Unit = {},
+) {
+    val context = LocalContext.current
+    val preferences by repository.preferences.collectAsStateWithLifecycle(initialValue = AppPreferences())
+    val scope = rememberCoroutineScope()
+    var notice by remember { mutableStateOf<SettingsNotice?>(null) }
+
+    LaunchedEffect(Unit) {
+        SharedHouseNotifications.ensureChannels(context)
+    }
+
+    fun persist(update: suspend () -> Unit) {
+        scope.launch {
+            try {
+                update()
+                notice = null
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                notice = SettingsNotice(R.string.settings_save_error, isError = true)
+            }
+        }
+    }
+
+    SettingsScreen(
+        preferences = preferences,
+        notice = notice,
+        onBack = onBack,
+        onAppearanceModeChanged = { mode -> persist { repository.setAppearanceMode(mode) } },
+        onDynamicColorChanged = { enabled -> persist { repository.setDynamicColor(enabled) } },
+        onLanguageChanged = { language ->
+            persist {
+                repository.setLanguage(language)
+                onLanguageChanged(language)
+            }
+        },
+        onReducedMotionChanged = { enabled -> persist { repository.setReducedMotion(enabled) } },
+        onHighContrastChanged = { enabled -> persist { repository.setHighContrast(enabled) } },
+        onTextScaleChanged = { scale -> persist { repository.setTextScale(scale) } },
+        onNotificationCategoryChanged = { category, enabled ->
+            persist { repository.setNotificationCategory(category, enabled) }
+        },
+        onQuietHoursEnabledChanged = { enabled -> persist { repository.setQuietHoursEnabled(enabled) } },
+        onQuietHoursChanged = { start, end -> persist { repository.setQuietHours(start, end) } },
+        onReminderLeadTimeChanged = { leadTime -> persist { repository.setReminderLeadTime(leadTime) } },
+        onNotificationSoundChanged = { enabled -> persist { repository.setNotificationSound(enabled) } },
+        onNotificationVibrationChanged = { enabled -> persist { repository.setNotificationVibration(enabled) } },
+        onSendTestNotification = {
+            notice = when (SharedHouseNotifications.postLocalTest(context, preferences.notifications)) {
+                LocalTestNotificationResult.POSTED -> SettingsNotice(R.string.notification_test_posted)
+                LocalTestNotificationResult.RUNTIME_PERMISSION_REQUIRED -> {
+                    SettingsNotice(R.string.notification_test_permission_required, isError = true)
+                }
+                LocalTestNotificationResult.APP_NOTIFICATIONS_BLOCKED -> {
+                    SettingsNotice(R.string.notification_test_app_blocked, isError = true)
+                }
+                LocalTestNotificationResult.TASK_CATEGORY_DISABLED -> {
+                    SettingsNotice(R.string.notification_test_category_disabled, isError = true)
+                }
+                LocalTestNotificationResult.TASK_CHANNEL_BLOCKED -> {
+                    SettingsNotice(R.string.notification_test_channel_blocked, isError = true)
+                }
+            }
+        },
+        onOpenGuides = onOpenGuides,
+        onOpenPrivacy = onOpenPrivacy,
+        onOpenSecurity = onOpenSecurity,
+        onOpenLegal = onOpenLegal,
+        onShowTutorial = {
+            persist {
+                repository.showTutorialAgain()
+                onTutorialRequested()
+            }
+        },
+        modifier = modifier,
+    )
+}

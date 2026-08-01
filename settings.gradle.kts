@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "sharedhouse"
 
 include(":shared:domain")
+include(":shared:network")
+include(":apps:android:app")

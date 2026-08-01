@@ -1,18 +1,23 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.0.0
+  version: 1.2.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
   - url: http://localhost:3000
     description: Synthetic local development environment
+tags:
+  - name: Operations
+  - name: Authentication
+  - name: Account
+  - name: Households
+  - name: Calendar
 paths:
   /v1/health:
     get:
       operationId: getHealth
       summary: Report API process health
-      tags:
-        - Operations
+      tags: [Operations]
       responses:
         '200':
           description: The API process is available.
@@ -20,16 +25,427 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceHealth'
+  /v1/auth/register:
+    post:
+      operationId: registerAccount
+      summary: Register an adult account and start email verification
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '202':
+          description: Registration was accepted. The response is intentionally generic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationAccepted'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/auth/verify-email:
+    post:
+      operationId: verifyEmail
+      summary: Consume a single-use email verification code and create a session
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified and session created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/auth/sign-in:
+    post:
+      operationId: signIn
+      summary: Create a session with email and password
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: Rotate a refresh token and issue a new session token pair
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshSessionRequest'
+      responses:
+        '200':
+          description: Session token pair rotated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/auth/sign-out:
+    post:
+      operationId: signOut
+      summary: Revoke the current session
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Current session revoked.
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/account:
+    get:
+      operationId: getAccount
+      summary: Return the authenticated account
+      tags: [Account]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Safe account representation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/households:
+    get:
+      operationId: listHouseholds
+      summary: List households available to the authenticated member
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Household memberships visible to the account.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HouseholdSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createHousehold
+      summary: Create a household and its owner membership atomically
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HouseholdConfiguration'
+      responses:
+        '201':
+          description: Household and owner membership created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: getHousehold
+      summary: Read one household through an active membership
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Household configuration visible to the member.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted household version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      operationId: updateHousehold
+      summary: Replace the configurable household foundation using optimistic locking
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HouseholdConfiguration'
+      responses:
+        '200':
+          description: Household configuration updated.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/calendar-events:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listCalendarEvents
+      summary: List active one-off household calendar events in an inclusive local-date range
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          description: Inclusive end date. A query can cover at most 370 days.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Events visible to the active household member.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEventSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createCalendarEvent
+      summary: Create a one-off household calendar event idempotently
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventConfiguration'
+      responses:
+        '201':
+          description: Calendar event created or the original idempotent response replayed.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted calendar event version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/calendar-events/{eventId}:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/CalendarEventId'
+    patch:
+      operationId: updateCalendarEvent
+      summary: Replace a one-off calendar event using optimistic locking
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventConfiguration'
+      responses:
+        '200':
+          description: Calendar event updated.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: deleteCalendarEvent
+      summary: Soft-delete a one-off calendar event using optimistic locking
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Event deleted, including a safe replay of the same deletion.
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: '^"[1-9][0-9]*"$'
+    HouseholdId:
+      name: householdId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CalendarEventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Problem:
+      description: Request failed with a safe problem-details response.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
   schemas:
     ServiceHealth:
       type: object
       additionalProperties: false
-      required:
-        - status
-        - service
-        - apiVersion
-        - checkedAt
+      required: [status, service, apiVersion, checkedAt]
       properties:
         status:
           type: string
@@ -46,12 +462,7 @@ components:
     ProblemDetails:
       type: object
       additionalProperties: false
-      required:
-        - type
-        - title
-        - status
-        - code
-        - correlationId
+      required: [type, title, status, code, correlationId]
       properties:
         type:
           type: string
@@ -67,3 +478,296 @@ components:
         correlationId:
           type: string
           format: uuid
+        detail:
+          type: string
+        violations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    AccountSummary:
+      type: object
+      additionalProperties: false
+      required: [id, email, emailVerified, displayName, preferredLocale]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: boolean
+        displayName:
+          type: string
+        preferredLocale:
+          type: string
+          enum: [en, ro]
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+        - displayName
+        - preferredLocale
+        - ageConfirmed
+        - termsAccepted
+        - marketingConsent
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 15
+          maxLength: 128
+          writeOnly: true
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        preferredLocale:
+          type: string
+          enum: [en, ro]
+        ageConfirmed:
+          type: boolean
+          const: true
+        termsAccepted:
+          type: boolean
+          const: true
+        marketingConsent:
+          type: boolean
+    RegistrationAccepted:
+      type: object
+      additionalProperties: false
+      required: [verificationRequired]
+      properties:
+        verificationRequired:
+          type: boolean
+          const: true
+        developmentVerificationCode:
+          type: string
+          pattern: '^[0-9]{8}$'
+          description: Present only in explicitly non-production local or test environments.
+    VerifyEmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        code:
+          type: string
+          pattern: '^[0-9]{8}$'
+          writeOnly: true
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 80
+    SignInRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 80
+    RefreshSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 40
+          maxLength: 256
+          writeOnly: true
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - accessToken
+        - refreshToken
+        - accessTokenExpiresAt
+        - refreshTokenExpiresAt
+        - account
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/AccountSummary'
+    HouseholdConfiguration:
+      type: object
+      additionalProperties: false
+      required: [name, countryCode, timezone, currency, firstDayOfWeek, cycleType, cycleAnchor]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        firstDayOfWeek:
+          type: integer
+          enum: [1, 6, 7]
+          description: ISO weekday number for Monday, Saturday or Sunday.
+        cycleType:
+          type: string
+          enum: [weekly, fourteen_day, calendar_month]
+        cycleAnchor:
+          type: string
+          format: date
+    HouseholdSummary:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/HouseholdConfiguration'
+        - type: object
+          required: [id, role, status, version, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            role:
+              type: string
+              enum: [owner, admin, member, read_only]
+            status:
+              type: string
+              const: active
+            version:
+              type: integer
+              minimum: 1
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    CalendarEventConfiguration:
+      type: object
+      additionalProperties: false
+      required: [title, type, date]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1000
+        type:
+          type: string
+          enum: [household, maintenance, appointment, shopping, other]
+        date:
+          type: string
+          format: date
+          description: Local calendar date in the configured household timezone.
+        startTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Local 24-hour time; absence means an all-day event.
+        endTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        reminderMinutesBefore:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 10080
+    CalendarEventSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - householdId
+        - title
+        - description
+        - type
+        - date
+        - startTime
+        - endTime
+        - reminderMinutesBefore
+        - createdByUserId
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        householdId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1000
+        type:
+          type: string
+          enum: [household, maintenance, appointment, shopping, other]
+        date:
+          type: string
+          format: date
+        startTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        endTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        reminderMinutesBefore:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 10080
+        createdByUserId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

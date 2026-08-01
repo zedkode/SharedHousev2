@@ -5,7 +5,8 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 ## EPIC-01 Repository and engineering foundation
 
 - [in progress] KMP modules, Android/iOS applications, backend, workers and admin web. The portable
-  domain, API, workers and admin shell exist; installable Android/iOS application projects remain.
+  domain, API, workers, admin shell and installable Android foundation exist; the installable iOS
+  application project remains.
 - [in progress] Shared formatting, linting, tests and generated contracts. TypeScript and OpenAPI
   checks exist; contract generation and mobile formatting remain.
 - [in progress] Local development environment with synthetic fixtures. Service definitions exist;
@@ -15,24 +16,34 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-02 Design system and onboarding
 
-- Design tokens, typography, spacing, semantic colours and component states.
-- Native navigation and responsive layouts.
-- Language detection and English/Romanian resources.
-- Appearance, accessibility settings and progressive tutorial.
+- [in progress] Design tokens, typography, spacing, semantic colours and component states. Android
+  authentication and household forms now use the Material 3 product theme; the full component
+  catalogue remains.
+- [in progress] Native navigation and responsive layouts. The Android account/household gate is
+  implemented; broader feature navigation and device-size validation remain.
+- [in progress] Language detection and English/Romanian resources. The Android vertical has parity;
+  remaining platforms and content still require coverage.
+- [in progress] Appearance, accessibility settings and progressive tutorial. System light/dark and
+  Android dynamic colour exist; user overrides and the tutorial remain.
 
 ## EPIC-03 Identity and account security
 
-- Registration, verification, sign-in, rotating sessions and devices.
+- [in progress] Registration, verification, sign-in, rotating sessions and devices. The API and
+  Android vertical work locally; email delivery, secure mobile persistence and device management
+  remain.
 - Profile/avatar and secure media pipeline.
 - Re-authentication, export and deletion request entry points.
 - Admin MFA and policy-based RBAC.
 
 ## EPIC-04 Household and invitations
 
-- Household configuration and lifecycle.
-- Membership roles and owner-transfer invariant.
+- [in progress] Household configuration and lifecycle. Authenticated create/list/get/update with
+  idempotency and optimistic version checks are implemented.
+- [in progress] Membership roles and owner-transfer invariant. Creation atomically provisions the
+  owner membership; role management and transfer remain.
 - Secure invitation creation, preview, acceptance, revocation and deep links.
-- Cross-household authorisation test suite.
+- [in progress] Cross-household authorisation test suite. Read isolation is covered; broader
+  mutation, role and invitation coverage remains.
 
 ## EPIC-05 Cycles and recurrence
 
