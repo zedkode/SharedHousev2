@@ -67,7 +67,6 @@
     <string name="settings_security_description">Protejează contul și recunoaște referințele pentru asistență.</string>
     <string name="settings_legal">Informații juridice</string>
     <string name="settings_legal_description">Consultă limitele acestei versiuni de dezvoltare.</string>
-    <string name="settings_account_limitations">Endpointurile pentru gestionarea dispozitivelor și a contului nu sunt conectate în această versiune. Aici nu este inventată o listă de dispozitive, ștergerea contului sau o confirmare a serviciului.</string>
 
     <string name="settings_optional_data_title">Confidențialitate și servicii opționale</string>
     <string name="settings_optional_data_description">Alege dacă acest dispozitiv poate trimite diagnostice, semnale anonime de utilizare sau poate solicita reclame.</string>

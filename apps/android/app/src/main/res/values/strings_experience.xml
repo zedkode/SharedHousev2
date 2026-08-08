@@ -67,7 +67,6 @@
     <string name="settings_security_description">Protect your account and recognise support references.</string>
     <string name="settings_legal">Legal information</string>
     <string name="settings_legal_description">Review the limits of this development build.</string>
-    <string name="settings_account_limitations">Device and account-management endpoints are not connected in this build. No device list, account deletion or service confirmation is fabricated here.</string>
 
     <string name="settings_optional_data_title">Privacy and optional services</string>
     <string name="settings_optional_data_description">Choose whether this device may send diagnostics, anonymous usage signals or request ads.</string>
