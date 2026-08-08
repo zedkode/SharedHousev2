@@ -305,9 +305,9 @@ describe('authentication and household vertical slice', () => {
       formatVersion: '1',
       account: { email: 'delete-owner@example.test' },
     });
-    expect(exported.body.households).toHaveLength(1);
-    expect(exported.body.consentRecords).toHaveLength(3);
-    expect(exported.body.sessions.length).toBeGreaterThan(0);
+    expect(readArrayProperty(exported.body, 'households')).toHaveLength(1);
+    expect(readArrayProperty(exported.body, 'consentRecords')).toHaveLength(3);
+    expect(readArrayProperty(exported.body, 'sessions').length).toBeGreaterThan(0);
 
     await request(server)
       .delete('/v1/account')
@@ -321,7 +321,11 @@ describe('authentication and household vertical slice', () => {
       .send({ password: VALID_PASSWORD, confirmation: 'DELETE' })
       .expect('Cache-Control', 'no-store')
       .expect(200);
-    expect(deleted.body).toEqual({ status: 'completed', closedHouseholdIds: [householdId] });
+    expect(deleted.body).toEqual({
+      status: 'completed',
+      closedHouseholdIds: [householdId],
+      transferredHouseholdIds: [],
+    });
 
     await request(server)
       .get('/v1/account')
@@ -343,7 +347,7 @@ describe('authentication and household vertical slice', () => {
     expect(users[0]?.email_normalized).toContain('@deleted.sharedhouse.invalid');
   });
 
-  it('blocks deletion while an owned household still has another active member', async () => {
+  it('transfers ownership to the oldest eligible member during deletion', async () => {
     const isolated = await createTestApplication();
     try {
       const owner = await registerAndVerify(
@@ -375,16 +379,24 @@ describe('authentication and household vertical slice', () => {
         ],
       );
 
-      const blocked = await request(isolated.server)
+      const deleted = await request(isolated.server)
         .delete('/v1/account')
         .set('Authorization', `Bearer ${ownerToken}`)
         .send({ password: VALID_PASSWORD, confirmation: 'DELETE' })
-        .expect(409);
-      expect(blocked.body).toMatchObject({ code: 'ACCOUNT_DELETION_OWNER_TRANSFER_REQUIRED' });
+        .expect(200);
+      expect(deleted.body).toMatchObject({
+        status: 'completed',
+        transferredHouseholdIds: [readStringProperty(created.body, 'id')],
+      });
       await request(isolated.server)
         .get('/v1/account')
         .set('Authorization', `Bearer ${ownerToken}`)
-        .expect(200);
+        .expect(401);
+      const successor = await database.query<{ readonly role: string }>(
+        `SELECT role FROM household_memberships WHERE household_id = $1 AND user_id = $2`,
+        [readStringProperty(created.body, 'id'), readStringProperty(member, 'account', 'id')],
+      );
+      expect(successor[0]?.role).toBe('owner');
     } finally {
       await isolated.app.close();
     }
@@ -410,6 +422,53 @@ describe('authentication and household vertical slice', () => {
         .expect('Cache-Control', 'no-store')
         .expect(201)
         .expect(/account was deleted/u);
+    } finally {
+      await isolated.app.close();
+    }
+  });
+
+  it('keeps the account when a shared household has no eligible ownership successor', async () => {
+    const isolated = await createTestApplication();
+    try {
+      const owner = await registerAndVerify(
+        isolated.server,
+        'readonly-owner@example.test',
+        'Owner',
+      );
+      const observer = await registerAndVerify(
+        isolated.server,
+        'readonly@example.test',
+        'Observer',
+      );
+      const ownerToken = readStringProperty(owner, 'accessToken');
+      const created = await request(isolated.server)
+        .post('/v1/households')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Idempotency-Key', 'readonly-owner-household-0001')
+        .send(householdBody('Read-only home'))
+        .expect(201);
+      const database = isolated.app.get(DatabaseService);
+      await database.query(
+        `INSERT INTO household_memberships (id, household_id, user_id, role, status, joined_at)
+         VALUES ($1, $2, $3, 'read_only', 'active', $4)`,
+        [
+          '019f9c00-0000-7000-8000-000000000002',
+          readStringProperty(created.body, 'id'),
+          readStringProperty(observer, 'account', 'id'),
+          new Date().toISOString(),
+        ],
+      );
+
+      const blocked = await request(isolated.server)
+        .delete('/v1/account')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ password: VALID_PASSWORD, confirmation: 'DELETE' })
+        .expect(409);
+      expect(blocked.body).toMatchObject({ code: 'ACCOUNT_DELETION_OWNER_TRANSFER_REQUIRED' });
+      await request(isolated.server)
+        .get('/v1/account')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
     } finally {
       await isolated.app.close();
     }
@@ -486,4 +545,16 @@ function readStringProperty(value: unknown, property: string, nestedProperty?: s
     throw new Error(`Response is missing string property ${targetProperty}.`);
   }
   return candidate[targetProperty as keyof typeof candidate];
+}
+
+function readArrayProperty(value: unknown, property: string): readonly unknown[] {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !(property in value) ||
+    !Array.isArray(value[property as keyof typeof value])
+  ) {
+    throw new Error(`Response is missing array property ${property}.`);
+  }
+  return value[property as keyof typeof value];
 }

@@ -71,6 +71,7 @@ data class DeleteAccountPayload(
 data class AccountDeletionResultDto(
     val status: String,
     val closedHouseholdIds: List<String>,
+    val transferredHouseholdIds: List<String>,
 )
 
 @Serializable

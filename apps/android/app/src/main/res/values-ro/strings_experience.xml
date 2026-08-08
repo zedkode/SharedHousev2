@@ -208,7 +208,7 @@
     <string name="settings_delete_account">Șterge contul</string>
     <string name="settings_delete_account_description">Elimină permanent datele de autentificare și anonimizează profilul.</string>
     <string name="settings_delete_account_confirm_title">Ștergi permanent acest cont?</string>
-    <string name="settings_delete_account_confirm_description">Acțiunea nu poate fi anulată. Gospodăriile în care ești singurul membru vor fi închise. Dacă există alți membri, transferă proprietatea sau elimină-i mai întâi. Abonamentele Google Play trebuie anulate separat.</string>
+    <string name="settings_delete_account_confirm_description">Acțiunea nu poate fi anulată. Gospodăriile în care ești singurul membru vor fi închise. Pentru o gospodărie partajată, proprietatea este transferată celui mai vechi administrator sau membru eligibil. Abonamentele Google Play trebuie anulate separat.</string>
     <string name="settings_current_password">Parola curentă</string>
     <string name="settings_delete_permanently">Șterge permanent</string>
     <string name="action_cancel">Anulează</string>

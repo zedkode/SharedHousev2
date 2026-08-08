@@ -67,6 +67,7 @@ interface ChallengeCreatedAtRow {
 interface OwnedHouseholdRow {
   readonly id: string;
   readonly active_member_count: number;
+  readonly successor_user_id: string | null;
 }
 
 @Injectable()
@@ -305,16 +306,32 @@ export class IdentityRepository {
     userId: string,
     occurredAt: string,
   ): Promise<
-    | { readonly status: 'completed'; readonly closedHouseholdIds: readonly string[] }
+    | {
+        readonly status: 'completed';
+        readonly closedHouseholdIds: readonly string[];
+        readonly transferredHouseholdIds: readonly string[];
+      }
     | { readonly status: 'owner_transfer_required'; readonly householdIds: readonly string[] }
   > {
     return this.database.transaction(async (transaction) => {
       const owned = await transaction.query<OwnedHouseholdRow>(
         `SELECT h.id,
            (SELECT count(*)::int FROM household_memberships active
-            WHERE active.household_id = h.id AND active.status = 'active') AS active_member_count
+            WHERE active.household_id = h.id AND active.status = 'active') AS active_member_count,
+           successor.user_id AS successor_user_id
          FROM households h
          JOIN household_memberships owner_membership ON owner_membership.household_id = h.id
+         LEFT JOIN LATERAL (
+           SELECT candidate.user_id
+           FROM household_memberships candidate
+           WHERE candidate.household_id = h.id
+             AND candidate.user_id <> $1
+             AND candidate.status = 'active'
+             AND candidate.role IN ('admin', 'member')
+           ORDER BY CASE candidate.role WHEN 'admin' THEN 0 ELSE 1 END,
+                    candidate.joined_at, candidate.user_id
+           LIMIT 1
+         ) successor ON true
          WHERE owner_membership.user_id = $1
            AND owner_membership.role = 'owner'
            AND owner_membership.status = 'active'
@@ -323,7 +340,9 @@ export class IdentityRepository {
          FOR UPDATE OF h`,
         [userId],
       );
-      const blockedIds = owned.filter((row) => row.active_member_count > 1).map((row) => row.id);
+      const blockedIds = owned
+        .filter((row) => row.active_member_count > 1 && row.successor_user_id === null)
+        .map((row) => row.id);
       if (blockedIds.length > 0) {
         await transaction.query(
           `INSERT INTO privacy_requests (
@@ -339,24 +358,36 @@ export class IdentityRepository {
         return { status: 'owner_transfer_required', householdIds: blockedIds };
       }
 
-      const closedHouseholdIds = owned.map((row) => row.id);
-      if (closedHouseholdIds.length > 0) {
+      const transferred = owned.filter((row) => row.active_member_count > 1);
+      const transferredHouseholdIds = transferred.map((row) => row.id);
+      for (const household of transferred) {
+        await transaction.query(
+          `UPDATE household_memberships
+           SET role = 'owner'
+           WHERE household_id = $1 AND user_id = $2 AND status = 'active'`,
+          [household.id, household.successor_user_id],
+        );
+      }
+      const solelyOwnedHouseholdIds = owned
+        .filter((row) => row.active_member_count === 1)
+        .map((row) => row.id);
+      if (solelyOwnedHouseholdIds.length > 0) {
         await transaction.query(
           `UPDATE households SET status = 'closed', updated_at = $2, version = version + 1
            WHERE id = ANY($1::uuid[])`,
-          [closedHouseholdIds, occurredAt],
+          [solelyOwnedHouseholdIds, occurredAt],
         );
         await transaction.query(
           `UPDATE calendar_events
            SET status = 'deleted', deleted_at = $2, updated_at = $2, version = version + 1
            WHERE household_id = ANY($1::uuid[]) AND status = 'active'`,
-          [closedHouseholdIds, occurredAt],
+          [solelyOwnedHouseholdIds, occurredAt],
         );
         await transaction.query(
           `UPDATE household_invitations
            SET status = 'revoked', revoked_at = $2, updated_at = $2
            WHERE household_id = ANY($1::uuid[]) AND status = 'pending'`,
-          [closedHouseholdIds, occurredAt],
+          [solelyOwnedHouseholdIds, occurredAt],
         );
       }
 
@@ -392,7 +423,10 @@ export class IdentityRepository {
         [
           newUuidV7(Date.parse(occurredAt)),
           userId,
-          JSON.stringify({ closedHouseholdCount: closedHouseholdIds.length }),
+          JSON.stringify({
+            closedHouseholdCount: solelyOwnedHouseholdIds.length,
+            transferredHouseholdCount: transferredHouseholdIds.length,
+          }),
           occurredAt,
         ],
       );
@@ -403,7 +437,11 @@ export class IdentityRepository {
         targetId: userId,
         occurredAt,
       });
-      return { status: 'completed', closedHouseholdIds };
+      return {
+        status: 'completed',
+        closedHouseholdIds: solelyOwnedHouseholdIds,
+        transferredHouseholdIds,
+      };
     });
   }
 
@@ -745,7 +783,7 @@ function toInstant(value: Date | string): string {
 }
 
 function toDate(value: Date | string): string {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
 }
 
 function credentialSelect(): string {

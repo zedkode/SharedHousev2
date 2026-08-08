@@ -60,6 +60,7 @@ export interface DeleteAccountRequest {
 export interface AccountDeletionResult {
   status: 'completed';
   closedHouseholdIds: string[];
+  transferredHouseholdIds: string[];
 }
 
 export interface ExportAccountRequest {

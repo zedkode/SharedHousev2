@@ -220,11 +220,10 @@ export class IdentityService {
 
   async deleteAccount(userId: string, password: string): Promise<AccountDeletionResult> {
     const credential = await this.repository.findCredentialByUserId(userId);
-    if (
-      credential === null ||
-      credential.status !== 'active' ||
-      !(await this.passwords.verifyPassword(password, credential))
-    ) {
+    if (credential?.status !== 'active') {
+      throw recentAuthenticationRequired();
+    }
+    if (!(await this.passwords.verifyPassword(password, credential))) {
       throw recentAuthenticationRequired();
     }
     return this.completeAccountDeletion(userId);
@@ -232,11 +231,14 @@ export class IdentityService {
 
   async exportAccount(userId: string, password: string): Promise<AccountExport> {
     const credential = await this.repository.findCredentialByUserId(userId);
-    if (
-      credential === null ||
-      credential.status !== 'active' ||
-      !(await this.passwords.verifyPassword(password, credential))
-    ) {
+    if (credential?.status !== 'active') {
+      throw new ApiProblemException({
+        status: 401,
+        code: 'RECENT_AUTHENTICATION_REQUIRED',
+        title: 'Confirm the current password to export this account.',
+      });
+    }
+    if (!(await this.passwords.verifyPassword(password, credential))) {
       throw new ApiProblemException({
         status: 401,
         code: 'RECENT_AUTHENTICATION_REQUIRED',
@@ -251,12 +253,11 @@ export class IdentityService {
     password: string,
   ): Promise<AccountDeletionResult> {
     const credential = await this.repository.findCredentialByEmail(email);
-    if (
-      credential === null ||
-      credential.status !== 'active' ||
-      !(await this.passwords.verifyPassword(password, credential))
-    ) {
+    if (credential?.status !== 'active') {
       if (credential === null) await this.passwords.consumeDummyVerification(password);
+      throw recentAuthenticationRequired();
+    }
+    if (!(await this.passwords.verifyPassword(password, credential))) {
       throw recentAuthenticationRequired();
     }
     return this.completeAccountDeletion(credential.account.id);
@@ -272,7 +273,11 @@ export class IdentityService {
           'Transfer ownership or remove the other household members before deleting the account.',
       });
     }
-    return { status: 'completed', closedHouseholdIds: [...result.closedHouseholdIds] };
+    return {
+      status: 'completed',
+      closedHouseholdIds: [...result.closedHouseholdIds],
+      transferredHouseholdIds: [...result.transferredHouseholdIds],
+    };
   }
 
   private async createSession(

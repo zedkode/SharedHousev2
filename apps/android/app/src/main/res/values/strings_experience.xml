@@ -208,7 +208,7 @@
     <string name="settings_delete_account">Delete account</string>
     <string name="settings_delete_account_description">Permanently remove sign-in data and anonymise your profile.</string>
     <string name="settings_delete_account_confirm_title">Permanently delete this account?</string>
-    <string name="settings_delete_account_confirm_description">This cannot be undone. Sole-member households are closed. If other members remain, transfer ownership or remove them first. Google Play subscriptions must be cancelled separately.</string>
+    <string name="settings_delete_account_confirm_description">This cannot be undone. Sole-member households are closed. For a shared household, ownership transfers to the longest-standing eligible admin or member. Google Play subscriptions must be cancelled separately.</string>
     <string name="settings_current_password">Current password</string>
     <string name="settings_delete_permanently">Delete permanently</string>
     <string name="action_cancel">Cancel</string>

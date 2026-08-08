@@ -759,12 +759,17 @@ components:
     AccountDeletionResult:
       type: object
       additionalProperties: false
-      required: [status, closedHouseholdIds]
+      required: [status, closedHouseholdIds, transferredHouseholdIds]
       properties:
         status:
           type: string
           const: completed
         closedHouseholdIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        transferredHouseholdIds:
           type: array
           items:
             type: string

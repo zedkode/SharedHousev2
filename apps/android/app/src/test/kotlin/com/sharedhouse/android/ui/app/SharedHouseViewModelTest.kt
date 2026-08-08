@@ -478,7 +478,7 @@ class SharedHouseViewModelTest {
                 signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
                 listHandler = { ApiResult.Success(listOf(household())) }
                 deleteAccountHandler = { _, _ ->
-                    ApiResult.Success(AccountDeletionResultDto("completed", emptyList()))
+                    ApiResult.Success(AccountDeletionResultDto("completed", emptyList(), emptyList()))
                 }
             }
             val viewModel = viewModel(fake, store)
