@@ -5,6 +5,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module.js';
+import { DatabaseService } from '../src/database/database.service.js';
 
 const VALID_PASSWORD = 'A long local passphrase for 2026!';
 
@@ -123,6 +124,45 @@ describe('authentication and household vertical slice', () => {
       .expect('ETag', '"2"')
       .expect(200);
     expect(updated.body).toMatchObject({ name: 'Updated home', version: 2 });
+  });
+
+  it('rotates an expired verification challenge and keeps resend responses generic', async () => {
+    const email = 'resend@example.test';
+    const registration = await request(server)
+      .post('/v1/auth/register')
+      .send(registrationBody(email, 'Resend Example'))
+      .expect(202);
+    const firstCode = readStringProperty(registration.body, 'developmentVerificationCode');
+    const database = app.get(DatabaseService);
+    await database.query(
+      `UPDATE email_verification_challenges
+       SET created_at = $2
+       WHERE user_id = (SELECT id FROM users WHERE email_normalized = $1)`,
+      [email, '2026-01-01T00:00:00.000Z'],
+    );
+
+    const resent = await request(server)
+      .post('/v1/auth/resend-verification')
+      .send({ email })
+      .expect('Cache-Control', 'no-store')
+      .expect(202);
+    const replacementCode = readStringProperty(resent.body, 'developmentVerificationCode');
+    expect(replacementCode).not.toBe(firstCode);
+
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ email, code: firstCode, deviceName: 'API tests' })
+      .expect(400);
+    await request(server)
+      .post('/v1/auth/verify-email')
+      .send({ email, code: replacementCode, deviceName: 'API tests' })
+      .expect(200);
+
+    await request(server)
+      .post('/v1/auth/resend-verification')
+      .send({ email: 'missing@example.test' })
+      .expect(202)
+      .expect({ verificationRequired: true });
   });
 
   it('rotates refresh tokens and revokes the family when an old token is reused', async () => {

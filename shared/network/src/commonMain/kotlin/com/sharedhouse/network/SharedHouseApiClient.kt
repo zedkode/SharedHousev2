@@ -67,6 +67,15 @@ class SharedHouseApiClient(
             }
         }
 
+    suspend fun resendVerification(
+        payload: ResendVerificationPayload,
+    ): ApiResult<RegistrationAcceptedDto> = execute {
+        client.post("$baseUrl/v1/auth/resend-verification") {
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+    }
+
     suspend fun signIn(payload: SignInPayload): ApiResult<SessionDto> =
         execute {
             client.post("$baseUrl/v1/auth/sign-in") {
@@ -125,6 +134,52 @@ class SharedHouseApiClient(
             header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
             contentType(ContentType.Application.Json)
             setBody(configuration)
+        }
+    }
+
+    suspend fun listHouseholdInvitations(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<List<HouseholdInvitationDto>> = execute {
+        client.get("$baseUrl/v1/households/$householdId/invitations") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun createHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        payload: CreateHouseholdInvitationPayload,
+    ): ApiResult<HouseholdInvitationDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/invitations") {
+            bearerAuth(accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
+        }
+    }
+
+    suspend fun previewHouseholdInvitation(
+        token: String,
+    ): ApiResult<HouseholdInvitationPreviewDto> = execute {
+        client.get("$baseUrl/v1/invitations/$token")
+    }
+
+    suspend fun acceptHouseholdInvitation(
+        accessToken: String,
+        token: String,
+    ): ApiResult<AcceptHouseholdInvitationDto> = execute {
+        client.post("$baseUrl/v1/invitations/$token/accept") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun revokeHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        invitationId: String,
+    ): ApiResult<Unit> = executeWithoutBody {
+        client.delete("$baseUrl/v1/households/$householdId/invitations/$invitationId") {
+            bearerAuth(accessToken)
         }
     }
 

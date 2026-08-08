@@ -265,6 +265,7 @@ fun VerifyEmailScreen(
     onBack: () -> Unit,
     onCodeChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onResend: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     val focusManager = LocalFocusManager.current
@@ -324,6 +325,13 @@ fun VerifyEmailScreen(
             loading = state.isSubmitting,
             onClick = onSubmit,
         )
+        OutlinedButton(
+            onClick = onResend,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) {
+            Text(text = stringResource(R.string.resend_verification_code))
+        }
     }
 }
 
@@ -395,6 +403,48 @@ fun HouseholdGateScreen(
             OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text(text = stringResource(R.string.sign_out))
             }
+        }
+    }
+}
+
+@Composable
+fun HouseholdChoiceScreen(
+    state: AppUiState,
+    onCreateHousehold: () -> Unit,
+    onJoinHousehold: () -> Unit,
+    onSignOut: () -> Unit,
+) {
+    FormScreenScaffold(
+        title = R.string.household_choice_title,
+        description = R.string.household_choice_description,
+        onBack = null,
+    ) {
+        ScreenMessages(state)
+        Button(
+            onClick = onCreateHousehold,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) {
+            Text(stringResource(R.string.household_choice_create))
+        }
+        FilledTonalButton(
+            onClick = onJoinHousehold,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) {
+            Text(stringResource(R.string.household_choice_join))
+        }
+        Text(
+            text = stringResource(R.string.household_choice_guidance),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedButton(
+            onClick = onSignOut,
+            enabled = !state.isSubmitting,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+        ) {
+            Text(text = stringResource(R.string.sign_out))
         }
     }
 }

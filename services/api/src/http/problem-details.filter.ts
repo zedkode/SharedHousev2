@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, HttpException, type ExceptionFilter } from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException, Logger, type ExceptionFilter } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 
@@ -6,12 +6,24 @@ import { ApiProblemException, type ApiProblemDefinition } from './api-problem.ex
 
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ProblemDetailsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<Request>();
     const response = context.getResponse<Response>();
     const correlationId = readCorrelationId(request.headers['x-correlation-id']);
     const problem = mapException(exception);
+
+    if (problem.status >= 500) {
+      this.logger.error({
+        event: 'api_request_failed',
+        correlationId,
+        method: request.method,
+        path: request.path,
+        errorType: exception instanceof Error ? exception.name : 'UnknownError',
+      });
+    }
 
     response.setHeader('X-Correlation-Id', correlationId);
     response

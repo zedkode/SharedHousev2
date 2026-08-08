@@ -6,7 +6,14 @@ SharedHouse helps people living together understand what is due, what has been p
 
 ## Joining a house
 
-Open the invitation link, install/open the app, create or sign in to your account, review the household name and inviter, then confirm joining. Set your display name, optional avatar, language, appearance and notification choices.
+Install/open the app and create or sign in to your verified account. Choose **Join with invitation**,
+paste the private code, review the household name, role and expiry, then confirm. If the invitation is
+restricted to an email address, you must be signed in with that exact address. You can join another
+home later and switch the active household from the Household tab.
+
+Invitation codes are currently shared manually; clickable app links and automatic invitation email
+are not available yet. Set your language, appearance, accessibility and notification choices in
+Settings. The tutorial can be skipped on first use and replayed later from Settings.
 
 Never forward a private invite link unless the household administrator intended it to be shared. Report an invitation you do not recognise.
 

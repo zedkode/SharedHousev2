@@ -6,6 +6,10 @@ export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export const HOUSEHOLD_CYCLE_TYPES = ['weekly', 'fourteen_day', 'calendar_month'] as const;
 export type HouseholdCycleType = (typeof HOUSEHOLD_CYCLE_TYPES)[number];
 
+export const HOUSEHOLD_INVITATION_ROLES = ['admin', 'member', 'read_only'] as const;
+export type HouseholdInvitationRole = (typeof HOUSEHOLD_INVITATION_ROLES)[number];
+export type HouseholdInvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+
 export const CALENDAR_EVENT_TYPES = [
   'household',
   'maintenance',
@@ -63,6 +67,10 @@ export interface RegistrationAccepted {
   readonly developmentVerificationCode?: string;
 }
 
+export interface ResendEmailVerificationRequest {
+  readonly email: string;
+}
+
 export interface VerifyEmailRequest {
   readonly email: string;
   readonly code: string;
@@ -108,6 +116,38 @@ export interface HouseholdSummary extends HouseholdConfiguration {
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface CreateHouseholdInvitationRequest {
+  readonly role: HouseholdInvitationRole;
+  readonly email?: string | null;
+}
+
+export interface HouseholdInvitationSummary {
+  readonly id: string;
+  readonly householdId: string;
+  readonly householdName: string;
+  readonly role: HouseholdInvitationRole;
+  readonly email: string | null;
+  readonly status: HouseholdInvitationStatus;
+  readonly expiresAt: string;
+  readonly createdAt: string;
+}
+
+export interface HouseholdInvitationCreated extends HouseholdInvitationSummary {
+  readonly token: string;
+}
+
+export interface HouseholdInvitationPreview {
+  readonly householdName: string;
+  readonly role: HouseholdInvitationRole;
+  readonly emailRestricted: boolean;
+  readonly status: 'pending' | 'expired' | 'unavailable';
+  readonly expiresAt: string;
+}
+
+export interface AcceptHouseholdInvitationResponse {
+  readonly household: HouseholdSummary;
 }
 
 export interface CalendarEventConfiguration {

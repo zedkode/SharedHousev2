@@ -4,6 +4,7 @@ import type {
   RefreshSessionRequest,
   RegisterRequest,
   RegistrationAccepted,
+  ResendEmailVerificationRequest,
   SessionResponse,
   SignInRequest,
   VerifyEmailRequest,
@@ -11,6 +12,7 @@ import type {
 
 import { newUuidV7 } from '../common/uuid-v7.js';
 import { readApiEnvironment } from '../config/environment.js';
+import { VerificationEmailCodec } from '../email/verification-email-codec.js';
 import { ApiProblemException, validationProblem } from '../http/api-problem.exception.js';
 import { PasswordService } from '../security/password.service.js';
 import { TokenService } from '../security/token.service.js';
@@ -19,6 +21,7 @@ import { IdentityRepository } from './identity.repository.js';
 const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 const REFRESH_TOKEN_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const VERIFICATION_LIFETIME_MS = 15 * 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 
 @Injectable()
 export class IdentityService {
@@ -26,6 +29,7 @@ export class IdentityService {
     private readonly repository: IdentityRepository,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
+    private readonly verificationEmails: VerificationEmailCodec,
   ) {}
 
   async register(request: RegisterRequest): Promise<RegistrationAccepted> {
@@ -39,6 +43,18 @@ export class IdentityService {
     const occurredAt = new Date();
     const credential = await this.passwords.hashPassword(request.password);
     const verificationCode = this.tokens.createVerificationCode();
+    const verificationChallengeId = newUuidV7(occurredAt.getTime());
+    const verificationExpiresAt = new Date(
+      occurredAt.getTime() + VERIFICATION_LIFETIME_MS,
+    ).toISOString();
+    const verificationEmail = this.verificationEmails.prepare({
+      challengeId: verificationChallengeId,
+      recipientEmail: request.email,
+      locale: request.preferredLocale,
+      code: verificationCode,
+      expiresAt: verificationExpiresAt,
+      occurredAt: occurredAt.toISOString(),
+    });
     const created = await this.repository.createRegistration({
       userId: newUuidV7(occurredAt.getTime()),
       email: request.email,
@@ -47,13 +63,12 @@ export class IdentityService {
       passwordAlgorithm: credential.algorithm,
       passwordSaltBase64: credential.saltBase64,
       passwordHashBase64: credential.hashBase64,
-      verificationChallengeId: newUuidV7(occurredAt.getTime()),
+      verificationChallengeId,
       verificationCodeHash: this.tokens.hash(verificationCode),
-      verificationExpiresAt: new Date(
-        occurredAt.getTime() + VERIFICATION_LIFETIME_MS,
-      ).toISOString(),
+      verificationExpiresAt,
       marketingConsent: request.marketingConsent,
       occurredAt: occurredAt.toISOString(),
+      ...(verificationEmail === undefined ? {} : { verificationEmail }),
     });
     const environment = readApiEnvironment(process.env);
 
@@ -90,6 +105,46 @@ export class IdentityService {
     }
 
     return this.createSession(result.account, request.deviceName ?? 'SharedHouse app');
+  }
+
+  async resendVerification(request: ResendEmailVerificationRequest): Promise<RegistrationAccepted> {
+    const pending = await this.repository.findPendingVerificationAccount(request.email);
+    if (pending === null) {
+      return { verificationRequired: true };
+    }
+
+    const occurredAt = new Date();
+    const verificationCode = this.tokens.createVerificationCode();
+    const verificationChallengeId = newUuidV7(occurredAt.getTime());
+    const verificationExpiresAt = new Date(
+      occurredAt.getTime() + VERIFICATION_LIFETIME_MS,
+    ).toISOString();
+    const verificationEmail = this.verificationEmails.prepare({
+      challengeId: verificationChallengeId,
+      recipientEmail: request.email,
+      locale: pending.preferredLocale,
+      code: verificationCode,
+      expiresAt: verificationExpiresAt,
+      occurredAt: occurredAt.toISOString(),
+    });
+    const replaced = await this.repository.replaceVerificationChallenge({
+      userId: pending.userId,
+      verificationChallengeId,
+      verificationCodeHash: this.tokens.hash(verificationCode),
+      verificationExpiresAt,
+      cooldownBefore: new Date(
+        occurredAt.getTime() - VERIFICATION_RESEND_COOLDOWN_MS,
+      ).toISOString(),
+      occurredAt: occurredAt.toISOString(),
+      ...(verificationEmail === undefined ? {} : { verificationEmail }),
+    });
+    const environment = readApiEnvironment(process.env);
+    return {
+      verificationRequired: true,
+      ...(replaced && environment.exposeDevelopmentVerificationCode
+        ? { developmentVerificationCode: verificationCode }
+        : {}),
+    };
   }
 
   async signIn(request: SignInRequest): Promise<SessionResponse> {

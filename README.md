@@ -25,15 +25,20 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
   no-backup storage and server-side refresh rotation before household data is shown;
 - a tenant-scoped one-off calendar vertical with an interactive Android week/month/quarter/year UI,
   idempotent creation and optimistic edit/delete protection;
+- secure, expiring household invitation codes with email restriction, role-aware creation and
+  revocation, one-time acceptance, and an Android household switcher for multi-home accounts;
 - PostgreSQL-compatible migrations plus persistent embedded PGlite for Docker-free development;
 - synthetic-only local PostgreSQL, Redis and S3-compatible infrastructure definitions;
 - strict TypeScript checks, unit/API tests, dependency auditing and GitHub Actions CI.
 
-The identity, household-configuration and one-off calendar verticals are functional in local
-development, but this is not yet a production MVP. Real email delivery, session-device management,
-recent-authentication, distributed rate limiting, invitations,
-recurring/generated calendar events, ledger, chores, shopping, remote notification delivery, store
-commerce and privacy workflows remain implementation work.
+The identity, household-configuration and one-off calendar verticals are functional. A hardened
+single-VPS deployment profile now provides PostgreSQL, an outbound Cloudflare Tunnel and
+transactional verification email through Resend, with the Android public profile pinned to
+`https://houseapi.dohotstudio.com`. A guarded interactive Linux wizard prepares secrets, validates
+Docker Compose and can deploy, back up and verify the public endpoint. This is not yet a complete
+production MVP: live provider/VPS validation, session-device management, recent-authentication,
+distributed rate limiting, emailed invitation links/App Links, recurring/generated calendar events,
+ledger, chores, shopping, remote notification delivery, store commerce and privacy workflows remain.
 
 ## Local development
 
@@ -71,11 +76,19 @@ verification code only outside production. The Android debug build connects to
 `SHAREDHOUSE_LOCAL_API_BASE_URL` Gradle property when testing against another local host.
 
 The public profile keeps the production application ID `com.sharedhouse.android`, prohibits
-cleartext traffic and requires a deployed HTTPS API. A public testing APK can be built with
-`packagePublicTestingApk -PSHAREDHOUSE_PUBLIC_API_BASE_URL=https://api.example.org`. A production
-APK or Play Store AAB additionally requires the four `SHAREDHOUSE_RELEASE_*` signing environment
-variables documented in `apps/android/README.md`; builds fail closed when the endpoint or signing
-material is absent.
+cleartext traffic and is pinned to `https://houseapi.dohotstudio.com`. A public testing APK can be
+built with `packagePublicTestingApk`. A production APK or Play Store AAB additionally requires the
+four `SHAREDHOUSE_RELEASE_*` signing environment variables documented in `apps/android/README.md`;
+release builds fail closed when the endpoint differs or signing material is absent. Follow the
+VPS, Cloudflare, Resend, backup and release procedure in `infra/production/README.md`.
+
+On a prepared Ubuntu/Debian VPS, the production setup can be driven interactively without placing
+secrets in shell history:
+
+```sh
+chmod +x infra/production/scripts/install-interactive.sh
+./infra/production/scripts/install-interactive.sh
+```
 
 To create the first local account, start the API and install the testing APK. Complete or skip the
 tutorial, choose **Create account**, enter an adult display name, email and a unique password of at
@@ -83,6 +96,12 @@ least 15 characters, accept the required terms, and submit. The development-only
 is displayed on the next screen. Enter it, then create the household by choosing its name, country,
 timezone, currency, week start and billing cycle. These local accounts remain in the development
 database and are not production cloud accounts.
+
+To join an existing home instead, choose **Join with invitation**, paste the private code received
+from its owner/admin, review the safe household preview and confirm. Owners and admins manage codes
+from the Household tab; optional email restriction prevents another signed-in address from using a
+forwarded code. Invitation email delivery and clickable App Links are not implemented yet, so codes
+must currently be shared privately and pasted into the app.
 
 ## Start here
 

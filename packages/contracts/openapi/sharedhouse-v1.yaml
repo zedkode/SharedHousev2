@@ -1,9 +1,11 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.2.0
+  version: 1.3.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
+  - url: https://houseapi.dohotstudio.com
+    description: SharedHouse production API
   - url: http://localhost:3000
     description: Synthetic local development environment
 tags:
@@ -11,6 +13,7 @@ tags:
   - name: Authentication
   - name: Account
   - name: Households
+  - name: Invitations
   - name: Calendar
 paths:
   /v1/health:
@@ -25,6 +28,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServiceHealth'
+  /v1/health/ready:
+    get:
+      operationId: getReadiness
+      summary: Report API and database readiness
+      tags: [Operations]
+      responses:
+        '200':
+          description: The API process and database are ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceHealth'
+        '500':
+          $ref: '#/components/responses/Problem'
   /v1/auth/register:
     post:
       operationId: registerAccount
@@ -68,6 +85,28 @@ paths:
         '400':
           $ref: '#/components/responses/Problem'
         '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/auth/resend-verification:
+    post:
+      operationId: resendEmailVerification
+      summary: Request another single-use email verification code
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendEmailVerificationRequest'
+      responses:
+        '202':
+          description: The request was accepted without disclosing account existence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationAccepted'
+        '400':
           $ref: '#/components/responses/Problem'
         '429':
           $ref: '#/components/responses/Problem'
@@ -258,6 +297,128 @@ paths:
           $ref: '#/components/responses/Problem'
         '428':
           $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listHouseholdInvitations
+      summary: List safe invitation metadata for household administrators
+      tags: [Invitations]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invitations visible to an authorised household administrator.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HouseholdInvitationSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createHouseholdInvitation
+      summary: Create a seven-day single-use household invitation
+      tags: [Invitations]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHouseholdInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created; the secret token is returned only once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdInvitationCreated'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/invitations/{invitationId}:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/InvitationId'
+    delete:
+      operationId: revokeHouseholdInvitation
+      summary: Revoke a pending household invitation idempotently
+      tags: [Invitations]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Invitation revoked or already terminal without acceptance.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/invitations/{invitationToken}:
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    get:
+      operationId: previewHouseholdInvitation
+      summary: Preview safe household invitation metadata
+      tags: [Invitations]
+      responses:
+        '200':
+          description: Safe invitation preview without the restricted email address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdInvitationPreview'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /v1/invitations/{invitationToken}/accept:
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      operationId: acceptHouseholdInvitation
+      summary: Accept a single-use invitation as the authenticated account
+      tags: [Invitations]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invitation accepted or safely replayed by the accepting account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptHouseholdInvitationResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /v1/households/{householdId}/calendar-events:
     parameters:
       - $ref: '#/components/parameters/HouseholdId'
@@ -434,6 +595,21 @@ components:
       schema:
         type: string
         format: uuid
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InvitationToken:
+      name: invitationToken
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^sh_inv_[A-Za-z0-9_-]{43}$'
+        writeOnly: true
   responses:
     Problem:
       description: Request failed with a safe problem-details response.
@@ -575,6 +751,15 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+    ResendEmailVerificationRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
     SignInRequest:
       type: object
       additionalProperties: false
@@ -680,6 +865,87 @@ components:
             updatedAt:
               type: string
               format: date-time
+    CreateHouseholdInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [admin, member, read_only]
+        email:
+          type: [string, 'null']
+          format: email
+          maxLength: 254
+          description: Optional account-email restriction. Never exposed by public preview.
+    HouseholdInvitationSummary:
+      type: object
+      additionalProperties: false
+      required: [id, householdId, householdName, role, email, status, expiresAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        householdId:
+          type: string
+          format: uuid
+        householdName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          type: string
+          enum: [admin, member, read_only]
+        email:
+          type: [string, 'null']
+          format: email
+        status:
+          type: string
+          enum: [pending, accepted, revoked, expired]
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    HouseholdInvitationCreated:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/HouseholdInvitationSummary'
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              pattern: '^sh_inv_[A-Za-z0-9_-]{43}$'
+              writeOnly: true
+    HouseholdInvitationPreview:
+      type: object
+      additionalProperties: false
+      required: [householdName, role, emailRestricted, status, expiresAt]
+      properties:
+        householdName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          type: string
+          enum: [admin, member, read_only]
+        emailRestricted:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, expired, unavailable]
+        expiresAt:
+          type: string
+          format: date-time
+    AcceptHouseholdInvitationResponse:
+      type: object
+      additionalProperties: false
+      required: [household]
+      properties:
+        household:
+          $ref: '#/components/schemas/HouseholdSummary'
     CalendarEventConfiguration:
       type: object
       additionalProperties: false

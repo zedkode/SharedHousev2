@@ -69,7 +69,18 @@ fun UiMessage.localized(): String = stringResource(
         UiMessage.HouseholdLoadFailed -> R.string.error_household_load
         UiMessage.HouseholdVersionConflict -> R.string.error_household_version_conflict
         UiMessage.HouseholdReloaded -> R.string.notice_household_reloaded
+        UiMessage.InvitationTokenInvalid -> R.string.error_invitation_token
+        UiMessage.InvitationNotFound -> R.string.error_invitation_not_found
+        UiMessage.InvitationExpired -> R.string.error_invitation_expired
+        UiMessage.InvitationUnavailable -> R.string.error_invitation_unavailable
+        UiMessage.InvitationEmailMismatch -> R.string.error_invitation_email_mismatch
+        UiMessage.InvitationManageForbidden -> R.string.error_invitation_manage_forbidden
+        UiMessage.InvitationRoleForbidden -> R.string.error_invitation_role_forbidden
+        UiMessage.InvitationCreated -> R.string.notice_invitation_created
+        UiMessage.InvitationAccepted -> R.string.notice_invitation_accepted
+        UiMessage.InvitationRevoked -> R.string.notice_invitation_revoked
         UiMessage.RegistrationAccepted -> R.string.notice_registration_accepted
+        UiMessage.VerificationCodeSent -> R.string.notice_verification_code_sent
         UiMessage.SignedOut -> R.string.notice_signed_out
         UiMessage.SessionRevocationUnconfirmed -> R.string.notice_session_revocation_unconfirmed
     },

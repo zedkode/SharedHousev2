@@ -48,4 +48,15 @@ describe('GET /v1/health', () => {
 
     expect(Number.isNaN(Date.parse(body.checkedAt))).toBe(false);
   });
+
+  it('reports database readiness separately from process liveness', async () => {
+    const server = app.getHttpServer() as unknown as Server;
+    await request(server)
+      .get('/v1/health/ready')
+      .expect('Content-Type', /json/u)
+      .expect(200)
+      .expect(({ body }: { body: unknown }) => {
+        expect(body).toMatchObject({ status: 'ok', service: 'api', apiVersion: 'v1' });
+      });
+  });
 });

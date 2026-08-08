@@ -17,9 +17,11 @@ import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
+import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.FieldViolationDto
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.RegisterPayload
+import com.sharedhouse.network.ResendVerificationPayload
 import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
@@ -486,6 +488,36 @@ class SharedHouseViewModel(
         }
     }
 
+    fun resendVerification() {
+        val snapshot = _uiState.value
+        if (snapshot.isSubmitting || snapshot.isRestoringSession) return
+        val email = snapshot.auth.email.trim()
+        if (email.isEmpty()) return
+
+        submit {
+            when (
+                val result = gateway.resendVerification(
+                    ResendVerificationPayload(email = email),
+                )
+            ) {
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            error = null,
+                            notice = UiMessage.VerificationCodeSent,
+                            correlationId = null,
+                            developmentVerificationCode =
+                                result.value.developmentVerificationCode,
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> showFailure(result)
+            }
+        }
+    }
+
     fun signIn() {
         val snapshot = _uiState.value
         if (snapshot.isSubmitting || snapshot.isRestoringSession) return
@@ -516,9 +548,24 @@ class SharedHouseViewModel(
         submit { loadHouseholds() }
     }
 
+    fun openCreateHousehold() {
+        if (_uiState.value.isSubmitting) return
+        _uiState.update {
+            it.copy(
+                route = AppRoute.HouseholdSetup,
+                household = it.household.copy(name = ""),
+                householdEditorMode = HouseholdEditorMode.Create,
+                error = null,
+                notice = null,
+                fieldErrors = emptyMap(),
+                correlationId = null,
+            )
+        }
+    }
+
     fun openHouseholdEditor() {
         val selected = _uiState.value.selectedHousehold ?: return
-        if (_uiState.value.isSubmitting) return
+        if (_uiState.value.isSubmitting || selected.role !in setOf("owner", "admin")) return
         householdCreationIdempotencyKey = null
         _uiState.update {
             it.copy(
@@ -534,10 +581,14 @@ class SharedHouseViewModel(
     }
 
     fun closeHouseholdEditor() {
-        if (_uiState.value.isSubmitting || _uiState.value.selectedHousehold === null) return
+        if (_uiState.value.isSubmitting) return
         _uiState.update {
             it.copy(
-                route = AppRoute.Home,
+                route = if (it.selectedHousehold === null) {
+                    AppRoute.HouseholdChoice
+                } else {
+                    AppRoute.Home
+                },
                 error = null,
                 notice = null,
                 fieldErrors = emptyMap(),
@@ -647,6 +698,301 @@ class SharedHouseViewModel(
                 }
 
                 is ApiResult.Failure -> showFailure(result)
+            }
+        }
+    }
+
+    fun openInvitationJoin() {
+        if (_uiState.value.isSubmitting || session === null) return
+        _uiState.update {
+            it.copy(
+                route = AppRoute.InvitationJoin,
+                invitation = InvitationUiState(),
+                error = null,
+                notice = null,
+                fieldErrors = emptyMap(),
+                correlationId = null,
+            )
+        }
+    }
+
+    fun updateInvitationToken(value: String) {
+        _uiState.update {
+            it.copy(
+                invitation = it.invitation.copy(
+                    tokenInput = value.trim().take(64),
+                    preview = null,
+                ),
+                error = null,
+                fieldErrors = it.fieldErrors - FormField.InvitationToken,
+                correlationId = null,
+            )
+        }
+    }
+
+    fun previewInvitation() {
+        val token = _uiState.value.invitation.tokenInput.trim()
+        if (_uiState.value.isSubmitting) return
+        if (!INVITATION_TOKEN.matches(token)) {
+            _uiState.update {
+                it.copy(
+                    fieldErrors = it.fieldErrors +
+                        (FormField.InvitationToken to UiMessage.InvitationTokenInvalid),
+                    error = null,
+                )
+            }
+            return
+        }
+        submit {
+            when (val result = gateway.previewHouseholdInvitation(token)) {
+                is ApiResult.Success -> {
+                    val availabilityError = when (result.value.status) {
+                        "expired" -> UiMessage.InvitationExpired
+                        "unavailable" -> UiMessage.InvitationUnavailable
+                        else -> null
+                    }
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            invitation = it.invitation.copy(preview = result.value),
+                            error = availabilityError,
+                            correlationId = null,
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> showFailure(result)
+            }
+        }
+    }
+
+    fun acceptInvitation() {
+        val snapshot = _uiState.value
+        val token = snapshot.invitation.tokenInput.trim()
+        if (snapshot.isSubmitting || snapshot.invitation.preview?.status != "pending") return
+        submit {
+            when (
+                val result = authorized { accessToken ->
+                    gateway.acceptHouseholdInvitation(accessToken, token)
+                }
+            ) {
+                is ApiResult.Success -> {
+                    val accepted = result.value.household
+                    _uiState.update {
+                        it.copy(
+                            route = AppRoute.Home,
+                            isSubmitting = false,
+                            households = (it.households + accepted).distinctBy { item -> item.id },
+                            selectedHousehold = accepted,
+                            household = accepted.toForm(),
+                            householdEditorMode = HouseholdEditorMode.Edit,
+                            invitation = InvitationUiState(),
+                            error = null,
+                            notice = UiMessage.InvitationAccepted,
+                            fieldErrors = emptyMap(),
+                            correlationId = null,
+                            calendar = it.calendar.forHousehold(accepted),
+                        )
+                    }
+                    loadCalendar()
+                }
+
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    showFailure(result)
+                }
+            }
+        }
+    }
+
+    fun closeInvitationFlow() {
+        if (_uiState.value.isSubmitting) return
+        _uiState.update {
+            it.copy(
+                route = if (it.selectedHousehold === null) {
+                    AppRoute.HouseholdChoice
+                } else {
+                    AppRoute.Home
+                },
+                invitation = InvitationUiState(),
+                error = null,
+                notice = null,
+                fieldErrors = emptyMap(),
+                correlationId = null,
+            )
+        }
+    }
+
+    fun openInvitationManager() {
+        val household = _uiState.value.selectedHousehold ?: return
+        if (_uiState.value.isSubmitting || household.role !in setOf("owner", "admin")) return
+        _uiState.update {
+            it.copy(
+                route = AppRoute.InvitationManage,
+                invitation = InvitationUiState(),
+                error = null,
+                notice = null,
+                fieldErrors = emptyMap(),
+                correlationId = null,
+            )
+        }
+        loadInvitations()
+    }
+
+    fun selectHousehold(householdId: String) {
+        val snapshot = _uiState.value
+        if (snapshot.isSubmitting || snapshot.selectedHousehold?.id == householdId) return
+        val selected = snapshot.households.firstOrNull { it.id == householdId } ?: return
+        calendarLoadJob?.cancel()
+        _uiState.update {
+            it.copy(
+                route = AppRoute.Home,
+                selectedHousehold = selected,
+                household = selected.toForm(),
+                householdEditorMode = HouseholdEditorMode.Edit,
+                invitation = InvitationUiState(),
+                error = null,
+                notice = null,
+                fieldErrors = emptyMap(),
+                correlationId = null,
+                calendar = it.calendar.forHousehold(selected),
+            )
+        }
+        loadCalendar()
+    }
+
+    fun updateInvitationEmail(value: String) {
+        _uiState.update {
+            it.copy(
+                invitation = it.invitation.copy(email = value.take(254), createdToken = null),
+                error = null,
+                fieldErrors = it.fieldErrors - FormField.InvitationEmail,
+                correlationId = null,
+            )
+        }
+    }
+
+    fun updateInvitationRole(value: String) {
+        if (value !in setOf("admin", "member", "read_only")) return
+        _uiState.update {
+            it.copy(
+                invitation = it.invitation.copy(role = value, createdToken = null),
+                error = null,
+                notice = null,
+                correlationId = null,
+            )
+        }
+    }
+
+    fun createInvitation() {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        if (snapshot.isSubmitting || snapshot.route != AppRoute.InvitationManage) return
+        val email = snapshot.invitation.email.trim()
+        if (email.isNotEmpty() && !EMAIL.matches(email)) {
+            _uiState.update {
+                it.copy(
+                    fieldErrors = it.fieldErrors +
+                        (FormField.InvitationEmail to UiMessage.EmailInvalid),
+                )
+            }
+            return
+        }
+        submit {
+            when (
+                val result = authorized { token ->
+                    gateway.createHouseholdInvitation(
+                        accessToken = token,
+                        householdId = household.id,
+                        payload = CreateHouseholdInvitationPayload(
+                            role = snapshot.invitation.role,
+                            email = email.ifBlank { null },
+                        ),
+                    )
+                }
+            ) {
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            invitation = it.invitation.copy(
+                                email = "",
+                                invitations = listOf(result.value.copy(token = null)) +
+                                    it.invitation.invitations,
+                                createdToken = result.value.token,
+                            ),
+                            error = null,
+                            notice = UiMessage.InvitationCreated,
+                            fieldErrors = emptyMap(),
+                            correlationId = null,
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    showFailure(result)
+                }
+            }
+        }
+    }
+
+    fun revokeInvitation(invitationId: String) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        if (snapshot.isSubmitting || snapshot.route != AppRoute.InvitationManage) return
+        submit {
+            when (
+                val result = authorized { token ->
+                    gateway.revokeHouseholdInvitation(token, household.id, invitationId)
+                }
+            ) {
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            invitation = it.invitation.copy(
+                                invitations = it.invitation.invitations.map { invitation ->
+                                    if (invitation.id == invitationId) {
+                                        invitation.copy(status = "revoked")
+                                    } else {
+                                        invitation
+                                    }
+                                },
+                                createdToken = null,
+                            ),
+                            error = null,
+                            notice = UiMessage.InvitationRevoked,
+                            correlationId = null,
+                        )
+                    }
+                }
+
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    showFailure(result)
+                }
+            }
+        }
+    }
+
+    private fun loadInvitations() {
+        val household = _uiState.value.selectedHousehold ?: return
+        submit {
+            when (
+                val result = authorized { token ->
+                    gateway.listHouseholdInvitations(token, household.id)
+                }
+            ) {
+                is ApiResult.Success -> _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        invitation = it.invitation.copy(invitations = result.value),
+                        error = null,
+                        correlationId = null,
+                    )
+                }
+
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    showFailure(result)
+                }
             }
         }
     }
@@ -810,7 +1156,7 @@ class SharedHouseViewModel(
                 val selected = active.firstOrNull()
                 _uiState.update {
                     it.copy(
-                        route = if (active.isEmpty()) AppRoute.HouseholdSetup else AppRoute.Home,
+                        route = if (active.isEmpty()) AppRoute.HouseholdChoice else AppRoute.Home,
                         households = active,
                         selectedHousehold = selected,
                         household = selected?.toForm() ?: it.household,
@@ -920,6 +1266,13 @@ class SharedHouseViewModel(
         "SESSION_INVALID" -> UiMessage.SessionExpired
         "IDEMPOTENCY_KEY_REUSED" -> UiMessage.IdempotencyKeyReused
         "HOUSEHOLD_VERSION_CONFLICT" -> UiMessage.HouseholdVersionConflict
+        "INVITATION_NOT_FOUND" -> UiMessage.InvitationNotFound
+        "INVITATION_EXPIRED" -> UiMessage.InvitationExpired
+        "INVITATION_UNAVAILABLE", "INVITATION_HOUSEHOLD_UNAVAILABLE" ->
+            UiMessage.InvitationUnavailable
+        "INVITATION_EMAIL_MISMATCH" -> UiMessage.InvitationEmailMismatch
+        "INVITATION_MANAGE_FORBIDDEN" -> UiMessage.InvitationManageForbidden
+        "INVITATION_ROLE_DELEGATION_FORBIDDEN" -> UiMessage.InvitationRoleForbidden
         "VALIDATION_FAILED" -> UiMessage.RequestInvalid
         "RATE_LIMITED" -> UiMessage.RateLimited
         "NETWORK_UNAVAILABLE" -> UiMessage.NetworkUnavailable
@@ -965,6 +1318,7 @@ class SharedHouseViewModel(
                 notice = null,
                 fieldErrors = emptyMap(),
                 calendar = CalendarUiState(),
+                invitation = InvitationUiState(),
             )
         }
     }
@@ -1117,5 +1471,7 @@ class SharedHouseViewModel(
 
     private companion object {
         val CALENDAR_WRITER_ROLES = setOf("owner", "admin", "member")
+        val INVITATION_TOKEN = Regex("^sh_inv_[A-Za-z0-9_-]{43}$")
+        val EMAIL = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
     }
 }

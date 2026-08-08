@@ -20,8 +20,8 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
   authentication, dashboard, calendar, household and settings surfaces use the expanded Material 3
   product theme; the full cross-platform component catalogue remains.
 - [in progress] Native navigation and responsive layouts. The Android account/household gate is
-  followed by a phone navigation bar or large-screen navigation rail; physical device-size and
-  foldable validation remain.
+  followed by a phone navigation bar or large-screen navigation rail, and multi-household accounts
+  can switch their active home; physical device-size and foldable validation remain.
 - [in progress] Language detection and English/Romanian resources. The Android vertical has parity;
   remaining platforms and content still require coverage.
 - [in progress] Appearance, accessibility settings and progressive tutorial. System light/dark and
@@ -31,8 +31,10 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 ## EPIC-03 Identity and account security
 
 - [in progress] Registration, verification, sign-in, rotating sessions and devices. The API and
-  Android vertical work locally, and Android now persists/rotates sessions through AES-256-GCM with
-  a non-exportable Keystore key; email delivery, recent-authentication and device management remain.
+  Android vertical work locally and have a production Resend verification path with replacement
+  codes, encrypted transactional outbox, bounded retries and generic enumeration-safe responses.
+  Android persists/rotates sessions through AES-256-GCM with a non-exportable Keystore key;
+  live-provider validation, recent-authentication and device management remain.
 - Profile/avatar and secure media pipeline.
 - Re-authentication, export and deletion request entry points.
 - Admin MFA and policy-based RBAC.
@@ -43,9 +45,12 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
   idempotency and optimistic version checks are implemented.
 - [in progress] Membership roles and owner-transfer invariant. Creation atomically provisions the
   owner membership; role management and transfer remain.
-- Secure invitation creation, preview, acceptance, revocation and deep links.
-- [in progress] Cross-household authorisation test suite. Read isolation is covered; broader
-  mutation, role and invitation coverage remains.
+- [in progress] Secure invitation creation, preview, acceptance, revocation and deep links. Hashed,
+  expiring, single-use and optionally email-restricted codes plus the Android management/join flows
+  are implemented; provider email delivery and Android/iOS App Links remain.
+- [in progress] Cross-household authorisation test suite. Household and invitation reads/mutations,
+  inviter role boundaries, token replay and tenant hiding are covered; broader membership role and
+  owner-transfer coverage remains.
 
 ## EPIC-05 Cycles and recurrence
 

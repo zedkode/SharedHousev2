@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.GroupAdd
+import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
@@ -65,6 +68,9 @@ import java.util.Locale
 fun HouseholdHubScreen(
     model: HouseholdHubUiModel,
     onEditHousehold: () -> Unit,
+    onManageInvitations: () -> Unit,
+    onJoinHousehold: () -> Unit,
+    onSelectHousehold: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGuides: () -> Unit,
     onSignOut: () -> Unit,
@@ -84,6 +90,21 @@ fun HouseholdHubScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item { HouseholdHubHeader(model) }
+            if (model.households.size > 1) {
+                item {
+                    HubSectionTitle(
+                        title = stringResource(R.string.household_switcher_title),
+                        supporting = stringResource(R.string.household_switcher_description),
+                    )
+                }
+                items(
+                    count = model.households.size,
+                    key = { index -> model.households[index].id },
+                ) { index ->
+                    val household = model.households[index]
+                    HouseholdSwitcherCard(household, onSelectHousehold)
+                }
+            }
             item {
                 HubSectionTitle(
                     title = stringResource(R.string.househub_configuration_title),
@@ -100,7 +121,11 @@ fun HouseholdHubScreen(
             }
             item {
                 HouseholdActionPanel(
+                    canManageHousehold = model.householdRole == "owner" ||
+                        model.householdRole == "admin",
                     onEditHousehold = onEditHousehold,
+                    onManageInvitations = onManageInvitations,
+                    onJoinHousehold = onJoinHousehold,
                     onOpenSettings = onOpenSettings,
                     onOpenGuides = onOpenGuides,
                 )
@@ -109,6 +134,48 @@ fun HouseholdHubScreen(
                 AccountPanel(
                     displayName = model.accountDisplayName,
                     onSignOut = onSignOut,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HouseholdSwitcherCard(
+    household: HouseholdOptionUi,
+    onSelect: (String) -> Unit,
+) {
+    Card(
+        onClick = { onSelect(household.id) },
+        enabled = !household.selected,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (household.selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Groups, contentDescription = null)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(household.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    localizedRole(household.role),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (household.selected) {
+                Text(
+                    stringResource(R.string.household_switcher_current),
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -356,7 +423,10 @@ private fun CycleValueRow(label: String, value: String) {
 
 @Composable
 private fun HouseholdActionPanel(
+    canManageHousehold: Boolean,
     onEditHousehold: () -> Unit,
+    onManageInvitations: () -> Unit,
+    onJoinHousehold: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGuides: () -> Unit,
 ) {
@@ -369,10 +439,26 @@ private fun HouseholdActionPanel(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Button(onClick = onEditHousehold, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Edit, contentDescription = null)
+            if (canManageHousehold) {
+                Button(onClick = onEditHousehold, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.househub_edit),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                OutlinedButton(onClick = onManageInvitations, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.GroupAdd, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.invitation_manage_action),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+            OutlinedButton(onClick = onJoinHousehold, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.AutoMirrored.Outlined.Login, contentDescription = null)
                 Text(
-                    text = stringResource(R.string.househub_edit),
+                    text = stringResource(R.string.invitation_join_another_action),
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }

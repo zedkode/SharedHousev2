@@ -61,7 +61,7 @@ jobs:
         run: ./gradlew :shared:domain:jvmTest :shared:network:jvmTest --no-daemon
 
   android:
-    name: Android debug gate
+    name: Android public configuration gate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -84,13 +84,15 @@ jobs:
       - name: Set up and validate Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run Android lint, unit tests and debug assembly
+      - name: Run public Android lint, unit tests and named testing assembly
         run: >-
           ./gradlew
-          :apps:android:app:lintDebug
-          :apps:android:app:testDebugUnitTest
-          :apps:android:app:assembleDebug
+          :apps:android:app:lintPublicDebug
+          :apps:android:app:testPublicDebugUnitTest
+          :apps:android:app:packagePublicTestingApk
           --no-daemon
 
-      - name: Verify debug APK output
-        run: test -s apps/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify named public testing APK output
+        run: >-
+          test -s
+          apps/android/app/build/outputs/apk/testing/SharedHouse-v0.1.0-public-testing-signed.apk

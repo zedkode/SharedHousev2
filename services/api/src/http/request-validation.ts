@@ -1,8 +1,11 @@
 import type {
   CalendarEventConfiguration,
   CalendarEventType,
+  CreateHouseholdInvitationRequest,
   HouseholdConfiguration,
+  HouseholdInvitationRole,
   RefreshSessionRequest,
+  ResendEmailVerificationRequest,
   RegisterRequest,
   SignInRequest,
   SupportedLocale,
@@ -57,6 +60,17 @@ export function parseVerifyEmailRequest(value: unknown): VerifyEmailRequest {
   const deviceName = readOptionalString(body.deviceName, 'deviceName', 1, 80, violations);
   throwIfViolations(violations);
   return { email, code, ...(deviceName === undefined ? {} : { deviceName }) };
+}
+
+export function parseResendEmailVerificationRequest(
+  value: unknown,
+): ResendEmailVerificationRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['email']);
+  const violations: FieldViolation[] = [];
+  const email = readEmail(body.email, 'email', violations);
+  throwIfViolations(violations);
+  return { email };
 }
 
 export function parseSignInRequest(value: unknown): SignInRequest {
@@ -128,6 +142,19 @@ export function parseHouseholdConfiguration(value: unknown): HouseholdConfigurat
     cycleType,
     cycleAnchor,
   };
+}
+
+export function parseCreateHouseholdInvitation(value: unknown): CreateHouseholdInvitationRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['role', 'email']);
+  const violations: FieldViolation[] = [];
+  const role = readInvitationRole(body.role, violations);
+  const email =
+    body.email === undefined || body.email === null || body.email === ''
+      ? null
+      : readEmail(body.email, 'email', violations);
+  throwIfViolations(violations);
+  return { role, email };
 }
 
 export interface CalendarDateRange {
@@ -384,6 +411,17 @@ function readCycleType(
   }
   violations.push({ field: 'cycleType', message: 'Choose a supported billing cycle.' });
   return 'calendar_month';
+}
+
+function readInvitationRole(value: unknown, violations: FieldViolation[]): HouseholdInvitationRole {
+  if (value === 'admin' || value === 'member' || value === 'read_only') {
+    return value;
+  }
+  violations.push({
+    field: 'role',
+    message: 'Choose admin, member, or read_only.',
+  });
+  return 'member';
 }
 
 function readCalendarEventType(value: unknown, violations: FieldViolation[]): CalendarEventType {

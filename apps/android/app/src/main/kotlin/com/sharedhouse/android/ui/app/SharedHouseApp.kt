@@ -1,5 +1,7 @@
 package com.sharedhouse.android.ui.app
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -9,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppPreferencesRepository
 import com.sharedhouse.android.ui.auth.HouseholdGateScreen
+import com.sharedhouse.android.ui.auth.HouseholdChoiceScreen
 import com.sharedhouse.android.ui.auth.RegisterScreen
 import com.sharedhouse.android.ui.auth.SignInScreen
 import com.sharedhouse.android.ui.auth.VerifyEmailScreen
@@ -42,12 +47,16 @@ import com.sharedhouse.android.ui.home.HouseholdDashboardUiModel
 import com.sharedhouse.android.ui.home.HouseholdDestination
 import com.sharedhouse.android.ui.home.HouseholdHubScreen
 import com.sharedhouse.android.ui.home.HouseholdHubUiModel
+import com.sharedhouse.android.ui.home.HouseholdOptionUi
 import com.sharedhouse.android.ui.home.HouseholdNavigationShell
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeature
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeatureScreen
+import com.sharedhouse.android.ui.invitations.InvitationJoinScreen
+import com.sharedhouse.android.ui.invitations.InvitationManagerScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
 import com.sharedhouse.android.ui.settings.SettingsRoute
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 @Composable
 fun SharedHouseApp(
@@ -118,6 +127,7 @@ fun SharedHouseApp(
                 onBack = viewModel::openWelcome,
                 onCodeChange = viewModel::updateVerificationCode,
                 onSubmit = viewModel::verifyEmail,
+                onResend = viewModel::resendVerification,
             )
         }
         composable(AppRoute.SignIn.path) {
@@ -136,6 +146,14 @@ fun SharedHouseApp(
                 onSignOut = viewModel::signOut,
             )
         }
+        composable(AppRoute.HouseholdChoice.path) {
+            HouseholdChoiceScreen(
+                state = state,
+                onCreateHousehold = viewModel::openCreateHousehold,
+                onJoinHousehold = viewModel::openInvitationJoin,
+                onSignOut = viewModel::signOut,
+            )
+        }
         composable(AppRoute.HouseholdSetup.path) {
             HouseholdSetupScreen(
                 state = state,
@@ -150,6 +168,28 @@ fun SharedHouseApp(
                 onBack = viewModel::closeHouseholdEditor,
                 onReload = viewModel::reloadHouseholdEditor,
                 onSignOut = viewModel::signOut,
+            )
+        }
+        composable(AppRoute.InvitationJoin.path) {
+            InvitationJoinScreen(
+                state = state,
+                onBack = viewModel::closeInvitationFlow,
+                onTokenChange = viewModel::updateInvitationToken,
+                onPreview = viewModel::previewInvitation,
+                onAccept = viewModel::acceptInvitation,
+            )
+        }
+        composable(AppRoute.InvitationManage.path) {
+            val context = LocalContext.current
+            InvitationManagerScreen(
+                state = state,
+                canInviteAdmins = state.selectedHousehold?.role == "owner",
+                onBack = viewModel::closeInvitationFlow,
+                onEmailChange = viewModel::updateInvitationEmail,
+                onRoleChange = viewModel::updateInvitationRole,
+                onCreate = viewModel::createInvitation,
+                onShare = { token -> shareInvitation(context, token) },
+                onRevoke = viewModel::revokeInvitation,
             )
         }
         composable(AppRoute.Home.path) {
@@ -177,6 +217,7 @@ private fun AuthenticatedHouseholdExperience(
     preferencesRepository: AppPreferencesRepository,
     onLanguageChanged: (AppLanguage) -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     val household = state.selectedHousehold
     if (household == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -232,7 +273,9 @@ private fun AuthenticatedHouseholdExperience(
                 onOpenLegal = {
                     openArticle(GuideTopic.LEGAL, SecondarySurface.SETTINGS)
                 },
-                onTutorialRequested = {},
+                onTutorialRequested = {
+                    scope.launch { preferencesRepository.showTutorialAgain() }
+                },
                 onLanguageChanged = onLanguageChanged,
             )
 
@@ -305,8 +348,19 @@ private fun AuthenticatedHouseholdExperience(
                         cycleAnchor = household.cycleAnchor,
                         householdRole = household.role,
                         membershipStatus = household.status,
+                        households = state.households.map { option ->
+                            HouseholdOptionUi(
+                                id = option.id,
+                                name = option.name,
+                                role = option.role,
+                                selected = option.id == household.id,
+                            )
+                        },
                     ),
                     onEditHousehold = viewModel::openHouseholdEditor,
+                    onManageInvitations = viewModel::openInvitationManager,
+                    onJoinHousehold = viewModel::openInvitationJoin,
+                    onSelectHousehold = viewModel::selectHousehold,
                     onOpenSettings = { openSecondary(SecondarySurface.SETTINGS) },
                     onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
                     onSignOut = viewModel::signOut,
@@ -314,6 +368,17 @@ private fun AuthenticatedHouseholdExperience(
             }
         }
     }
+}
+
+private fun shareInvitation(context: Context, token: String) {
+    val text = context.getString(R.string.invitation_share_message, token)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(
+        Intent.createChooser(intent, context.getString(R.string.invitation_share_action)),
+    )
 }
 
 private fun com.sharedhouse.android.ui.calendar.CalendarUiState.toDashboardCalendar():

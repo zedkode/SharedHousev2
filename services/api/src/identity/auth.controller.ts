@@ -6,6 +6,7 @@ import type { Request } from 'express';
 import {
   parseRefreshRequest,
   parseRegisterRequest,
+  parseResendEmailVerificationRequest,
   parseSignInRequest,
   parseVerifyEmailRequest,
 } from '../http/request-validation.js';
@@ -22,7 +23,7 @@ export class AuthController {
   @HttpCode(202)
   @Header('Cache-Control', 'no-store')
   @Header('Pragma', 'no-cache')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })
   async register(@Body() body: unknown): Promise<RegistrationAccepted> {
     return this.identity.register(parseRegisterRequest(body));
   }
@@ -34,6 +35,15 @@ export class AuthController {
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   async verifyEmail(@Body() body: unknown): Promise<SessionResponse> {
     return this.identity.verifyEmail(parseVerifyEmailRequest(body));
+  }
+
+  @Post('resend-verification')
+  @HttpCode(202)
+  @Header('Cache-Control', 'no-store')
+  @Header('Pragma', 'no-cache')
+  @Throttle({ default: { limit: 3, ttl: 15 * 60_000 } })
+  async resendVerification(@Body() body: unknown): Promise<RegistrationAccepted> {
+    return this.identity.resendVerification(parseResendEmailVerificationRequest(body));
   }
 
   @Post('sign-in')

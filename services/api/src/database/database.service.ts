@@ -26,7 +26,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy, SqlExecut
       this.database = database;
       this.executor = new PGliteExecutor(database);
     } else {
-      const database = new Pool({ connectionString: environment.databaseUrl });
+      const database = new Pool({
+        connectionString: environment.databaseUrl,
+        ...(environment.databasePassword === null
+          ? {}
+          : { password: environment.databasePassword }),
+      });
       await database.query('SELECT 1');
       this.database = database;
       this.executor = new PgExecutor(database);

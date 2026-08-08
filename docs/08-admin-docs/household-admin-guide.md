@@ -20,7 +20,15 @@ Avoid adding a complete street address unless a later feature genuinely requires
 
 ## 3. Invite members
 
-Create a link with intended role and expiry. Share it privately. Revoke unused links when no longer needed. Review membership after everyone joins; use **Member** for normal tenants and grant admin rights only when operationally necessary.
+Open the Household tab and choose **Manage invitations**. Select the intended role and, when the code
+is for one person, restrict it to their email address. The code expires after seven days and becomes
+unusable after one successful acceptance. Share it through a private channel and revoke unused codes
+when they are no longer needed.
+
+Owners can invite admins, members or read-only participants. Admins can invite members or read-only
+participants but cannot delegate admin access. Use **Member** for normal tenants and grant admin
+rights only when operationally necessary. The current release shares pasteable codes manually; do
+not promise that the app emailed the recipient.
 
 ## 4. Configure rent and bills
 

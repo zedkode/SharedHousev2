@@ -26,6 +26,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+infra/production/production.env
+infra/production/secrets/*
+!infra/production/secrets/.gitignore
 *.pem
 *.key
 *.p12

@@ -3,6 +3,8 @@ package com.sharedhouse.android.ui.app
 import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.network.AccountDto
 import com.sharedhouse.network.HouseholdDto
+import com.sharedhouse.network.HouseholdInvitationDto
+import com.sharedhouse.network.HouseholdInvitationPreviewDto
 
 enum class AppRoute(val path: String) {
     Welcome("welcome"),
@@ -10,7 +12,10 @@ enum class AppRoute(val path: String) {
     VerifyEmail("verify-email"),
     SignIn("sign-in"),
     HouseholdGate("household-gate"),
+    HouseholdChoice("household-choice"),
     HouseholdSetup("household-setup"),
+    InvitationJoin("invitation-join"),
+    InvitationManage("invitation-manage"),
     Home("home"),
 }
 
@@ -31,6 +36,8 @@ enum class FormField {
     Timezone,
     Currency,
     CycleAnchor,
+    InvitationToken,
+    InvitationEmail,
 }
 
 enum class UiMessage {
@@ -63,7 +70,18 @@ enum class UiMessage {
     HouseholdLoadFailed,
     HouseholdVersionConflict,
     HouseholdReloaded,
+    InvitationTokenInvalid,
+    InvitationNotFound,
+    InvitationExpired,
+    InvitationUnavailable,
+    InvitationEmailMismatch,
+    InvitationManageForbidden,
+    InvitationRoleForbidden,
+    InvitationCreated,
+    InvitationAccepted,
+    InvitationRevoked,
     RegistrationAccepted,
+    VerificationCodeSent,
     SignedOut,
     SessionRevocationUnconfirmed,
 }
@@ -88,6 +106,15 @@ data class HouseholdFormState(
     val cycleAnchor: String,
 )
 
+data class InvitationUiState(
+    val tokenInput: String = "",
+    val email: String = "",
+    val role: String = "member",
+    val preview: HouseholdInvitationPreviewDto? = null,
+    val invitations: List<HouseholdInvitationDto> = emptyList(),
+    val createdToken: String? = null,
+)
+
 data class AppUiState(
     val route: AppRoute = AppRoute.Welcome,
     val auth: AuthFormState = AuthFormState(),
@@ -105,4 +132,5 @@ data class AppUiState(
     val selectedHousehold: HouseholdDto? = null,
     val householdEditorMode: HouseholdEditorMode = HouseholdEditorMode.Create,
     val calendar: CalendarUiState = CalendarUiState(),
+    val invitation: InvitationUiState = InvitationUiState(),
 )

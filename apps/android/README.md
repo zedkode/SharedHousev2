@@ -5,7 +5,9 @@ storage, notifications, deep links, billing, photo picking, and accessibility.
 
 The application uses application ID `com.sharedhouse.android`, minimum SDK 26 and target SDK 36.
 Its current functional vertical supports registration, development email verification, sign-in,
-access/refresh rotation, sign-out, household discovery, creation and version-checked editing. The
+access/refresh rotation, sign-out, household discovery, creation and version-checked editing. It also
+supports secure invitation preview/acceptance, owner/admin invitation management and switching among
+multiple joined households. The
 UI uses Navigation Compose and Material 3 with a phone navigation bar or large-screen rail,
 light/dark/dynamic/high-contrast themes, text scaling, a skippable first-run tutorial and matching
 English/Romanian resources. The server-backed calendar offers interactive week, month, quarter and
@@ -20,9 +22,9 @@ Android Keystore key. The atomic ciphertext lives in `noBackupFilesDir`, is boun
 and storage format with authenticated additional data, and is removed on local sign-out or terminal
 session failure. After process death, the saved refresh token is exchanged and replaced before any
 household content is shown; network failures offer an explicit retry without deleting the valid
-credential. Release builds require HTTPS and default to a deliberately invalid API host; release
-identity, endpoint, signing, real email delivery and device-management UI still require deployment
-configuration.
+credential. Public builds use HTTPS and are pinned to `https://houseapi.dohotstudio.com`; owner
+signing and a live deployment still require operator-owned secrets and infrastructure.
+Device-management UI is not yet implemented.
 
 Portable rules belong in `shared/`; Android UI and platform integrations stay here. Build and test
 the application with:
@@ -53,21 +55,25 @@ The emulator debug build uses `http://10.0.2.2:3000`. A different local API can 
 5. Create a household and select its country, timezone, settlement currency, week start and billing
    cycle. The dashboard, calendar, guides and settings are then available.
 
+To join an existing household, choose **Join with invitation** after verification, paste the private
+invitation code, check the household and role preview, then confirm. A signed-in user can also join a
+second household from the Household tab and switch the active household there. Codes are currently
+shared manually; email delivery and Android App Links remain a future integration.
+
 The default APK reaches the PC API through the Android Emulator address `10.0.2.2`. For a physical
 phone, rebuild with the PC's LAN address through `SHAREDHOUSE_LOCAL_API_BASE_URL`, keep the phone and
-PC on the same network, and allow the API port through the local firewall. The current account and
-verification flow is development-only; real email delivery and a hosted production API are not yet
-configured.
+PC on the same network, and allow the API port through the local firewall. The local response code
+is development-only. The public account flow sends the code through the configured Resend
+integration and never includes it in an API response.
 
 ## Public profile
 
-The public profile uses the production application ID, requires an HTTPS API, disables cleartext
-traffic and refuses to package when the default invalid endpoint is still present. To make a
-debug-signed APK that tests a deployed public environment:
+The public profile uses the production application ID, requires HTTPS, disables cleartext traffic
+and targets `https://houseapi.dohotstudio.com`. To make a debug-signed APK that tests the deployed
+public environment:
 
 ```powershell
-.\gradlew.bat :apps:android:app:packagePublicTestingApk `
-  -PSHAREDHOUSE_PUBLIC_API_BASE_URL=https://api.example.org
+.\gradlew.bat :apps:android:app:packagePublicTestingApk
 ```
 
 For an owner-signed optimized APK or Play Store AAB, provide the signing material only through the
@@ -75,7 +81,6 @@ current process environment. Do not put these values in `gradle.properties`, sou
 command committed to shell history:
 
 ```powershell
-$env:SHAREDHOUSE_PUBLIC_API_BASE_URL = "https://api.example.org"
 $env:SHAREDHOUSE_RELEASE_STORE_FILE = "C:\secure\sharedhouse-upload.jks"
 $env:SHAREDHOUSE_RELEASE_STORE_PASSWORD = "<from-secret-manager>"
 $env:SHAREDHOUSE_RELEASE_KEY_ALIAS = "<upload-key-alias>"
@@ -87,6 +92,6 @@ $env:SHAREDHOUSE_RELEASE_KEY_PASSWORD = "<from-secret-manager>"
 
 The named outputs are `app/build/outputs/apk/release/SharedHouse-v0.1.0-public-release-signed.apk`
 and `app/build/outputs/bundle/release/SharedHouse-v0.1.0-public-release-signed.aab`. They are created
-only after a real endpoint and complete signing configuration are supplied. Public availability
-also requires deploying the API/database, real email verification, privacy/support endpoints and
+only after complete signing configuration is supplied. Follow `infra/production/README.md` to
+deploy the API/database/tunnel/email path. Public launch also requires privacy/support endpoints and
 store/release review; building an APK by itself does not publish the service.

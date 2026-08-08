@@ -36,6 +36,14 @@ data class HouseholdHubUiModel(
     val cycleAnchor: String,
     val householdRole: String,
     val membershipStatus: String,
+    val households: List<HouseholdOptionUi>,
+)
+
+data class HouseholdOptionUi(
+    val id: String,
+    val name: String,
+    val role: String,
+    val selected: Boolean,
 )
 
 enum class UnavailableHouseholdFeature {

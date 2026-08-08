@@ -1,6 +1,7 @@
 import type { AccountSummary, SupportedLocale } from '@sharedhouse/contracts';
 
 import type { PasswordAlgorithm } from '../security/password.service.js';
+import type { PreparedVerificationEmail } from '../email/verification-email.types.js';
 
 export interface RegistrationRecord {
   readonly userId: string;
@@ -15,6 +16,7 @@ export interface RegistrationRecord {
   readonly verificationExpiresAt: string;
   readonly marketingConsent: boolean;
   readonly occurredAt: string;
+  readonly verificationEmail?: PreparedVerificationEmail;
 }
 
 export interface UserCredentialRecord {
@@ -23,6 +25,21 @@ export interface UserCredentialRecord {
   readonly algorithm: PasswordAlgorithm;
   readonly saltBase64: string;
   readonly hashBase64: string;
+}
+
+export interface PendingVerificationAccount {
+  readonly userId: string;
+  readonly preferredLocale: SupportedLocale;
+}
+
+export interface ReplacementVerificationRecord {
+  readonly userId: string;
+  readonly verificationChallengeId: string;
+  readonly verificationCodeHash: string;
+  readonly verificationExpiresAt: string;
+  readonly cooldownBefore: string;
+  readonly occurredAt: string;
+  readonly verificationEmail?: PreparedVerificationEmail;
 }
 
 export interface AuthenticatedPrincipal {

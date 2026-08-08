@@ -4,6 +4,8 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
+| 2026-08-08 | progress | EPIC-01-04A interactive VPS installation and invitations | `progress/2026-08-08__EPIC-01-04A__interactive-vps-invitations-onboarding.md` | completed implementation slice; live validation pending |
+| 2026-08-08 | progress | EPIC-01-03A production VPS, email and Android stability | `progress/2026-08-08__EPIC-01-03A__production-vps-email-android-stability.md` | completed configuration slice; live rollout pending |
 | 2026-08-08 | progress | EPIC-01-02C Android local and public profiles | `progress/2026-08-08__EPIC-01-02C__android-local-public-profiles.md` | completed configuration slice |
 | 2026-08-08 | progress | EPIC-01-02B Android 3D brand and named testing APK | `progress/2026-08-08__EPIC-01-02B__android-3d-brand-testing-apk.md` | completed slice |
 | 2026-08-08 | progress | EPIC-03-01B Android secure session recovery | `progress/2026-08-08__EPIC-03-01B__android-secure-session-recovery.md` | completed slice |

@@ -3,10 +3,15 @@ package com.sharedhouse.android.ui.app
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
+import com.sharedhouse.network.AcceptHouseholdInvitationDto
+import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
+import com.sharedhouse.network.HouseholdInvitationDto
+import com.sharedhouse.network.HouseholdInvitationPreviewDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
+import com.sharedhouse.network.ResendVerificationPayload
 import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SharedHouseApiClient
 import com.sharedhouse.network.SignInPayload
@@ -16,6 +21,8 @@ interface SharedHouseGateway {
     suspend fun register(payload: RegisterPayload): ApiResult<RegistrationAcceptedDto>
 
     suspend fun verifyEmail(payload: VerifyEmailPayload): ApiResult<SessionDto>
+
+    suspend fun resendVerification(payload: ResendVerificationPayload): ApiResult<RegistrationAcceptedDto>
 
     suspend fun signIn(payload: SignInPayload): ApiResult<SessionDto>
 
@@ -37,6 +44,32 @@ interface SharedHouseGateway {
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ): ApiResult<HouseholdDto>
+
+    suspend fun listHouseholdInvitations(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<List<HouseholdInvitationDto>>
+
+    suspend fun createHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        payload: CreateHouseholdInvitationPayload,
+    ): ApiResult<HouseholdInvitationDto>
+
+    suspend fun previewHouseholdInvitation(
+        token: String,
+    ): ApiResult<HouseholdInvitationPreviewDto>
+
+    suspend fun acceptHouseholdInvitation(
+        accessToken: String,
+        token: String,
+    ): ApiResult<AcceptHouseholdInvitationDto>
+
+    suspend fun revokeHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        invitationId: String,
+    ): ApiResult<Unit>
 
     suspend fun listCalendarEvents(
         accessToken: String,
@@ -75,6 +108,9 @@ class ApiSharedHouseGateway(
 
     override suspend fun verifyEmail(payload: VerifyEmailPayload) = api.verifyEmail(payload)
 
+    override suspend fun resendVerification(payload: ResendVerificationPayload) =
+        api.resendVerification(payload)
+
     override suspend fun signIn(payload: SignInPayload) = api.signIn(payload)
 
     override suspend fun refresh(refreshToken: String) = api.refresh(refreshToken)
@@ -95,6 +131,29 @@ class ApiSharedHouseGateway(
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ) = api.updateHousehold(accessToken, householdId, expectedVersion, configuration)
+
+    override suspend fun listHouseholdInvitations(
+        accessToken: String,
+        householdId: String,
+    ) = api.listHouseholdInvitations(accessToken, householdId)
+
+    override suspend fun createHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        payload: CreateHouseholdInvitationPayload,
+    ) = api.createHouseholdInvitation(accessToken, householdId, payload)
+
+    override suspend fun previewHouseholdInvitation(token: String) =
+        api.previewHouseholdInvitation(token)
+
+    override suspend fun acceptHouseholdInvitation(accessToken: String, token: String) =
+        api.acceptHouseholdInvitation(accessToken, token)
+
+    override suspend fun revokeHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        invitationId: String,
+    ) = api.revokeHouseholdInvitation(accessToken, householdId, invitationId)
 
     override suspend fun listCalendarEvents(
         accessToken: String,

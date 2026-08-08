@@ -29,6 +29,11 @@ data class RegistrationAcceptedDto(
 )
 
 @Serializable
+data class ResendVerificationPayload(
+    val email: String,
+)
+
+@Serializable
 data class VerifyEmailPayload(
     val email: String,
     val code: String,
@@ -82,6 +87,39 @@ data class HouseholdDto(
     val version: Int,
     val createdAt: String,
     val updatedAt: String,
+)
+
+@Serializable
+data class CreateHouseholdInvitationPayload(
+    val role: String,
+    val email: String? = null,
+)
+
+@Serializable
+data class HouseholdInvitationDto(
+    val id: String,
+    val householdId: String,
+    val householdName: String,
+    val role: String,
+    val email: String? = null,
+    val status: String,
+    val expiresAt: String,
+    val createdAt: String,
+    val token: String? = null,
+)
+
+@Serializable
+data class HouseholdInvitationPreviewDto(
+    val householdName: String,
+    val role: String,
+    val emailRestricted: Boolean,
+    val status: String,
+    val expiresAt: String,
+)
+
+@Serializable
+data class AcceptHouseholdInvitationDto(
+    val household: HouseholdDto,
 )
 
 @Serializable

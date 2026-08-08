@@ -12,10 +12,15 @@ import com.sharedhouse.network.AccountDto
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
+import com.sharedhouse.network.AcceptHouseholdInvitationDto
+import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
+import com.sharedhouse.network.HouseholdInvitationDto
+import com.sharedhouse.network.HouseholdInvitationPreviewDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
+import com.sharedhouse.network.ResendVerificationPayload
 import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
@@ -68,6 +73,35 @@ class SharedHouseViewModelTest {
     }
 
     @Test
+    fun `verification screen can request a replacement code without exposing account existence`() =
+        runTest {
+            withMainDispatcher {
+                val fake = FakeGateway().apply {
+                    registerHandler = {
+                        ApiResult.Success(RegistrationAcceptedDto(verificationRequired = true))
+                    }
+                    resendHandler = { payload ->
+                        resendCalls += 1
+                        assertEquals("alex@example.test", payload.email)
+                        ApiResult.Success(RegistrationAcceptedDto(verificationRequired = true))
+                    }
+                }
+                val viewModel = viewModel(fake)
+                runCurrent()
+                validRegistration(viewModel)
+                viewModel.register()
+                advanceUntilIdle()
+
+                viewModel.resendVerification()
+                advanceUntilIdle()
+
+                assertEquals(1, fake.resendCalls)
+                assertEquals(UiMessage.VerificationCodeSent, viewModel.uiState.value.notice)
+                assertEquals(AppRoute.VerifyEmail, viewModel.uiState.value.route)
+            }
+        }
+
+    @Test
     fun `household retry reuses idempotency key and succeeds only on server success`() = runTest {
         withMainDispatcher {
             val fake = FakeGateway().apply {
@@ -86,6 +120,8 @@ class SharedHouseViewModelTest {
             runCurrent()
             signIn(viewModel)
             advanceUntilIdle()
+            assertEquals(AppRoute.HouseholdChoice, viewModel.uiState.value.route)
+            viewModel.openCreateHousehold()
             assertEquals(AppRoute.HouseholdSetup, viewModel.uiState.value.route)
 
             viewModel.updateHouseholdName("Oak House")
@@ -103,6 +139,55 @@ class SharedHouseViewModelTest {
             assertEquals("Oak House", viewModel.uiState.value.selectedHousehold?.name)
         }
     }
+
+    @Test
+    fun `verified account can preview and accept an invitation before creating a household`() =
+        runTest {
+            withMainDispatcher {
+                val invitationToken =
+                    "sh_inv_1234567890123456789012345678901234567890123"
+                val acceptedHousehold = household(role = "member")
+                val fake = FakeGateway().apply {
+                    signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                    listHandler = { ApiResult.Success(emptyList()) }
+                    previewInvitationHandler = { token ->
+                        assertEquals(invitationToken, token)
+                        ApiResult.Success(
+                            HouseholdInvitationPreviewDto(
+                                householdName = "Oak House",
+                                role = "member",
+                                emailRestricted = true,
+                                status = "pending",
+                                expiresAt = "2026-08-15T12:00:00Z",
+                            ),
+                        )
+                    }
+                    acceptInvitationHandler = { accessToken, token ->
+                        assertEquals("access-1", accessToken)
+                        assertEquals(invitationToken, token)
+                        ApiResult.Success(AcceptHouseholdInvitationDto(acceptedHousehold))
+                    }
+                }
+                val viewModel = viewModel(fake)
+                runCurrent()
+                signIn(viewModel)
+                advanceUntilIdle()
+
+                assertEquals(AppRoute.HouseholdChoice, viewModel.uiState.value.route)
+                viewModel.openInvitationJoin()
+                viewModel.updateInvitationToken(invitationToken)
+                viewModel.previewInvitation()
+                advanceUntilIdle()
+                assertEquals("Oak House", viewModel.uiState.value.invitation.preview?.householdName)
+
+                viewModel.acceptInvitation()
+                advanceUntilIdle()
+
+                assertEquals(AppRoute.Home, viewModel.uiState.value.route)
+                assertEquals(acceptedHousehold, viewModel.uiState.value.selectedHousehold)
+                assertEquals(UiMessage.InvitationAccepted, viewModel.uiState.value.notice)
+            }
+        }
 
     @Test
     fun `expired access token refreshes once before household access is accepted`() = runTest {
@@ -448,6 +533,7 @@ private class FakeSessionStore(
 
 private class FakeGateway : SharedHouseGateway {
     var registerCalls = 0
+    var resendCalls = 0
     var refreshCalls = 0
     var signOutCalls = 0
     val createKeys = mutableListOf<String>()
@@ -459,6 +545,10 @@ private class FakeGateway : SharedHouseGateway {
     var verifyHandler: suspend (VerifyEmailPayload) -> ApiResult<SessionDto> = {
         error("Unexpected verify")
     }
+    var resendHandler:
+        suspend (ResendVerificationPayload) -> ApiResult<RegistrationAcceptedDto> = {
+            error("Unexpected resend")
+        }
     var signInHandler: suspend (SignInPayload) -> ApiResult<SessionDto> = {
         error("Unexpected sign in")
     }
@@ -479,6 +569,24 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String, Int, HouseholdConfigurationDto) -> ApiResult<HouseholdDto> = { _, _, _, _ ->
             error("Unexpected update")
         }
+    var listInvitationsHandler:
+        suspend (String, String) -> ApiResult<List<HouseholdInvitationDto>> = { _, _ ->
+            ApiResult.Success(emptyList())
+        }
+    var createInvitationHandler:
+        suspend (String, String, CreateHouseholdInvitationPayload) -> ApiResult<HouseholdInvitationDto> =
+        { _, _, _ -> error("Unexpected invitation create") }
+    var previewInvitationHandler:
+        suspend (String) -> ApiResult<HouseholdInvitationPreviewDto> = {
+            error("Unexpected invitation preview")
+        }
+    var acceptInvitationHandler:
+        suspend (String, String) -> ApiResult<AcceptHouseholdInvitationDto> = { _, _ ->
+            error("Unexpected invitation accept")
+        }
+    var revokeInvitationHandler: suspend (String, String, String) -> ApiResult<Unit> = { _, _, _ ->
+        error("Unexpected invitation revoke")
+    }
     var listCalendarHandler:
         suspend (String, String, String, String) -> ApiResult<List<CalendarEventDto>> = { _, _, _, _ ->
             ApiResult.Success(emptyList())
@@ -496,6 +604,8 @@ private class FakeGateway : SharedHouseGateway {
 
     override suspend fun register(payload: RegisterPayload) = registerHandler(payload)
     override suspend fun verifyEmail(payload: VerifyEmailPayload) = verifyHandler(payload)
+    override suspend fun resendVerification(payload: ResendVerificationPayload) =
+        resendHandler(payload)
     override suspend fun signIn(payload: SignInPayload) = signInHandler(payload)
     override suspend fun refresh(refreshToken: String) = refreshHandler(refreshToken)
     override suspend fun signOut(accessToken: String) = signOutHandler(accessToken)
@@ -512,6 +622,27 @@ private class FakeGateway : SharedHouseGateway {
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ) = updateHandler(accessToken, householdId, expectedVersion, configuration)
+
+    override suspend fun listHouseholdInvitations(accessToken: String, householdId: String) =
+        listInvitationsHandler(accessToken, householdId)
+
+    override suspend fun createHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        payload: CreateHouseholdInvitationPayload,
+    ) = createInvitationHandler(accessToken, householdId, payload)
+
+    override suspend fun previewHouseholdInvitation(token: String) =
+        previewInvitationHandler(token)
+
+    override suspend fun acceptHouseholdInvitation(accessToken: String, token: String) =
+        acceptInvitationHandler(accessToken, token)
+
+    override suspend fun revokeHouseholdInvitation(
+        accessToken: String,
+        householdId: String,
+        invitationId: String,
+    ) = revokeInvitationHandler(accessToken, householdId, invitationId)
 
     override suspend fun listCalendarEvents(
         accessToken: String,

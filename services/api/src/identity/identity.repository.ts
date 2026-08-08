@@ -5,8 +5,10 @@ import { newUuidV7 } from '../common/uuid-v7.js';
 import { DatabaseService, type SqlExecutor } from '../database/database.service.js';
 import type {
   AuthenticatedPrincipal,
+  PendingVerificationAccount,
   RefreshRotationResult,
   RegistrationRecord,
+  ReplacementVerificationRecord,
   SessionTokenRecord,
   UserCredentialRecord,
   VerificationResult,
@@ -43,6 +45,15 @@ interface SessionRow extends PrincipalRow {
 interface ConsumedRefreshRow {
   readonly session_id: string;
   readonly family_id: string;
+}
+
+interface PendingVerificationRow {
+  readonly id: string;
+  readonly preferred_locale: PendingVerificationAccount['preferredLocale'];
+}
+
+interface ChallengeCreatedAtRow {
+  readonly created_at: Date | string;
 }
 
 @Injectable()
@@ -93,6 +104,7 @@ export class IdentityRepository {
           record.occurredAt,
         ],
       );
+      await insertVerificationEmail(transaction, record.verificationEmail);
       await transaction.query(
         `INSERT INTO consent_records (id, user_id, purpose, policy_version, granted, recorded_at)
          VALUES
@@ -115,6 +127,74 @@ export class IdentityRepository {
         targetId: record.userId,
         occurredAt: record.occurredAt,
       });
+      return true;
+    });
+  }
+
+  async findPendingVerificationAccount(email: string): Promise<PendingVerificationAccount | null> {
+    const rows = await this.database.query<PendingVerificationRow>(
+      `SELECT id, preferred_locale
+       FROM users
+       WHERE email_normalized = $1 AND status = 'pending_verification'
+       LIMIT 1`,
+      [email],
+    );
+    const row = rows[0];
+    return row === undefined ? null : { userId: row.id, preferredLocale: row.preferred_locale };
+  }
+
+  async replaceVerificationChallenge(record: ReplacementVerificationRecord): Promise<boolean> {
+    return this.database.transaction(async (transaction) => {
+      const users = await transaction.query<{ readonly id: string }>(
+        `SELECT id
+         FROM users
+         WHERE id = $1 AND status = 'pending_verification'
+         FOR UPDATE`,
+        [record.userId],
+      );
+      if (users.length === 0) return false;
+
+      const latest = await transaction.query<ChallengeCreatedAtRow>(
+        `SELECT created_at
+         FROM email_verification_challenges
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [record.userId],
+      );
+      const latestCreatedAt = latest[0]?.created_at;
+      if (
+        latestCreatedAt !== undefined &&
+        new Date(latestCreatedAt).getTime() > Date.parse(record.cooldownBefore)
+      ) {
+        return false;
+      }
+
+      await transaction.query(
+        `UPDATE email_verification_challenges
+         SET consumed_at = COALESCE(consumed_at, $2)
+         WHERE user_id = $1 AND consumed_at IS NULL`,
+        [record.userId, record.occurredAt],
+      );
+      await transaction.query(
+        `INSERT INTO email_verification_challenges (
+           id, user_id, code_hash, expires_at, created_at
+         ) VALUES ($1, $2, $3, $4, $5)`,
+        [
+          record.verificationChallengeId,
+          record.userId,
+          record.verificationCodeHash,
+          record.verificationExpiresAt,
+          record.occurredAt,
+        ],
+      );
+      await insertVerificationEmail(transaction, record.verificationEmail);
+      await transaction.query(
+        `INSERT INTO audit_events (
+           id, actor_user_id, action, target_type, target_id, outcome, occurred_at
+         ) VALUES ($1, NULL, 'identity.email_verification_resent', 'user', $2, 'success', $3)`,
+        [newUuidV7(), record.userId, record.occurredAt],
+      );
       return true;
     });
   }
@@ -406,6 +486,31 @@ async function insertAudit(
       input.targetType,
       input.targetId,
       input.occurredAt,
+    ],
+  );
+}
+
+async function insertVerificationEmail(
+  transaction: SqlExecutor,
+  email: RegistrationRecord['verificationEmail'],
+): Promise<void> {
+  if (email === undefined) return;
+  await transaction.query(
+    `INSERT INTO verification_email_outbox (
+       id, challenge_id, recipient_email, locale, code_ciphertext_base64,
+       code_iv_base64, code_auth_tag_base64, expires_at, available_at,
+       created_at, updated_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $9)`,
+    [
+      email.outboxId,
+      email.challengeId,
+      email.recipientEmail,
+      email.locale,
+      email.codeCiphertextBase64,
+      email.codeIvBase64,
+      email.codeAuthTagBase64,
+      email.expiresAt,
+      email.occurredAt,
     ],
   );
 }

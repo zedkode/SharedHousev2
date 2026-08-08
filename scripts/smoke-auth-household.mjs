@@ -14,6 +14,7 @@ const port = await findAvailablePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 const stamp = Date.now();
 const email = `runtime-smoke-${stamp}@example.test`;
+const memberEmail = `runtime-smoke-member-${stamp}@example.test`;
 const password = 'A synthetic runtime smoke passphrase 2026';
 let apiProcess = null;
 
@@ -61,6 +62,13 @@ try {
     },
   });
   const householdId = readString(createdHousehold, 'id');
+  const invitation = await request(`/v1/households/${householdId}/invitations`, {
+    method: 'POST',
+    expectedStatus: 201,
+    accessToken: initialAccessToken,
+    body: { role: 'member', email: memberEmail },
+  });
+  const invitationToken = readString(invitation, 'token');
   const calendarEndpoint = `/v1/households/${householdId}/calendar-events`;
   const createdEvent = await request(calendarEndpoint, {
     method: 'POST',
@@ -108,6 +116,39 @@ try {
   }
   if (household.id !== householdId) {
     throw new Error('Persisted household identifier changed after restart.');
+  }
+
+  const memberRegistration = await request('/v1/auth/register', {
+    method: 'POST',
+    expectedStatus: 202,
+    body: {
+      email: memberEmail,
+      password,
+      displayName: 'Runtime Smoke Member',
+      preferredLocale: 'en',
+      ageConfirmed: true,
+      termsAccepted: true,
+      marketingConsent: false,
+    },
+  });
+  const memberSession = await request('/v1/auth/verify-email', {
+    method: 'POST',
+    expectedStatus: 200,
+    body: {
+      email: memberEmail,
+      code: readString(memberRegistration, 'developmentVerificationCode'),
+      deviceName: 'Invitation persistence smoke',
+    },
+  });
+  const memberAccessToken = readString(memberSession, 'accessToken');
+  const acceptedInvitation = await request(`/v1/invitations/${invitationToken}/accept`, {
+    method: 'POST',
+    expectedStatus: 200,
+    accessToken: memberAccessToken,
+  });
+  const acceptedHousehold = readObject(acceptedInvitation, 'household');
+  if (acceptedHousehold.id !== householdId || acceptedHousehold.role !== 'member') {
+    throw new Error('Persisted invitation did not create the expected member access.');
   }
 
   const persistedEvents = await request(`${calendarEndpoint}?from=2026-08-01&to=2026-08-31`, {
@@ -161,6 +202,7 @@ try {
         householdVersion: household.version,
         calendarEventPersistedAfterRestart: true,
         calendarEventUpdatedAndDeleted: true,
+        invitationPersistedAndAccepted: true,
         dataDirectory,
       },
       null,

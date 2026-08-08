@@ -15,6 +15,10 @@ export class TokenService {
     return randomInt(0, 100_000_000).toString().padStart(8, '0');
   }
 
+  createInvitationToken(): string {
+    return `sh_inv_${randomBytes(32).toString('base64url')}`;
+  }
+
   hash(value: string): string {
     return createHash('sha256').update(value, 'utf8').digest('hex');
   }

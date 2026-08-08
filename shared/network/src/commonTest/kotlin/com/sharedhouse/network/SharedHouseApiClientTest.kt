@@ -64,6 +64,36 @@ class SharedHouseApiClientTest {
     }
 
     @Test
+    fun resendVerificationUsesGenericEmailOnlyRequest() = runBlocking {
+        val payload = ResendVerificationPayload(email = "owner@example.test")
+        val engine = MockEngine { request ->
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("/v1/auth/resend-verification", request.url.encodedPath)
+            assertEquals(
+                payload,
+                json.decodeFromString<ResendVerificationPayload>(
+                    request.body.toByteArray().decodeToString(),
+                ),
+            )
+            respond(
+                content = """{"verificationRequired":true}""",
+                status = HttpStatusCode.Accepted,
+                headers = JsonResponseHeaders,
+            )
+        }
+        val api = apiClient(engine)
+
+        try {
+            assertEquals(
+                ApiResult.Success(RegistrationAcceptedDto(verificationRequired = true)),
+                api.resendVerification(payload),
+            )
+        } finally {
+            api.close()
+        }
+    }
+
+    @Test
     fun householdWritesSendAuthenticationConcurrencyAndIdempotencyHeaders() = runBlocking {
         val configuration = HouseholdConfigurationDto(
             name = "Casa Verde",
@@ -241,6 +271,114 @@ class SharedHouseApiClientTest {
                     eventId = "event-1",
                     expectedVersion = 2,
                 ),
+            )
+            assertEquals(4, requestCount)
+        } finally {
+            api.close()
+        }
+    }
+
+    @Test
+    fun invitationFlowKeepsSecretOnlyInCreateAndPathRequests() = runBlocking {
+        val invitationToken = "sh_inv_1234567890123456789012345678901234567890123"
+        val invitationResponse = """
+            {
+              "id":"invitation-1",
+              "householdId":"household-1",
+              "householdName":"Casa Verde",
+              "role":"member",
+              "email":"member@example.test",
+              "status":"pending",
+              "expiresAt":"2026-08-15T10:00:00.000Z",
+              "createdAt":"2026-08-08T10:00:00.000Z",
+              "token":"$invitationToken"
+            }
+        """.trimIndent()
+        var requestCount = 0
+        val engine = MockEngine { request ->
+            requestCount += 1
+            when (requestCount) {
+                1 -> {
+                    assertEquals(HttpMethod.Post, request.method)
+                    assertEquals(
+                        "/v1/households/household-1/invitations",
+                        request.url.encodedPath,
+                    )
+                    assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+                    assertEquals(
+                        CreateHouseholdInvitationPayload(
+                            role = "member",
+                            email = "member@example.test",
+                        ),
+                        json.decodeFromString<CreateHouseholdInvitationPayload>(
+                            request.body.toByteArray().decodeToString(),
+                        ),
+                    )
+                    respond(invitationResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+
+                2 -> {
+                    assertEquals(HttpMethod.Get, request.method)
+                    assertEquals("/v1/invitations/$invitationToken", request.url.encodedPath)
+                    assertEquals(null, request.headers[HttpHeaders.Authorization])
+                    respond(
+                        """{"householdName":"Casa Verde","role":"member","emailRestricted":true,"status":"pending","expiresAt":"2026-08-15T10:00:00.000Z"}""",
+                        HttpStatusCode.OK,
+                        JsonResponseHeaders,
+                    )
+                }
+
+                3 -> {
+                    assertEquals(HttpMethod.Post, request.method)
+                    assertEquals(
+                        "/v1/invitations/$invitationToken/accept",
+                        request.url.encodedPath,
+                    )
+                    assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+                    respond(
+                        """{"household":${householdResponse(version = 1)}}""",
+                        HttpStatusCode.OK,
+                        JsonResponseHeaders,
+                    )
+                }
+
+                4 -> {
+                    assertEquals(HttpMethod.Delete, request.method)
+                    assertEquals(
+                        "/v1/households/household-1/invitations/invitation-1",
+                        request.url.encodedPath,
+                    )
+                    assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+                    respond("", HttpStatusCode.NoContent)
+                }
+
+                else -> error("Unexpected request $requestCount")
+            }
+        }
+        val api = apiClient(engine)
+
+        try {
+            val created = assertIs<ApiResult.Success<HouseholdInvitationDto>>(
+                api.createHouseholdInvitation(
+                    accessToken = "access-token",
+                    householdId = "household-1",
+                    payload = CreateHouseholdInvitationPayload(
+                        role = "member",
+                        email = "member@example.test",
+                    ),
+                ),
+            )
+            assertEquals(invitationToken, created.value.token)
+            val preview = assertIs<ApiResult.Success<HouseholdInvitationPreviewDto>>(
+                api.previewHouseholdInvitation(invitationToken),
+            )
+            assertTrue(preview.value.emailRestricted)
+            assertIs<ApiResult.Success<AcceptHouseholdInvitationDto>>(
+                api.acceptHouseholdInvitation("access-token", invitationToken),
+            )
+            assertEquals(
+                ApiResult.Success(Unit),
+                api.revokeHouseholdInvitation("access-token", "household-1", "invitation-1"),
             )
             assertEquals(4, requestCount)
         } finally {

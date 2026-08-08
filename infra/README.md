@@ -21,8 +21,11 @@ npm run dev:api
 
 Development and test environments may return the email verification code in the registration
 response so the end-to-end flow works without an email provider. Production startup rejects that
-behaviour and requires `DATABASE_URL`; real email delivery remains a separate deployment
-integration.
+behaviour and requires PostgreSQL plus Resend email configuration.
+
+The isolated VPS deployment profile, Cloudflare Tunnel route, Resend setup, secrets, backups and
+owner-signed Android release procedure are documented in `production/README.md`. Production files
+never contain committed credentials and expose neither PostgreSQL nor the API on a VPS host port.
 
 Run `npm run smoke:api` from the repository root to build the contracts/API and verify a complete
 register, verify, create-household, process-restart, sign-in and persisted-household sequence using

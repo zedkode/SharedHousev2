@@ -6,12 +6,12 @@ plugins {
 val localApiBaseUrl = providers.gradleProperty("SHAREDHOUSE_LOCAL_API_BASE_URL")
     .orElse(providers.gradleProperty("SHAREDHOUSE_DEBUG_API_BASE_URL"))
     .getOrElse("http://10.0.2.2:3000")
+val productionApiBaseUrl = "https://houseapi.dohotstudio.com"
 val publicApiBaseUrl = providers.gradleProperty("SHAREDHOUSE_PUBLIC_API_BASE_URL")
     .orElse(providers.gradleProperty("SHAREDHOUSE_API_BASE_URL"))
     .orElse(providers.environmentVariable("SHAREDHOUSE_PUBLIC_API_BASE_URL"))
     .orElse(providers.environmentVariable("SHAREDHOUSE_API_BASE_URL"))
-    .getOrElse("https://api.sharedhouse.invalid")
-val publicApiPlaceholder = "https://api.sharedhouse.invalid"
+    .getOrElse(productionApiBaseUrl)
 
 val releaseStoreFilePath = providers.environmentVariable("SHAREDHOUSE_RELEASE_STORE_FILE").orNull
 val releaseStorePassword = providers.environmentVariable("SHAREDHOUSE_RELEASE_STORE_PASSWORD").orNull
@@ -31,11 +31,14 @@ val requestsPublicRelease = requestedTasks.any {
 }
 
 if (requestsPublicVariant) {
-    require(publicApiBaseUrl.startsWith("https://") && publicApiBaseUrl != publicApiPlaceholder) {
+    require(publicApiBaseUrl.startsWith("https://")) {
         "Public Android builds require SHAREDHOUSE_PUBLIC_API_BASE_URL with a deployed HTTPS API."
     }
 }
 if (requestsPublicRelease) {
+    require(publicApiBaseUrl == productionApiBaseUrl) {
+        "Public release builds must use $productionApiBaseUrl."
+    }
     require(hasReleaseSigning) {
         "Public release signing requires SHAREDHOUSE_RELEASE_STORE_FILE, " +
             "SHAREDHOUSE_RELEASE_STORE_PASSWORD, SHAREDHOUSE_RELEASE_KEY_ALIAS and " +
@@ -131,8 +134,7 @@ androidComponents {
     beforeVariants { variantBuilder ->
         val isLocal = variantBuilder.productFlavors.contains("environment" to "local")
         val isPublic = variantBuilder.productFlavors.contains("environment" to "public")
-        val hasPublicEndpoint = publicApiBaseUrl.startsWith("https://") &&
-            publicApiBaseUrl != publicApiPlaceholder
+        val hasPublicEndpoint = publicApiBaseUrl.startsWith("https://")
 
         if (
             (isLocal && variantBuilder.buildType == "release") ||
