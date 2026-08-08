@@ -783,7 +783,17 @@ components:
     AccountExport:
       type: object
       description: Versioned JSON export. Nested records follow the public account, household, calendar, invitation, consent and session contracts.
-      required: [formatVersion, generatedAt, account, households, calendarEvents, consentRecords, sessions, invitations]
+      required:
+        [
+          formatVersion,
+          generatedAt,
+          account,
+          households,
+          calendarEvents,
+          consentRecords,
+          sessions,
+          invitations,
+        ]
       properties:
         formatVersion:
           type: string
