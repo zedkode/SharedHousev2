@@ -172,8 +172,10 @@ debug-signed testing APK.
   location, app interactions, diagnostics, crash/device metadata, installation IDs, advertising or
   app-set IDs and Google's documented purposes. UMP/off-by-default does not remove disclosure duties
   for behaviour present in the binary.
-- **Account deletion:** supply both the in-app path and working external URL. This remains a release
-  blocker because registration exists while deletion is not implemented.
+- **Account deletion:** use the implemented in-app Settings flow and the same-origin public route
+  `https://houseapi.dohotstudio.com/account-deletion`. Verify both against production. A sole-member
+  home closes; a shared home transfers to the longest-standing active admin/member; no eligible
+  successor returns an honest blocker.
 - **Privacy policy:** disclose VPS/API, Resend, Firebase and AdMob purposes, retention, transfers,
   choices and contacts in clear EN/RO.
 - **Financial features:** SharedHouse records/coordinates; it does not hold or transmit household money.
@@ -193,7 +195,8 @@ GDPR, consumer-law or Play compliance.
    the live release candidate.
 6. Firebase receives no email, token, invitation secret, household/calendar content or money value.
 7. Crash-free cold/warm/offline startup and ANR alerting have named responders.
-8. Account deletion/export and the external deletion page work end-to-end.
+8. Account deletion/export and the external deletion page work end-to-end against production, not
+   only the automated local coverage.
 9. Backup restore, rollback, support escalation and rollout pause criteria are rehearsed.
 
 ## 10. Rollout and remaining gates
@@ -204,8 +207,8 @@ or store-policy warnings.
 
 Still required before a full public launch:
 
-- account export/deletion API, UI and public web page;
-- password reset, recent-authentication and device/session management;
+- production evidence for the implemented export/deletion API, Android UI and public web page;
+- password reset and device/session management;
 - FCM device binding, backend delivery, opt-out/deletion and safe payloads;
 - App Check/Play Integrity with backend verification and emergency runbook;
 - Play Billing plus backend purchase verification, RTDN, restore/refund/chargeback tests;

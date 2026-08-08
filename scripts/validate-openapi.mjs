@@ -13,8 +13,8 @@ if (contract?.openapi !== '3.1.0') {
   failures.push('The contract must use OpenAPI 3.1.0.');
 }
 
-if (contract?.info?.version !== '1.3.0') {
-  failures.push('The v1 contract must declare info.version 1.3.0.');
+if (contract?.info?.version !== '1.4.0') {
+  failures.push('The v1 contract must declare info.version 1.4.0.');
 }
 
 for (const requiredPath of [

@@ -36,7 +36,10 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
   Android persists/rotates sessions through AES-256-GCM with a non-exportable Keystore key;
   live-provider validation, recent-authentication and device management remain.
 - Profile/avatar and secure media pipeline.
-- Re-authentication, export and deletion request entry points.
+- [in progress] Re-authentication, export and deletion. Android can save a password-confirmed JSON
+  export and delete the account; deletion revokes sessions, anonymises identity, closes sole-member
+  homes and transfers shared-home ownership to the longest-standing eligible admin/member. Password
+  reset, device management and subscription linkage remain.
 - Admin MFA and policy-based RBAC.
 
 ## EPIC-04 Household and invitations
@@ -131,10 +134,15 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 - [in progress] Data inventory, notices and consent records. Android optional analytics, crash and ad
   choices persist locally and default off; production notices, server consent history and withdrawal
   evidence remain.
-- Export generator and secure delivery.
-- Account/household deletion and retention engine.
+- [in progress] Export generator and secure delivery. The current implemented account, household,
+  calendar, consent, session and invitation data is generated synchronously and saved through the
+  Android system document picker; large future media/ledger exports still require worker storage.
+- [in progress] Account/household deletion and retention engine. Immediate credential removal,
+  session revocation, identity anonymisation, household closure/ownership succession and request
+  evidence are implemented; vendor propagation and future financial retention rules remain.
 - Vendor/transfer records and release evidence.
-- App Privacy/Data safety/deletion web page.
+- [in progress] App Privacy/Data safety/deletion web page. A same-origin, password-confirmed public
+  deletion route exists at `/account-deletion`; privacy/terms/support pages and live deployment remain.
 
 ## EPIC-15 Platform administration
 
