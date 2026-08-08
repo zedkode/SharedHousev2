@@ -279,6 +279,55 @@ class SharedHouseApiClientTest {
     }
 
     @Test
+    fun expenseLedgerSendsAuthenticationIdempotencyAndConcurrencyMetadata() = runBlocking {
+        val configuration = ExpenseConfigurationDto(
+            title = "Weekly groceries",
+            category = "groceries",
+            amount = MoneyDto(1001, "GBP"),
+            dueDate = "2026-08-14",
+            notes = "Shared shop",
+        )
+        var requestCount = 0
+        val engine = MockEngine { request ->
+            requestCount += 1
+            assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+            assertEquals("/v1/households/household-1/expenses" + when (requestCount) {
+                3 -> "/expense-1/approve"
+                4 -> "/expense-1/reverse"
+                else -> ""
+            }, request.url.encodedPath)
+            when (requestCount) {
+                1 -> respond("[$ExpenseResponse]", HttpStatusCode.OK, JsonResponseHeaders)
+                2 -> {
+                    assertEquals("expense-create-0001", request.headers["Idempotency-Key"])
+                    assertEquals(configuration, json.decodeFromString<ExpenseConfigurationDto>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                3 -> {
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    respond(ExpenseResponse.replace("\"version\":1", "\"version\":2"), HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                4 -> {
+                    assertEquals("\"2\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals(ReverseExpensePayload("Duplicate receipt"), json.decodeFromString<ReverseExpensePayload>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseResponse.replace("\"version\":1", "\"version\":3").replace("\"status\":\"approved\"", "\"status\":\"reversed\""), HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                else -> error("Unexpected request")
+            }
+        }
+        val api = apiClient(engine)
+        try {
+            assertIs<ApiResult.Success<List<ExpenseDto>>>(api.listExpenses("access-token", "household-1"))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.createExpense("access-token", "household-1", "expense-create-0001", configuration))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.approveExpense("access-token", "household-1", "expense-1", 1))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.reverseExpense("access-token", "household-1", "expense-1", 2, "Duplicate receipt"))
+            assertEquals(4, requestCount)
+        } finally {
+            api.close()
+        }
+    }
+
+    @Test
     fun invitationFlowKeepsSecretOnlyInCreateAndPathRequests() = runBlocking {
         val invitationToken = "sh_inv_1234567890123456789012345678901234567890123"
         val invitationResponse = """
@@ -552,6 +601,17 @@ class SharedHouseApiClientTest {
               "version":1,
               "createdAt":"2026-08-01T10:00:00.000Z",
               "updatedAt":"2026-08-01T10:00:00.000Z"
+            }
+        """.trimIndent()
+        val ExpenseResponse = """
+            {
+              "id":"expense-1","householdId":"household-1","title":"Weekly groceries",
+              "category":"groceries","amount":{"minorUnits":1001,"currency":"GBP"},
+              "dueDate":"2026-08-14","notes":"Shared shop","splitMethod":"equal","status":"approved",
+              "allocations":[{"membershipId":"membership-1","displayName":"Alex","amount":{"minorUnits":1001,"currency":"GBP"},"roundingAdjustmentMinor":0,"status":"outstanding","isCurrentUser":true}],
+              "currentUserShare":{"minorUnits":1001,"currency":"GBP"},"createdByUserId":"user-1",
+              "canApprove":false,"canReverse":true,"version":1,
+              "createdAt":"2026-08-01T10:00:00.000Z","updatedAt":"2026-08-01T10:00:00.000Z"
             }
         """.trimIndent()
         val JsonResponseHeaders = headersOf(

@@ -54,6 +54,7 @@ import com.sharedhouse.android.ui.home.HouseholdOptionUi
 import com.sharedhouse.android.ui.home.HouseholdNavigationShell
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeature
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeatureScreen
+import com.sharedhouse.android.ui.money.MoneyScreen
 import com.sharedhouse.android.ui.invitations.InvitationJoinScreen
 import com.sharedhouse.android.ui.invitations.InvitationManagerScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
@@ -350,12 +351,9 @@ private fun AuthenticatedHouseholdExperience(
                     onAction = viewModel::handleCalendarAction,
                 )
 
-                HouseholdDestination.MONEY -> UnavailableHouseholdFeatureScreen(
-                    feature = UnavailableHouseholdFeature.MONEY,
-                    onOpenCalendar = {
-                        selectedDestinationName = HouseholdDestination.CALENDAR.name
-                    },
-                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                HouseholdDestination.MONEY -> MoneyScreen(
+                    state = state.money,
+                    onAction = viewModel::handleMoneyAction,
                 )
 
                 HouseholdDestination.TASKS -> UnavailableHouseholdFeatureScreen(

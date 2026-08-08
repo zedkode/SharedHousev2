@@ -14,12 +14,23 @@ import com.sharedhouse.android.ui.calendar.CalendarMutationProblem
 import com.sharedhouse.android.ui.calendar.CalendarPeriodCalculator
 import com.sharedhouse.android.ui.calendar.CalendarUiReducer
 import com.sharedhouse.android.ui.calendar.CalendarUiState
+import com.sharedhouse.android.ui.money.ExpenseAllocationUi
+import com.sharedhouse.android.ui.money.ExpenseDraft
+import com.sharedhouse.android.ui.money.ExpenseStatus
+import com.sharedhouse.android.ui.money.ExpenseUi
+import com.sharedhouse.android.ui.money.MoneyAction
+import com.sharedhouse.android.ui.money.MoneyContent
+import com.sharedhouse.android.ui.money.MoneyProblem
+import com.sharedhouse.android.ui.money.MoneyUiState
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
+import com.sharedhouse.network.ExpenseConfigurationDto
+import com.sharedhouse.network.ExpenseDto
 import com.sharedhouse.network.FieldViolationDto
 import com.sharedhouse.network.HouseholdConfigurationDto
+import com.sharedhouse.network.MoneyDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.ResendVerificationPayload
 import com.sharedhouse.network.SessionDto
@@ -59,6 +70,9 @@ class SharedHouseViewModel(
     private var calendarLoadJob: Job? = null
     private var calendarCreationIdempotencyKey: String? = null
     private var calendarCreationDraft: CalendarEventDraft? = null
+    private var moneyLoadJob: Job? = null
+    private var expenseCreationIdempotencyKey: String? = null
+    private var expenseCreationDraft: ExpenseDraft? = null
 
     init {
         retrySessionRestore()
@@ -176,6 +190,145 @@ class SharedHouseViewModel(
 
     fun refreshCalendar() {
         loadCalendar()
+    }
+
+    fun handleMoneyAction(action: MoneyAction) {
+        if (_uiState.value.route != AppRoute.Home || _uiState.value.selectedHousehold == null) return
+        when (action) {
+            MoneyAction.Retry -> loadMoney()
+            is MoneyAction.Create -> createExpense(action.draft)
+            is MoneyAction.Approve -> transitionExpense(action.expenseId, action.expectedVersion, true, null)
+            is MoneyAction.Reverse -> transitionExpense(action.expenseId, action.expectedVersion, false, action.reason)
+        }
+    }
+
+    fun refreshMoney() = loadMoney()
+
+    private fun loadMoney(preserveProblem: Boolean = false) {
+        val household = _uiState.value.selectedHousehold ?: return
+        moneyLoadJob?.cancel()
+        _uiState.update { state ->
+            state.copy(money = state.money.copy(
+                content = MoneyContent.Loading,
+                problem = if (preserveProblem) state.money.problem else null,
+            ))
+        }
+        moneyLoadJob = viewModelScope.launch {
+            when (val result = authorized { gateway.listExpenses(it, household.id) }) {
+                is ApiResult.Success -> {
+                    if (_uiState.value.selectedHousehold?.id != household.id) return@launch
+                    val mapped = runCatching { result.value.map { expense -> expense.toMoneyUi() } }.getOrNull()
+                    _uiState.update { state ->
+                        state.copy(money = state.money.copy(
+                            content = mapped?.let { MoneyContent.Ready(it.sortedBy(ExpenseUi::dueDate)) }
+                                ?: MoneyContent.Error,
+                            isMutationInProgress = false,
+                            problem = if (mapped == null) MoneyProblem.LOAD_FAILED else state.money.problem,
+                        ))
+                    }
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    _uiState.update { it.copy(money = it.money.copy(
+                        content = MoneyContent.Error,
+                        isMutationInProgress = false,
+                        problem = MoneyProblem.LOAD_FAILED,
+                    )) }
+                }
+            }
+        }
+    }
+
+    private fun createExpense(draft: ExpenseDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        if (!snapshot.money.canCreate || snapshot.money.isMutationInProgress) return
+        val key = (if (expenseCreationDraft == draft) expenseCreationIdempotencyKey else null)
+            ?: UUID.randomUUID().toString().also {
+                expenseCreationDraft = draft
+                expenseCreationIdempotencyKey = it
+            }
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized {
+                gateway.createExpense(
+                    it,
+                    household.id,
+                    key,
+                    ExpenseConfigurationDto(
+                        title = draft.title,
+                        category = draft.category.wireValue,
+                        amount = MoneyDto(draft.amountMinor, household.currency),
+                        dueDate = draft.dueDate.toString(),
+                        notes = draft.notes,
+                    ),
+                )
+            }) {
+                is ApiResult.Success -> {
+                    expenseCreationDraft = null
+                    expenseCreationIdempotencyKey = null
+                    applyExpense(result.value)
+                }
+                is ApiResult.Failure -> finishMoneyMutation(result, MoneyProblem.CREATE_FAILED)
+            }
+        }
+    }
+
+    private fun transitionExpense(id: String, version: Int, approve: Boolean, reason: String?) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val expense = (snapshot.money.content as? MoneyContent.Ready)?.expenses?.firstOrNull { it.id == id }
+            ?: return
+        if (snapshot.money.isMutationInProgress || (approve && !expense.canApprove) || (!approve && !expense.canReverse)) return
+        beginMoneyMutation()
+        viewModelScope.launch {
+            val result = authorized { token ->
+                if (approve) gateway.approveExpense(token, household.id, id, version)
+                else gateway.reverseExpense(token, household.id, id, version, requireNotNull(reason))
+            }
+            when (result) {
+                is ApiResult.Success -> applyExpense(result.value)
+                is ApiResult.Failure -> finishMoneyMutation(
+                    result,
+                    if (approve) MoneyProblem.APPROVE_FAILED else MoneyProblem.REVERSE_FAILED,
+                )
+            }
+        }
+    }
+
+    private fun beginMoneyMutation() = _uiState.update {
+        it.copy(money = it.money.copy(isMutationInProgress = true, problem = null))
+    }
+
+    private fun applyExpense(dto: ExpenseDto) {
+        val mapped = runCatching { dto.toMoneyUi() }.getOrElse {
+            _uiState.update { state -> state.copy(money = state.money.copy(
+                isMutationInProgress = false,
+                problem = MoneyProblem.LOAD_FAILED,
+            )) }
+            loadMoney(true)
+            return
+        }
+        _uiState.update { state ->
+            val current = (state.money.content as? MoneyContent.Ready)?.expenses.orEmpty()
+                .filterNot { it.id == mapped.id }
+                .plus(mapped)
+                .sortedBy(ExpenseUi::dueDate)
+            state.copy(money = state.money.copy(
+                content = MoneyContent.Ready(current),
+                isMutationInProgress = false,
+                problem = null,
+            ))
+        }
+    }
+
+    private fun finishMoneyMutation(failure: ApiResult.Failure, fallback: MoneyProblem) {
+        if (_uiState.value.route == AppRoute.SignIn) return
+        val conflict = failure.status == 412 || failure.code == "EXPENSE_VERSION_CONFLICT"
+        _uiState.update { it.copy(money = it.money.copy(
+            isMutationInProgress = false,
+            problem = if (conflict) MoneyProblem.VERSION_CONFLICT else fallback,
+        )) }
+        if (conflict || failure.code == "EXPENSE_NOT_FOUND") loadMoney(true)
     }
 
     private fun loadCalendar(preserveMutationProblem: Boolean = false) {
@@ -652,9 +805,11 @@ class SharedHouseViewModel(
                             selectedHousehold = result.value,
                             householdEditorMode = HouseholdEditorMode.Edit,
                             calendar = it.calendar.forHousehold(result.value),
+                            money = it.money.forHousehold(result.value),
                         )
                     }
                     loadCalendar()
+                    loadMoney()
                 }
 
                 is ApiResult.Failure -> {
@@ -792,9 +947,11 @@ class SharedHouseViewModel(
                             fieldErrors = emptyMap(),
                             correlationId = null,
                             calendar = it.calendar.forHousehold(accepted),
+                            money = it.money.forHousehold(accepted),
                         )
                     }
                     loadCalendar()
+                    loadMoney()
                 }
 
                 is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
@@ -843,6 +1000,7 @@ class SharedHouseViewModel(
         if (snapshot.isSubmitting || snapshot.selectedHousehold?.id == householdId) return
         val selected = snapshot.households.firstOrNull { it.id == householdId } ?: return
         calendarLoadJob?.cancel()
+        moneyLoadJob?.cancel()
         _uiState.update {
             it.copy(
                 route = AppRoute.Home,
@@ -855,9 +1013,11 @@ class SharedHouseViewModel(
                 fieldErrors = emptyMap(),
                 correlationId = null,
                 calendar = it.calendar.forHousehold(selected),
+                money = it.money.forHousehold(selected),
             )
         }
         loadCalendar()
+        loadMoney()
     }
 
     fun updateInvitationEmail(value: String) {
@@ -1233,9 +1393,15 @@ class SharedHouseViewModel(
                         calendar = selected?.let { household ->
                             it.calendar.forHousehold(household)
                         } ?: CalendarUiState(),
+                        money = selected?.let { household ->
+                            it.money.forHousehold(household)
+                        } ?: MoneyUiState(),
                     )
                 }
-                if (selected != null) loadCalendar()
+                if (selected != null) {
+                    loadCalendar()
+                    loadMoney()
+                }
             }
 
             is ApiResult.Failure -> {
@@ -1361,10 +1527,13 @@ class SharedHouseViewModel(
     private suspend fun expireSession(message: UiMessage) {
         sessionStore.clear()
         calendarLoadJob?.cancel()
+        moneyLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
         calendarCreationIdempotencyKey = null
         calendarCreationDraft = null
+        expenseCreationIdempotencyKey = null
+        expenseCreationDraft = null
         _uiState.update {
             it.copy(
                 route = AppRoute.SignIn,
@@ -1379,6 +1548,7 @@ class SharedHouseViewModel(
                 notice = null,
                 fieldErrors = emptyMap(),
                 calendar = CalendarUiState(),
+                money = MoneyUiState(),
                 invitation = InvitationUiState(),
             )
         }
@@ -1386,10 +1556,13 @@ class SharedHouseViewModel(
 
     private fun clearSession(notice: UiMessage) {
         calendarLoadJob?.cancel()
+        moneyLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
         calendarCreationIdempotencyKey = null
         calendarCreationDraft = null
+        expenseCreationIdempotencyKey = null
+        expenseCreationDraft = null
         _uiState.update {
             AppUiState(
                 route = AppRoute.Welcome,
@@ -1477,6 +1650,49 @@ class SharedHouseViewModel(
         )
     }
 
+    private fun MoneyUiState.forHousehold(
+        household: com.sharedhouse.network.HouseholdDto,
+    ) = MoneyUiState(
+        currency = household.currency,
+        content = MoneyContent.Loading,
+        canCreate = household.role in MONEY_WRITER_ROLES,
+    )
+
+    private fun ExpenseDto.toMoneyUi(): ExpenseUi {
+        val household = requireNotNull(_uiState.value.selectedHousehold)
+        require(householdId == household.id && amount.currency == household.currency)
+        val parsedStatus = when (status) {
+            "proposed" -> ExpenseStatus.PROPOSED
+            "approved" -> ExpenseStatus.APPROVED
+            "reversed" -> ExpenseStatus.REVERSED
+            else -> error("Unknown expense status")
+        }
+        require(splitMethod == "equal" && currentUserShare.currency == amount.currency)
+        return ExpenseUi(
+            id = id,
+            title = title,
+            category = com.sharedhouse.android.ui.money.ExpenseCategory.fromWire(category),
+            amountMinor = amount.minorUnits,
+            currency = amount.currency,
+            dueDate = LocalDate.parse(dueDate),
+            notes = notes,
+            status = parsedStatus,
+            allocations = allocations.map { allocation ->
+                require(allocation.amount.currency == amount.currency)
+                ExpenseAllocationUi(
+                    displayName = allocation.displayName,
+                    amountMinor = allocation.amount.minorUnits,
+                    roundingAdjustmentMinor = allocation.roundingAdjustmentMinor,
+                    isCurrentUser = allocation.isCurrentUser,
+                )
+            },
+            currentUserShareMinor = currentUserShare.minorUnits,
+            canApprove = canApprove,
+            canReverse = canReverse,
+            version = version,
+        )
+    }
+
     private fun CalendarEventDraft.toDto() = CalendarEventConfigurationDto(
         title = title,
         description = description,
@@ -1532,6 +1748,7 @@ class SharedHouseViewModel(
 
     private companion object {
         val CALENDAR_WRITER_ROLES = setOf("owner", "admin", "member")
+        val MONEY_WRITER_ROLES = setOf("owner", "admin", "member")
         val INVITATION_TOKEN = Regex("^sh_inv_[A-Za-z0-9_-]{43}$")
         val EMAIL = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
     }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.4.0
+  version: 1.5.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
   - url: https://houseapi.dohotstudio.com
@@ -15,6 +15,7 @@ tags:
   - name: Households
   - name: Invitations
   - name: Calendar
+  - name: Money
 paths:
   /v1/health:
     get:
@@ -616,6 +617,155 @@ paths:
           $ref: '#/components/responses/Problem'
         '428':
           $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listExpenses
+      summary: List the append-only expense ledger visible to an active household member
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Household expense entries with the caller's authoritative allocation.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createExpense
+      summary: Record an equally split household expense idempotently
+      description: Owner and admin entries are approved immediately. Member entries are proposals. Read-only members cannot create entries.
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseConfiguration'
+      responses:
+        '201':
+          description: Expense recorded, or the original idempotent response replayed.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+    get:
+      operationId: getExpense
+      summary: Get one authoritative household expense entry
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Expense entry and its exact allocation breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+    post:
+      operationId: approveExpense
+      summary: Approve a proposed expense using optimistic locking
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '201':
+          description: Proposal approved without rewriting its financial history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/reverse:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+    post:
+      operationId: reverseExpense
+      summary: Reverse an expense with a reason while preserving append-only history
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReverseExpenseRequest'
+      responses:
+        '201':
+          description: Expense reversed and retained in the ledger.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     bearerAuth:
@@ -647,6 +797,13 @@ components:
         format: uuid
     CalendarEventId:
       name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExpenseId:
+      name: expenseId
       in: path
       required: true
       schema:
