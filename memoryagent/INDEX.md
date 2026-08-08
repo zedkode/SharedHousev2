@@ -4,6 +4,7 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
+| 2026-08-08 | progress | EPIC-03-14B account export and deletion | `progress/2026-08-08__EPIC-03-14B__account-export-deletion.md` | completed current vertical; live rollout pending |
 | 2026-08-08 | progress | EPIC-13-16A Google Play, Firebase, AdMob and privacy foundation | `progress/2026-08-08__EPIC-13-16A__google-play-firebase-admob-privacy.md` | completed implementation slice; provider rollout pending |
 | 2026-08-08 | progress | EPIC-01-04A interactive VPS installation and invitations | `progress/2026-08-08__EPIC-01-04A__interactive-vps-invitations-onboarding.md` | completed implementation slice; live validation pending |
 | 2026-08-08 | progress | EPIC-01-03A production VPS, email and Android stability | `progress/2026-08-08__EPIC-01-03A__production-vps-email-android-stability.md` | completed configuration slice; live rollout pending |
