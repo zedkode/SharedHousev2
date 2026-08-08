@@ -206,6 +206,57 @@ data class CalendarEventDto(
 )
 
 @Serializable
+data class MoneyDto(
+    val minorUnits: Long,
+    val currency: String,
+)
+
+@Serializable
+data class ExpenseConfigurationDto(
+    val title: String,
+    val category: String,
+    val amount: MoneyDto,
+    val dueDate: String,
+    val notes: String? = null,
+)
+
+@Serializable
+data class ExpenseAllocationDto(
+    val membershipId: String,
+    val displayName: String,
+    val amount: MoneyDto,
+    val roundingAdjustmentMinor: Long,
+    val status: String,
+    val isCurrentUser: Boolean,
+)
+
+@Serializable
+data class ExpenseDto(
+    val id: String,
+    val householdId: String,
+    val title: String,
+    val category: String,
+    val amount: MoneyDto,
+    val dueDate: String,
+    val notes: String? = null,
+    val splitMethod: String,
+    val status: String,
+    val allocations: List<ExpenseAllocationDto>,
+    val currentUserShare: MoneyDto,
+    val createdByUserId: String,
+    val canApprove: Boolean,
+    val canReverse: Boolean,
+    val version: Int,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class ReverseExpensePayload(
+    val reason: String,
+)
+
+@Serializable
 data class FieldViolationDto(
     val field: String,
     val message: String,

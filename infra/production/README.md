@@ -10,11 +10,11 @@ behalf. Do not call the service live until every gate in **Final launch checks**
 
 ## Fast interactive installation
 
-After Docker Engine and its Compose plugin are installed on the VPS, the recommended path is one
-interactive command:
+After Docker Engine and its Compose plugin are installed on the VPS, keep the complete installation
+below the SSH user's home directory. The recommended path is one interactive command:
 
 ```sh
-cd /opt/sharedhouse
+cd /home/DEPLOY_USER/sharedhouse
 chmod +x infra/production/scripts/*.sh
 ./infra/production/scripts/install-interactive.sh
 ```
@@ -24,6 +24,30 @@ secrets; generates the PostgreSQL and AES outbox keys; requests the Resend and C
 without echoing them; writes the non-secret environment file; validates Compose; confirms external
 DNS/provider readiness; deploys; optionally creates the first backup; and runs the public health
 gate. It never installs Docker from an unreviewed remote script and never opens API/database ports.
+It refuses to run outside `/home`.
+
+### Safe upload from the Windows workstation
+
+Configure SSH key authentication first. Do not paste a private key or VPS password into this
+repository. From PowerShell, run the read-only inventory before uploading anything:
+
+```powershell
+.\infra\production\scripts\upload-and-install-vps.ps1 `
+  -SshTarget sharedhouse-vps `
+  -SshPort 22 `
+  -IdentityFile $env:USERPROFILE\.ssh\dohot_vps `
+  -RemoteRoot /home/DEPLOY_USER/sharedhouse `
+  -PreflightOnly
+```
+
+Then remove `-PreflightOnly` and type `DEPLOY`. The script packages only Git-visible/non-ignored
+source files, uploads them below `/home`, and starts the secret-safe wizard in the SSH terminal. It
+will not overwrite a non-empty directory unless that directory has its SharedHouse ownership marker.
+The deploy gate snapshots every pre-existing container before and after `docker compose`; it stops
+if an existing container ID, state, start time or restart count changed.
+
+Use `-UploadOnly` to stage the source without starting the installer or creating containers. The
+non-interactive `-ApproveUpload` switch is intended only for an already approved automated run.
 
 At any later time, run the read-only live check:
 
@@ -40,13 +64,15 @@ outbound access. Apply security updates, configure SSH keys, disable password SS
 Docker Engine plus the Compose plugin from Docker's official repository. With Cloudflare Tunnel,
 only SSH needs an inbound firewall rule; do not expose ports 3000 or 5432.
 
-Clone or securely copy the repository to `/opt/sharedhouse`, then run all remaining commands from
+Clone or securely copy the repository to `/home/DEPLOY_USER/sharedhouse`, then run all remaining commands from
 that directory as a dedicated deployment user with Docker access.
 
 ## 2. Cloudflare Tunnel and API hostname
 
-1. In Cloudflare open **Networking > Tunnels** and create a remotely managed tunnel named
-   `sharedhouse-production`.
+1. In Cloudflare open **Networking > Tunnels** and create a new remotely managed tunnel named
+   `sharedhouse-production`. Do not edit, restart, reuse or delete the connector that serves your
+   existing containers. A dedicated tunnel prevents Cloudflare from selecting an old connector that
+   cannot resolve the isolated SharedHouse `api` service.
 2. Add a **Published application** route:
    - Subdomain: `houseapi`
    - Domain: `dohotstudio.com`
@@ -89,7 +115,7 @@ exists.
 ## 4. Create local secret files on the VPS
 
 ```sh
-cd /opt/sharedhouse
+cd /home/DEPLOY_USER/sharedhouse
 cp infra/production/production.env.example infra/production/production.env
 mkdir -p infra/production/secrets
 chmod 700 infra/production/secrets
@@ -114,10 +140,13 @@ printf '\n' >&2
 printf '%s' "$tunnel_token" > infra/production/secrets/cloudflare_tunnel_token
 unset tunnel_token
 
-chmod 600 infra/production/secrets/*
+chgrp 0 infra/production/secrets/*
+chmod 640 infra/production/secrets/*
 ```
 
-Keep offline encrypted backups of `postgres_password` and `email_outbox_key`. Losing the PostgreSQL
+Mode `0640` keeps the files writable only by root while allowing the capability-dropped, non-root
+API and connector to read them through supplemental group 0. Keep offline encrypted backups of
+`postgres_password` and `email_outbox_key`. Losing the PostgreSQL
 password blocks database access; losing the email outbox key makes queued verification messages
 unreadable. Rotate the Resend and Tunnel tokens from their provider dashboards after suspected
 exposure.
@@ -140,9 +169,9 @@ Useful checks:
 
 ```sh
 docker compose --env-file infra/production/production.env \
-  -f infra/production/compose.yaml ps
+  -p sharedhouse-production -f infra/production/compose.yaml ps
 docker compose --env-file infra/production/production.env \
-  -f infra/production/compose.yaml logs --tail=200 api cloudflared
+  -p sharedhouse-production -f infra/production/compose.yaml logs --tail=200 api cloudflared
 curl --fail --show-error https://houseapi.dohotstudio.com/v1/health
 curl --fail --show-error https://houseapi.dohotstudio.com/v1/health/ready
 ```

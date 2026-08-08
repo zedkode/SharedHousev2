@@ -3,6 +3,8 @@ package com.sharedhouse.android.ui.app
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
+import com.sharedhouse.network.ExpenseConfigurationDto
+import com.sharedhouse.network.ExpenseDto
 import com.sharedhouse.network.AcceptHouseholdInvitationDto
 import com.sharedhouse.network.AccountDeletionResultDto
 import com.sharedhouse.network.AccountExportDto
@@ -105,6 +107,30 @@ interface SharedHouseGateway {
         eventId: String,
         expectedVersion: Int,
     ): ApiResult<Unit>
+
+    suspend fun listExpenses(accessToken: String, householdId: String): ApiResult<List<ExpenseDto>>
+
+    suspend fun createExpense(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseConfigurationDto,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun approveExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun reverseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto>
 }
 
 class ApiSharedHouseGateway(
@@ -201,4 +227,29 @@ class ApiSharedHouseGateway(
         eventId: String,
         expectedVersion: Int,
     ) = api.deleteCalendarEvent(accessToken, householdId, eventId, expectedVersion)
+
+    override suspend fun listExpenses(accessToken: String, householdId: String) =
+        api.listExpenses(accessToken, householdId)
+
+    override suspend fun createExpense(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseConfigurationDto,
+    ) = api.createExpense(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun approveExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+    ) = api.approveExpense(accessToken, householdId, expenseId, expectedVersion)
+
+    override suspend fun reverseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = api.reverseExpense(accessToken, householdId, expenseId, expectedVersion, reason)
 }

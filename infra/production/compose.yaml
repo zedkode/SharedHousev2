@@ -1,4 +1,4 @@
-name: sharedhouse-production
+name: ${SHAREDHOUSE_COMPOSE_PROJECT:-sharedhouse-production}
 
 services:
   postgres:
@@ -45,6 +45,10 @@ services:
       - postgres_password
       - resend_api_key
       - email_outbox_key
+    # File-backed Compose secrets retain host ownership. Keep them root:root
+    # 0640 and grant only this non-root process supplemental group 0.
+    group_add:
+      - '0'
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +88,8 @@ services:
       - /run/secrets/cloudflare_tunnel_token
     secrets:
       - cloudflare_tunnel_token
+    group_add:
+      - '0'
     depends_on:
       api:
         condition: service_healthy

@@ -8,8 +8,8 @@ fi
 
 backup_directory=$1
 case "$backup_directory" in
-  /*) ;;
-  *) echo "Backup directory must be absolute." >&2; exit 64 ;;
+  /home/*) ;;
+  *) echo "Safety policy: backup directory must be below /home." >&2; exit 64 ;;
 esac
 
 mkdir -p "$backup_directory"
@@ -23,7 +23,8 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-docker compose -f infra/production/compose.yaml exec -T postgres \
+docker compose -p sharedhouse-production --env-file infra/production/production.env \
+  -f infra/production/compose.yaml exec -T postgres \
   pg_dump --format=custom --no-owner --no-privileges --username=sharedhouse sharedhouse \
   > "$temporary_path"
 

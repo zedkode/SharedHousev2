@@ -9,6 +9,8 @@ environment_template=infra/production/production.env.example
 secret_directory=infra/production/secrets
 compose_file=infra/production/compose.yaml
 production_hostname=houseapi.dohotstudio.com
+compose_project=sharedhouse-production
+compose_working_directory=$(CDPATH= cd -- "$(dirname -- "$compose_file")" && pwd)
 mode=install
 temporary_secret=""
 temporary_environment=""
@@ -89,6 +91,10 @@ write_secret() {
 
 check_platform() {
   [ "$(uname -s)" = Linux ] || fail "The production installer supports Linux VPS hosts only."
+  case "$repository_root" in
+    /home/*) ;;
+    *) fail "Safety policy: install SharedHouse only below /home (current path: $repository_root)." ;;
+  esac
   architecture=$(uname -m)
   case "$architecture" in
     x86_64|aarch64|arm64) ;;
@@ -127,13 +133,27 @@ validate_files() {
     secret_path="$secret_directory/$secret_name"
     [ -s "$secret_path" ] || fail "Missing or empty secret file: $secret_path"
     permissions=$(stat -c '%a' "$secret_path" 2>/dev/null || true)
-    [ "$permissions" = 600 ] || fail "$secret_path must have permission 600, found ${permissions:-unknown}."
+    [ "$permissions" = 640 ] || fail "$secret_path must have permission 640, found ${permissions:-unknown}."
   done
   grep -q '^NODE_ENV=production$' "$environment_file" || fail "NODE_ENV must be production."
+  grep -q "^SHAREDHOUSE_COMPOSE_PROJECT=$compose_project$" "$environment_file" ||
+    fail "SHAREDHOUSE_COMPOSE_PROJECT must be $compose_project."
   grep -q '^AUTH_EXPOSE_DEVELOPMENT_VERIFICATION_CODE=false$' "$environment_file" ||
     fail "Development verification codes must remain disabled."
   grep -q '^EMAIL_PROVIDER=resend$' "$environment_file" || fail "EMAIL_PROVIDER must be resend."
-  docker compose --env-file "$environment_file" -f "$compose_file" config --quiet
+  docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" config --quiet
+}
+
+check_compose_ownership() {
+  existing_ids=$(docker ps -aq --filter "label=com.docker.compose.project=$compose_project")
+  [ -n "$existing_ids" ] || return 0
+
+  for container_id in $existing_ids; do
+    working_directory=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$container_id")
+    [ "$working_directory" = "$compose_working_directory" ] ||
+      fail "Compose project $compose_project is already owned by another directory: $working_directory"
+  done
+  say "Existing SharedHouse containers belong to this installation and may be upgraded."
 }
 
 run_preflight() {
@@ -144,6 +164,7 @@ run_preflight() {
   require_command grep
   require_command stat
   check_docker
+  check_compose_ownership
   check_capacity
   validate_files
   say "Configuration and secret permissions: OK"
@@ -179,6 +200,7 @@ require_command grep
 require_command openssl
 require_command stat
 check_docker
+check_compose_ownership
 check_capacity
 
 mkdir -p "$secret_directory"
@@ -246,6 +268,7 @@ else
   temporary_environment="$environment_file.tmp.$$"
   {
     printf '%s\n' 'NODE_ENV=production'
+    printf 'SHAREDHOUSE_COMPOSE_PROJECT=%s\n' "$compose_project"
     printf '%s\n' 'PORT=3000'
     printf '%s\n' 'DATABASE_URL=postgresql://sharedhouse@postgres:5432/sharedhouse'
     printf '%s\n' 'AUTH_EXPOSE_DEVELOPMENT_VERIFICATION_CODE=false'
@@ -259,7 +282,9 @@ else
   say "Wrote $environment_file without secret values."
 fi
 
-chmod 600 "$secret_directory"/* "$environment_file"
+chgrp 0 "$secret_directory"/*
+chmod 640 "$secret_directory"/*
+chmod 600 "$environment_file"
 validate_files
 say "Compose configuration and secret permissions are valid."
 say ""
@@ -282,12 +307,13 @@ if confirm "Build and deploy SharedHouse now?" yes; then
   ./infra/production/scripts/deploy.sh
   say "Deployment passed its public health gate."
   if confirm "Create the first PostgreSQL backup now?" yes; then
-    printf 'Absolute backup directory [%s]: ' '/var/backups/sharedhouse' >&2
+    default_backup_directory="$(dirname "$repository_root")/sharedhouse-backups"
+    printf 'Absolute backup directory [%s]: ' "$default_backup_directory" >&2
     IFS= read -r backup_directory
-    backup_directory=${backup_directory:-/var/backups/sharedhouse}
+    backup_directory=${backup_directory:-$default_backup_directory}
     case "$backup_directory" in
-      /*) ;;
-      *) fail "The backup directory must be absolute." ;;
+      /home/*) ;;
+      *) fail "Safety policy: the backup directory must be below /home." ;;
     esac
     ./infra/production/scripts/backup.sh "$backup_directory"
   fi

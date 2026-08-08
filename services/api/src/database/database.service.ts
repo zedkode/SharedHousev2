@@ -27,10 +27,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy, SqlExecut
       this.executor = new PGliteExecutor(database);
     } else {
       const database = new Pool({
-        connectionString: environment.databaseUrl,
-        ...(environment.databasePassword === null
-          ? {}
-          : { password: environment.databasePassword }),
+        connectionString: buildPostgresConnectionString(
+          environment.databaseUrl,
+          environment.databasePassword,
+        ),
       });
       await database.query('SELECT 1');
       this.database = database;
@@ -94,6 +94,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy, SqlExecut
 
     return this.executor;
   }
+}
+
+export function buildPostgresConnectionString(
+  databaseUrl: string,
+  databasePassword: string | null,
+): string {
+  if (databasePassword === null) {
+    return databaseUrl;
+  }
+
+  const parsed = new URL(databaseUrl);
+  if (parsed.protocol !== 'postgresql:' && parsed.protocol !== 'postgres:') {
+    throw new Error('DATABASE_URL must use the postgres or postgresql protocol.');
+  }
+  parsed.password = databasePassword;
+  return parsed.toString();
 }
 
 class PGliteExecutor implements SqlExecutor {

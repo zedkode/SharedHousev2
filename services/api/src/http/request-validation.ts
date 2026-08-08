@@ -3,16 +3,20 @@ import type {
   CalendarEventType,
   CreateHouseholdInvitationRequest,
   DeleteAccountRequest,
+  ExpenseCategory,
+  ExpenseConfiguration,
   ExportAccountRequest,
   HouseholdConfiguration,
   HouseholdInvitationRole,
   RefreshSessionRequest,
   ResendEmailVerificationRequest,
   RegisterRequest,
+  ReverseExpenseRequest,
   SignInRequest,
   SupportedLocale,
   VerifyEmailRequest,
 } from '@sharedhouse/contracts';
+import { EXPENSE_CATEGORIES } from '@sharedhouse/contracts';
 
 import { validationProblem, type FieldViolation } from './api-problem.exception.js';
 
@@ -281,6 +285,63 @@ export function parseCalendarDateRange(
   return { from, to };
 }
 
+export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['title', 'category', 'amount', 'dueDate', 'notes']);
+  const violations: FieldViolation[] = [];
+  const title = readString(body.title, 'title', 1, 120, violations, true);
+  const category = readExpenseCategory(body.category, violations);
+  const amountBody =
+    typeof body.amount === 'object' && body.amount !== null && !Array.isArray(body.amount)
+      ? (body.amount as JsonObject)
+      : null;
+  if (amountBody === null) {
+    violations.push({ field: 'amount', message: 'Expected a money object.' });
+  } else {
+    assertAllowedKeys(amountBody, ['minorUnits', 'currency']);
+  }
+  const minorUnits = readRequiredInteger(
+    amountBody?.minorUnits,
+    'amount.minorUnits',
+    1,
+    999_999_999_999,
+    violations,
+  );
+  const currency = readString(
+    amountBody?.currency,
+    'amount.currency',
+    3,
+    3,
+    violations,
+    true,
+  ).toUpperCase();
+  if (!isCurrency(currency)) {
+    violations.push({ field: 'amount.currency', message: 'Use a valid currency code.' });
+  }
+  const dueDate = readString(body.dueDate, 'dueDate', 10, 10, violations, true);
+  if (!isIsoDate(dueDate)) {
+    violations.push({ field: 'dueDate', message: 'Use a valid date in YYYY-MM-DD format.' });
+  }
+  const notes = readOptionalNullableString(body.notes, 'notes', 1, 1000, violations);
+  throwIfViolations(violations);
+  return {
+    title,
+    category,
+    amount: { minorUnits, currency },
+    dueDate,
+    ...(notes === undefined ? {} : { notes }),
+  };
+}
+
+export function parseReverseExpenseRequest(value: unknown): ReverseExpenseRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['reason']);
+  const violations: FieldViolation[] = [];
+  const reason = readString(body.reason, 'reason', 3, 500, violations, true);
+  throwIfViolations(violations);
+  return { reason };
+}
+
 function readObject(value: unknown): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw validationProblem([{ field: '$', message: 'Expected a JSON object.' }]);
@@ -389,6 +450,37 @@ function readOptionalInteger(
     return undefined;
   }
   return value as number;
+}
+
+function readRequiredInteger(
+  value: unknown,
+  field: string,
+  minimum: number,
+  maximum: number,
+  violations: FieldViolation[],
+): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    violations.push({ field, message: 'Expected a whole number.' });
+    return minimum;
+  }
+  if (value < minimum || value > maximum) {
+    violations.push({
+      field,
+      message: `Use a value between ${String(minimum)} and ${String(maximum)}.`,
+    });
+  }
+  return value;
+}
+
+function readExpenseCategory(
+  value: unknown,
+  violations: FieldViolation[],
+): ExpenseCategory {
+  if (typeof value === 'string' && EXPENSE_CATEGORIES.includes(value as ExpenseCategory)) {
+    return value as ExpenseCategory;
+  }
+  violations.push({ field: 'category', message: 'Choose a supported expense category.' });
+  return 'other';
 }
 
 function readDateQuery(

@@ -19,6 +19,21 @@ export const CALENDAR_EVENT_TYPES = [
 ] as const;
 export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
 
+export const EXPENSE_CATEGORIES = [
+  'rent',
+  'electricity',
+  'gas',
+  'water',
+  'internet',
+  'council_tax',
+  'groceries',
+  'household_supplies',
+  'maintenance',
+  'other',
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export type ExpenseStatus = 'proposed' | 'approved' | 'reversed';
+
 export interface ServiceHealth {
   readonly status: 'ok';
   readonly service: 'api' | 'workers';
@@ -228,4 +243,43 @@ export interface CalendarEventSummary {
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+export interface ExpenseConfiguration {
+  readonly title: string;
+  readonly category: ExpenseCategory;
+  readonly amount: Money;
+  readonly dueDate: string;
+  readonly notes?: string | null;
+}
+
+export type CreateExpenseRequest = ExpenseConfiguration;
+
+export interface ExpenseAllocationSummary {
+  readonly membershipId: string;
+  readonly displayName: string;
+  readonly amount: Money;
+  readonly roundingAdjustmentMinor: number;
+  readonly status: 'outstanding';
+  readonly isCurrentUser: boolean;
+}
+
+export interface ExpenseSummary extends ExpenseConfiguration {
+  readonly id: string;
+  readonly householdId: string;
+  readonly notes: string | null;
+  readonly splitMethod: 'equal';
+  readonly status: ExpenseStatus;
+  readonly allocations: readonly ExpenseAllocationSummary[];
+  readonly currentUserShare: Money;
+  readonly createdByUserId: string;
+  readonly canApprove: boolean;
+  readonly canReverse: boolean;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ReverseExpenseRequest {
+  readonly reason: string;
 }

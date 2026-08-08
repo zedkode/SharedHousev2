@@ -259,6 +259,56 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun listExpenses(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<List<ExpenseDto>> = execute {
+        client.get("$baseUrl/v1/households/$householdId/expenses") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun createExpense(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseConfigurationDto,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses") {
+            bearerAuth(accessToken)
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(configuration)
+        }
+    }
+
+    suspend fun approveExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/approve") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+        }
+    }
+
+    suspend fun reverseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/reverse") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            contentType(ContentType.Application.Json)
+            setBody(ReverseExpensePayload(reason))
+        }
+    }
+
     suspend fun close() {
         client.close()
     }
