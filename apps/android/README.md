@@ -20,6 +20,12 @@ channels and a local test notification exist;
 remote push scheduling does not. Unimplemented Money and Tasks areas remain explicit unavailable
 states and never fabricate household activity.
 
+Account privacy actions are real rather than placeholders. **Settings > Trust and transparency** can
+create a password-confirmed JSON export through Android's system document picker or permanently
+delete the account. Deletion revokes sessions, removes password credentials, anonymises the profile,
+closes a sole-member household and transfers a shared household to the longest-standing eligible
+admin/member. The API also serves the public deletion route at `/account-deletion`.
+
 Access and rotating refresh credentials are encrypted with AES-256-GCM using a non-exportable
 Android Keystore key. The atomic ciphertext lives in `noBackupFilesDir`, is bound to the application
 and storage format with authenticated additional data, and is removed on local sign-out or terminal

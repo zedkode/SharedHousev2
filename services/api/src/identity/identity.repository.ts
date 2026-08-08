@@ -68,6 +68,8 @@ interface OwnedHouseholdRow {
   readonly id: string;
   readonly active_member_count: number;
   readonly successor_user_id: string | null;
+  readonly successor_membership_id: string | null;
+  readonly successor_previous_role: 'admin' | 'member' | null;
 }
 
 @Injectable()
@@ -318,11 +320,13 @@ export class IdentityRepository {
         `SELECT h.id,
            (SELECT count(*)::int FROM household_memberships active
             WHERE active.household_id = h.id AND active.status = 'active') AS active_member_count,
-           successor.user_id AS successor_user_id
+           successor.user_id AS successor_user_id,
+           successor.id AS successor_membership_id,
+           successor.role AS successor_previous_role
          FROM households h
          JOIN household_memberships owner_membership ON owner_membership.household_id = h.id
          LEFT JOIN LATERAL (
-           SELECT candidate.user_id
+           SELECT candidate.id, candidate.user_id, candidate.role
            FROM household_memberships candidate
            WHERE candidate.household_id = h.id
              AND candidate.user_id <> $1
@@ -362,10 +366,52 @@ export class IdentityRepository {
       const transferredHouseholdIds = transferred.map((row) => row.id);
       for (const household of transferred) {
         await transaction.query(
+          `INSERT INTO household_membership_role_changes (
+             id, membership_id, household_id, user_id, previous_role, next_role, changed_by, occurred_at
+           ) VALUES ($1, $2, $3, $4, $5, 'owner', $6, $7)`,
+          [
+            newUuidV7(),
+            household.successor_membership_id,
+            household.id,
+            household.successor_user_id,
+            household.successor_previous_role,
+            userId,
+            occurredAt,
+          ],
+        );
+        await transaction.query(
           `UPDATE household_memberships
            SET role = 'owner'
-           WHERE household_id = $1 AND user_id = $2 AND status = 'active'`,
-          [household.id, household.successor_user_id],
+           WHERE id = $1 AND status = 'active'`,
+          [household.successor_membership_id],
+        );
+        await transaction.query(
+          `INSERT INTO audit_events (
+             id, actor_user_id, household_id, action, target_type, target_id, outcome,
+             safe_details, occurred_at
+           ) VALUES ($1, $2, $3, 'household.ownership_transferred_on_account_deletion',
+             'user', $4, 'success', $5::jsonb, $6)`,
+          [
+            newUuidV7(),
+            userId,
+            household.id,
+            household.successor_user_id,
+            JSON.stringify({ previousRole: household.successor_previous_role }),
+            occurredAt,
+          ],
+        );
+        await transaction.query(
+          `INSERT INTO outbox_events (
+             id, event_type, aggregate_type, aggregate_id, household_id, actor_user_id,
+             payload, occurred_at
+           ) VALUES ($1, 'household.ownership_transferred.v1', 'household', $2, $2, $3, $4::jsonb, $5)`,
+          [
+            newUuidV7(),
+            household.id,
+            userId,
+            JSON.stringify({ successorUserId: household.successor_user_id }),
+            occurredAt,
+          ],
         );
       }
       const solelyOwnedHouseholdIds = owned

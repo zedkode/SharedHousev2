@@ -397,6 +397,12 @@ describe('authentication and household vertical slice', () => {
         [readStringProperty(created.body, 'id'), readStringProperty(member, 'account', 'id')],
       );
       expect(successor[0]?.role).toBe('owner');
+      const history = await database.query<{ readonly next_role: string }>(
+        `SELECT next_role FROM household_membership_role_changes
+         WHERE household_id = $1 AND user_id = $2`,
+        [readStringProperty(created.body, 'id'), readStringProperty(member, 'account', 'id')],
+      );
+      expect(history).toEqual([{ next_role: 'owner' }]);
     } finally {
       await isolated.app.close();
     }
