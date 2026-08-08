@@ -216,4 +216,13 @@
     <string name="error_account_owner_transfer">Transfer ownership or remove the other household members before deleting your account.</string>
     <string name="error_recent_authentication">The current password was not accepted. Check it and try again.</string>
     <string name="error_account_deletion">The account could not be deleted. No local success was assumed.</string>
+    <string name="settings_export_account">Export my data</string>
+    <string name="settings_export_account_description">Save a readable JSON copy of your account and current SharedHouse records.</string>
+    <string name="settings_export_account_title">Export account data</string>
+    <string name="settings_export_account_explanation">Confirm your current password. You will then choose a private location for the JSON export.</string>
+    <string name="settings_export_choose_location">Choose save location</string>
+    <string name="notice_account_export_ready">Your protected export is ready to save.</string>
+    <string name="notice_account_export_saved">Account export saved.</string>
+    <string name="error_account_export">The account export could not be created.</string>
+    <string name="error_account_export_save">The export could not be written to the selected location.</string>
 </resources>

@@ -1,6 +1,8 @@
 package com.sharedhouse.android.ui.settings
 
 import androidx.annotation.StringRes
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,10 +19,13 @@ import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
 import com.sharedhouse.android.platform.google.GoogleServicesStatus
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.ui.app.UiMessage
+import com.sharedhouse.network.AccountExportDto
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 data class SettingsNotice(
     @StringRes val messageResource: Int,
@@ -39,6 +44,9 @@ fun SettingsRoute(
     accountError: UiMessage?,
     accountOperationInProgress: Boolean,
     onDeleteAccount: (String) -> Unit,
+    accountExport: AccountExportDto?,
+    onExportAccount: (String) -> Unit,
+    onAccountExportHandled: () -> Unit,
     googleServicesStatus: GoogleServicesStatus,
     onShowAdPrivacyOptions: () -> Unit,
     modifier: Modifier = Modifier,
@@ -48,9 +56,34 @@ fun SettingsRoute(
     val preferences by repository.preferences.collectAsStateWithLifecycle(initialValue = AppPreferences())
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<SettingsNotice?>(null) }
+    var pendingExport by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { destination ->
+        val content = pendingExport
+        pendingExport = null
+        if (destination != null && content != null) {
+            try {
+                context.contentResolver.openOutputStream(destination)?.bufferedWriter()?.use {
+                    it.write(content)
+                } ?: error("Unable to open export destination")
+                notice = SettingsNotice(R.string.notice_account_export_saved)
+            } catch (_: Exception) {
+                notice = SettingsNotice(R.string.error_account_export_save, isError = true)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         SharedHouseNotifications.ensureChannels(context)
+    }
+
+    LaunchedEffect(accountExport) {
+        accountExport?.let { export ->
+            pendingExport = Json { prettyPrint = true }.encodeToString(export)
+            onAccountExportHandled()
+            exportLauncher.launch("SharedHouse-account-export.json")
+        }
     }
 
     fun persist(update: suspend () -> Unit) {
@@ -124,6 +157,7 @@ fun SettingsRoute(
         accountError = accountError,
         accountOperationInProgress = accountOperationInProgress,
         onDeleteAccount = onDeleteAccount,
+        onExportAccount = onExportAccount,
         modifier = modifier,
     )
 }

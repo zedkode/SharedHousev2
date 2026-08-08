@@ -216,4 +216,13 @@
     <string name="error_account_owner_transfer">Transferă proprietatea sau elimină ceilalți membri ai gospodăriei înainte de ștergerea contului.</string>
     <string name="error_recent_authentication">Parola curentă nu a fost acceptată. Verific-o și încearcă din nou.</string>
     <string name="error_account_deletion">Contul nu a putut fi șters. Aplicația nu presupune în mod fals că operația a reușit.</string>
+    <string name="settings_export_account">Exportă datele mele</string>
+    <string name="settings_export_account_description">Salvează o copie JSON ușor de citit a contului și a înregistrărilor SharedHouse curente.</string>
+    <string name="settings_export_account_title">Exportă datele contului</string>
+    <string name="settings_export_account_explanation">Confirmă parola curentă. Apoi vei alege o locație privată pentru exportul JSON.</string>
+    <string name="settings_export_choose_location">Alege locația</string>
+    <string name="notice_account_export_ready">Exportul protejat este pregătit pentru salvare.</string>
+    <string name="notice_account_export_saved">Exportul contului a fost salvat.</string>
+    <string name="error_account_export">Exportul contului nu a putut fi creat.</string>
+    <string name="error_account_export_save">Exportul nu a putut fi scris în locația aleasă.</string>
 </resources>

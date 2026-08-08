@@ -115,6 +115,17 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun exportAccount(
+        accessToken: String,
+        password: String,
+    ): ApiResult<AccountExportDto> = execute {
+        client.post("$baseUrl/v1/account/export") {
+            bearerAuth(accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(ExportAccountPayload(password))
+        }
+    }
+
     suspend fun listHouseholds(accessToken: String): ApiResult<List<HouseholdDto>> = execute {
         client.get("$baseUrl/v1/households") {
             bearerAuth(accessToken)

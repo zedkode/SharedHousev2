@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Language
@@ -116,11 +117,14 @@ fun SettingsScreen(
     accountError: UiMessage?,
     accountOperationInProgress: Boolean,
     onDeleteAccount: (String) -> Unit,
+    onExportAccount: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val notifications = preferences.notifications
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deletionPassword by remember { mutableStateOf("") }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportPassword by remember { mutableStateOf("") }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -471,6 +475,13 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                     NavigationSetting(
+                        icon = Icons.Outlined.Download,
+                        title = R.string.settings_export_account,
+                        description = R.string.settings_export_account_description,
+                        onClick = { showExportDialog = true },
+                    )
+                    HorizontalDivider()
+                    NavigationSetting(
                         icon = Icons.Outlined.AutoAwesome,
                         title = R.string.settings_show_tutorial,
                         description = R.string.settings_show_tutorial_description,
@@ -556,6 +567,44 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showDeleteDialog = false },
+                    enabled = !accountOperationInProgress,
+                ) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!accountOperationInProgress) showExportDialog = false },
+            icon = { Icon(Icons.Outlined.Download, contentDescription = null) },
+            title = { Text(stringResource(R.string.settings_export_account_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.settings_export_account_explanation))
+                    OutlinedTextField(
+                        value = exportPassword,
+                        onValueChange = { exportPassword = it },
+                        label = { Text(stringResource(R.string.settings_current_password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !accountOperationInProgress,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onExportAccount(exportPassword)
+                        exportPassword = ""
+                        showExportDialog = false
+                    },
+                    enabled = exportPassword.isNotBlank() && !accountOperationInProgress,
+                ) { Text(stringResource(R.string.settings_export_choose_location)) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showExportDialog = false },
                     enabled = !accountOperationInProgress,
                 ) { Text(stringResource(R.string.action_cancel)) }
             },

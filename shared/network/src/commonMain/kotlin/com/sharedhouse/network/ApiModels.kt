@@ -74,6 +74,48 @@ data class AccountDeletionResultDto(
 )
 
 @Serializable
+data class ExportAccountPayload(val password: String)
+
+@Serializable
+data class AccountExportConsentDto(
+    val purpose: String,
+    val policyVersion: String,
+    val granted: Boolean,
+    val recordedAt: String,
+)
+
+@Serializable
+data class AccountExportSessionDto(
+    val deviceName: String,
+    val authenticatedAt: String,
+    val lastSeenAt: String,
+    val revokedAt: String? = null,
+)
+
+@Serializable
+data class AccountExportInvitationDto(
+    val id: String,
+    val householdId: String,
+    val role: String,
+    val email: String? = null,
+    val status: String,
+    val expiresAt: String,
+    val createdAt: String,
+)
+
+@Serializable
+data class AccountExportDto(
+    val formatVersion: String,
+    val generatedAt: String,
+    val account: AccountDto,
+    val households: List<HouseholdDto>,
+    val calendarEvents: List<CalendarEventDto>,
+    val consentRecords: List<AccountExportConsentDto>,
+    val sessions: List<AccountExportSessionDto>,
+    val invitations: List<AccountExportInvitationDto>,
+)
+
+@Serializable
 data class HouseholdConfigurationDto(
     val name: String,
     val countryCode: String,

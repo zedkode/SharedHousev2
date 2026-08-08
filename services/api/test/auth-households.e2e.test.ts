@@ -290,6 +290,26 @@ describe('authentication and household vertical slice', () => {
     const householdId = readStringProperty(created.body, 'id');
 
     await request(server)
+      .post('/v1/account/export')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: 'wrong password' })
+      .expect(401);
+    const exported = await request(server)
+      .post('/v1/account/export')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: VALID_PASSWORD })
+      .expect('Cache-Control', 'no-store')
+      .expect('Content-Disposition', /sharedhouse-account-export\.json/u)
+      .expect(200);
+    expect(exported.body).toMatchObject({
+      formatVersion: '1',
+      account: { email: 'delete-owner@example.test' },
+    });
+    expect(exported.body.households).toHaveLength(1);
+    expect(exported.body.consentRecords).toHaveLength(3);
+    expect(exported.body.sessions.length).toBeGreaterThan(0);
+
+    await request(server)
       .delete('/v1/account')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ password: 'wrong password', confirmation: 'DELETE' })

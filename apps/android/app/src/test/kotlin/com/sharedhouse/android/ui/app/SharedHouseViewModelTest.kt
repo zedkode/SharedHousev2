@@ -10,6 +10,7 @@ import com.sharedhouse.android.platform.security.SessionSaveResult
 import com.sharedhouse.android.platform.security.SessionStore
 import com.sharedhouse.network.AccountDto
 import com.sharedhouse.network.AccountDeletionResultDto
+import com.sharedhouse.network.AccountExportDto
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
@@ -588,6 +589,9 @@ private class FakeGateway : SharedHouseGateway {
     var deleteAccountHandler: suspend (String, String) -> ApiResult<AccountDeletionResultDto> = { _, _ ->
         error("Unexpected account deletion")
     }
+    var exportAccountHandler: suspend (String, String) -> ApiResult<AccountExportDto> = { _, _ ->
+        error("Unexpected account export")
+    }
     var listHandler: suspend (String) -> ApiResult<List<HouseholdDto>> = {
         error("Unexpected list")
     }
@@ -641,6 +645,8 @@ private class FakeGateway : SharedHouseGateway {
     override suspend fun signOut(accessToken: String) = signOutHandler(accessToken)
     override suspend fun deleteAccount(accessToken: String, password: String) =
         deleteAccountHandler(accessToken, password)
+    override suspend fun exportAccount(accessToken: String, password: String) =
+        exportAccountHandler(accessToken, password)
     override suspend fun listHouseholds(accessToken: String) = listHandler(accessToken)
     override suspend fun createHousehold(
         accessToken: String,

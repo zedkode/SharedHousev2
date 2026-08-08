@@ -1051,6 +1051,40 @@ class SharedHouseViewModel(
         }
     }
 
+    fun exportAccount(password: String) {
+        if (_uiState.value.isSubmitting || password.isBlank()) return
+        submit {
+            when (val result = authorized { accessToken -> gateway.exportAccount(accessToken, password) }) {
+                is ApiResult.Success -> _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        accountExport = result.value,
+                        notice = UiMessage.AccountExportReady,
+                        error = null,
+                        correlationId = null,
+                    )
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            error = if (result.code == "RECENT_AUTHENTICATION_REQUIRED") {
+                                UiMessage.RecentAuthenticationRequired
+                            } else {
+                                UiMessage.AccountExportFailed
+                            },
+                            correlationId = result.correlationId,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun accountExportHandled() {
+        _uiState.update { it.copy(accountExport = null) }
+    }
+
     private suspend fun restoreSession() {
         when (val stored = sessionStore.load()) {
             SessionLoadResult.Missing -> {

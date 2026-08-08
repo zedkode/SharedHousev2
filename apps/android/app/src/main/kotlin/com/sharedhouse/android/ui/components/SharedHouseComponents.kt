@@ -87,6 +87,8 @@ fun UiMessage.localized(): String = stringResource(
         UiMessage.AccountDeletionOwnerTransferRequired -> R.string.error_account_owner_transfer
         UiMessage.RecentAuthenticationRequired -> R.string.error_recent_authentication
         UiMessage.AccountDeletionFailed -> R.string.error_account_deletion
+        UiMessage.AccountExportReady -> R.string.notice_account_export_ready
+        UiMessage.AccountExportFailed -> R.string.error_account_export
     },
 )
 

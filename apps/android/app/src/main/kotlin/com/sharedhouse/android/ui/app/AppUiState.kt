@@ -2,6 +2,7 @@ package com.sharedhouse.android.ui.app
 
 import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.network.AccountDto
+import com.sharedhouse.network.AccountExportDto
 import com.sharedhouse.network.HouseholdDto
 import com.sharedhouse.network.HouseholdInvitationDto
 import com.sharedhouse.network.HouseholdInvitationPreviewDto
@@ -88,6 +89,8 @@ enum class UiMessage {
     AccountDeletionOwnerTransferRequired,
     RecentAuthenticationRequired,
     AccountDeletionFailed,
+    AccountExportReady,
+    AccountExportFailed,
 }
 
 data class AuthFormState(
@@ -132,6 +135,7 @@ data class AppUiState(
     val correlationId: String? = null,
     val developmentVerificationCode: String? = null,
     val account: AccountDto? = null,
+    val accountExport: AccountExportDto? = null,
     val households: List<HouseholdDto> = emptyList(),
     val selectedHousehold: HouseholdDto? = null,
     val householdEditorMode: HouseholdEditorMode = HouseholdEditorMode.Create,
