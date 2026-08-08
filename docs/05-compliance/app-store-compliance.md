@@ -1,6 +1,6 @@
 # Apple App Store and Google Play Compliance
 
-## 1. Release baseline dated 25 July 2026
+## 1. Release baseline dated 8 August 2026
 
 Store requirements change. Before every release, the release manager verifies the current official Apple and Google documentation and records the result. At this document date, plan builds around the currently required Apple toolchain/SDK and Google target-API deadlines rather than relying on historical requirements.
 
@@ -24,6 +24,14 @@ Store requirements change. Before every release, the release manager verifies th
 - Request only necessary runtime permissions and provide prominent disclosure when collection is not reasonably expected.
 - Meet current target API, billing library and app-bundle/signing requirements.
 - Keep store listing, screenshots, declarations and in-app behaviour consistent.
+
+The Android build contains optional Firebase Analytics, Firebase Crashlytics, Google Mobile Ads and
+UMP integrations. Analytics, crash reporting and ads default to off and are independently controlled
+from the in-app privacy settings; advertising is confined to a labelled Guides banner after UMP
+permits requests. These technical defaults do not replace Data safety disclosure, a lawful-basis
+assessment, a real privacy notice or testing against the exact production binary. Follow the
+[Google Play, Firebase and AdMob production runbook](../09-delivery/google-play-firebase-admob-runbook.md)
+for the evidence and release gates.
 
 ## 4. Store listing
 

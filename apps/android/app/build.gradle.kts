@@ -7,11 +7,40 @@ val localApiBaseUrl = providers.gradleProperty("SHAREDHOUSE_LOCAL_API_BASE_URL")
     .orElse(providers.gradleProperty("SHAREDHOUSE_DEBUG_API_BASE_URL"))
     .getOrElse("http://10.0.2.2:3000")
 val productionApiBaseUrl = "https://houseapi.dohotstudio.com"
+val sampleAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
+val sampleAdMobBannerId = "ca-app-pub-3940256099942544/9214589741"
+val appVersionCode = providers.gradleProperty("SHAREDHOUSE_VERSION_CODE")
+    .orElse(providers.environmentVariable("SHAREDHOUSE_VERSION_CODE"))
+    .getOrElse("1")
+    .toIntOrNull()
+    ?.takeIf { it > 0 }
+    ?: error("SHAREDHOUSE_VERSION_CODE must be a positive integer.")
+val appVersionName = providers.gradleProperty("SHAREDHOUSE_VERSION_NAME")
+    .orElse(providers.environmentVariable("SHAREDHOUSE_VERSION_NAME"))
+    .getOrElse("0.1.0")
+require(appVersionName.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"))) {
+    "SHAREDHOUSE_VERSION_NAME must use semantic version syntax, for example 1.0.0."
+}
 val publicApiBaseUrl = providers.gradleProperty("SHAREDHOUSE_PUBLIC_API_BASE_URL")
     .orElse(providers.gradleProperty("SHAREDHOUSE_API_BASE_URL"))
     .orElse(providers.environmentVariable("SHAREDHOUSE_PUBLIC_API_BASE_URL"))
     .orElse(providers.environmentVariable("SHAREDHOUSE_API_BASE_URL"))
     .getOrElse(productionApiBaseUrl)
+val publicAdMobAppId = providers.gradleProperty("SHAREDHOUSE_ADMOB_APP_ID")
+    .orElse(providers.environmentVariable("SHAREDHOUSE_ADMOB_APP_ID"))
+    .getOrElse(sampleAdMobAppId)
+val publicAdMobBannerId = providers.gradleProperty("SHAREDHOUSE_ADMOB_BANNER_ID")
+    .orElse(providers.environmentVariable("SHAREDHOUSE_ADMOB_BANNER_ID"))
+    .getOrElse(sampleAdMobBannerId)
+val publicFirebaseConfig = listOf(
+    file("src/public/google-services.json"),
+    file("google-services.json"),
+).firstOrNull { it.isFile }
+
+if (publicFirebaseConfig != null) {
+    pluginManager.apply("com.google.gms.google-services")
+    pluginManager.apply("com.google.firebase.crashlytics")
+}
 
 val releaseStoreFilePath = providers.environmentVariable("SHAREDHOUSE_RELEASE_STORE_FILE").orNull
 val releaseStorePassword = providers.environmentVariable("SHAREDHOUSE_RELEASE_STORE_PASSWORD").orNull
@@ -44,6 +73,21 @@ if (requestsPublicRelease) {
             "SHAREDHOUSE_RELEASE_STORE_PASSWORD, SHAREDHOUSE_RELEASE_KEY_ALIAS and " +
             "SHAREDHOUSE_RELEASE_KEY_PASSWORD environment variables."
     }
+    require(publicFirebaseConfig != null) {
+        "Public release builds require apps/android/app/src/public/google-services.json."
+    }
+    require(
+        publicAdMobAppId.matches(Regex("^ca-app-pub-[0-9]{16}~[0-9]{10}$")) &&
+            publicAdMobAppId != sampleAdMobAppId,
+    ) {
+        "Public release builds require a real SHAREDHOUSE_ADMOB_APP_ID, not Google's test ID."
+    }
+    require(
+        publicAdMobBannerId.matches(Regex("^ca-app-pub-[0-9]{16}/[0-9]{10}$")) &&
+            publicAdMobBannerId != sampleAdMobBannerId,
+    ) {
+        "Public release builds require a real SHAREDHOUSE_ADMOB_BANNER_ID, not Google's test ID."
+    }
 }
 
 android {
@@ -54,8 +98,8 @@ android {
         applicationId = "com.sharedhouse.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -100,12 +144,26 @@ android {
             versionNameSuffix = "-local"
             buildConfigField("String", "API_BASE_URL", "\"$localApiBaseUrl\"")
             manifestPlaceholders["usesCleartextTraffic"] = "true"
+            manifestPlaceholders["adMobAppId"] = sampleAdMobAppId
+            buildConfigField("String", "ADMOB_APP_ID", "\"$sampleAdMobAppId\"")
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"$sampleAdMobBannerId\"")
+            buildConfigField("boolean", "ADMOB_TEST_MODE", "true")
+            buildConfigField("boolean", "FIREBASE_CONFIGURED", "false")
             resValue("string", "app_name", "SharedHouse Local")
         }
         create("public") {
             dimension = "environment"
             buildConfigField("String", "API_BASE_URL", "\"$publicApiBaseUrl\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"
+            manifestPlaceholders["adMobAppId"] = publicAdMobAppId
+            buildConfigField("String", "ADMOB_APP_ID", "\"$publicAdMobAppId\"")
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"$publicAdMobBannerId\"")
+            buildConfigField(
+                "boolean",
+                "ADMOB_TEST_MODE",
+                (publicAdMobAppId == sampleAdMobAppId || publicAdMobBannerId == sampleAdMobBannerId).toString(),
+            )
+            buildConfigField("boolean", "FIREBASE_CONFIGURED", (publicFirebaseConfig != null).toString())
             resValue("string", "app_name", "SharedHouse")
         }
     }
@@ -158,6 +216,11 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.google.mobile.ads)
+    implementation(libs.google.ump)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -187,7 +250,7 @@ tasks.register<Copy>("packageLocalTestingApk") {
 
     from(layout.buildDirectory.file("outputs/apk/local/debug/app-local-debug.apk"))
     into(layout.buildDirectory.dir("outputs/apk/testing"))
-    rename("app-local-debug.apk", "SharedHouse-v0.1.0-local-testing-signed.apk")
+    rename("app-local-debug.apk", "SharedHouse-v$appVersionName-local-testing-signed.apk")
 }
 
 tasks.register<Copy>("packagePublicTestingApk") {
@@ -197,7 +260,7 @@ tasks.register<Copy>("packagePublicTestingApk") {
 
     from(layout.buildDirectory.file("outputs/apk/public/debug/app-public-debug.apk"))
     into(layout.buildDirectory.dir("outputs/apk/testing"))
-    rename("app-public-debug.apk", "SharedHouse-v0.1.0-public-testing-signed.apk")
+    rename("app-public-debug.apk", "SharedHouse-v$appVersionName-public-testing-signed.apk")
 }
 
 tasks.register<Copy>("packagePublicReleaseApk") {
@@ -207,7 +270,7 @@ tasks.register<Copy>("packagePublicReleaseApk") {
 
     from(layout.buildDirectory.file("outputs/apk/public/release/app-public-release.apk"))
     into(layout.buildDirectory.dir("outputs/apk/release"))
-    rename("app-public-release.apk", "SharedHouse-v0.1.0-public-release-signed.apk")
+    rename("app-public-release.apk", "SharedHouse-v$appVersionName-public-release-signed.apk")
 }
 
 tasks.register<Copy>("copyPublicReleaseBundle") {
@@ -217,5 +280,5 @@ tasks.register<Copy>("copyPublicReleaseBundle") {
 
     from(layout.buildDirectory.file("outputs/bundle/publicRelease/app-public-release.aab"))
     into(layout.buildDirectory.dir("outputs/bundle/release"))
-    rename("app-public-release.aab", "SharedHouse-v0.1.0-public-release-signed.aab")
+    rename("app-public-release.aab", "SharedHouse-v$appVersionName-public-release-signed.aab")
 }

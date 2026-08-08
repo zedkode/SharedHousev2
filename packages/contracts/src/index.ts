@@ -52,6 +52,55 @@ export interface AccountSummary {
   readonly preferredLocale: SupportedLocale;
 }
 
+export interface DeleteAccountRequest {
+  password: string;
+  confirmation: 'DELETE';
+}
+
+export interface AccountDeletionResult {
+  status: 'completed';
+  closedHouseholdIds: string[];
+}
+
+export interface ExportAccountRequest {
+  password: string;
+}
+
+export interface AccountExportConsentRecord {
+  purpose: string;
+  policyVersion: string;
+  granted: boolean;
+  recordedAt: string;
+}
+
+export interface AccountExportSession {
+  deviceName: string;
+  authenticatedAt: string;
+  lastSeenAt: string;
+  revokedAt: string | null;
+}
+
+export interface AccountExportInvitation {
+  id: string;
+  householdId: string;
+  role: HouseholdInvitationRole;
+  email: string | null;
+  status: HouseholdInvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface AccountExport {
+  formatVersion: '1';
+  generatedAt: string;
+  account: AccountSummary;
+  households: HouseholdSummary[];
+  calendarEvents: CalendarEventSummary[];
+  consentRecords: AccountExportConsentRecord[];
+  sessions: AccountExportSession[];
+  invitations: AccountExportInvitation[];
+}
+
 export interface RegisterRequest {
   readonly email: string;
   readonly password: string;

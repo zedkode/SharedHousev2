@@ -33,6 +33,8 @@ infra/production/secrets/*
 *.key
 *.p12
 *.jks
+apps/android/app/google-services.json
+apps/android/app/src/*/google-services.json
 
 # Runtime output
 *.log

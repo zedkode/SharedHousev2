@@ -69,6 +69,24 @@
     <string name="settings_legal_description">Review the limits of this development build.</string>
     <string name="settings_account_limitations">Device and account-management endpoints are not connected in this build. No device list, account deletion or service confirmation is fabricated here.</string>
 
+    <string name="settings_optional_data_title">Privacy and optional services</string>
+    <string name="settings_optional_data_description">Choose whether this device may send diagnostics, anonymous usage signals or request ads.</string>
+    <string name="settings_firebase_status">Firebase diagnostics</string>
+    <string name="settings_admob_status">AdMob</string>
+    <string name="settings_service_configured">Configured for this build</string>
+    <string name="settings_service_not_configured">Operator setup required</string>
+    <string name="settings_service_test_mode">Google test inventory only</string>
+    <string name="settings_analytics">Anonymous usage analytics</string>
+    <string name="settings_analytics_description">Help improve navigation and feature discovery. Household content, email and financial values must never be logged.</string>
+    <string name="settings_crash_reporting">Crash and ANR diagnostics</string>
+    <string name="settings_crash_reporting_description">Send technical stability reports without attaching your SharedHouse account identity.</string>
+    <string name="settings_ads">Support SharedHouse with ads</string>
+    <string name="settings_ads_description">Allow a clearly labelled adaptive banner only in the Guides area. Core household actions remain ad-free.</string>
+    <string name="settings_ad_privacy_options">Review advertising privacy choices</string>
+    <string name="settings_ad_consent_error">Advertising consent could not be refreshed. No ad request was made.</string>
+    <string name="settings_optional_data_note">All three choices start off. Ad privacy choices are supplied by Google UMP when required for your region; disabling ads stops new requests in SharedHouse.</string>
+    <string name="sponsored_content_label">Sponsored</string>
+
     <!-- Notification channels, permission and preferences -->
     <string name="notification_channel_group">Household activity</string>
     <string name="notification_channel_money">Money</string>
@@ -187,4 +205,15 @@
     <string name="guide_article_legal_point_2">Notifications are ordinary app messages and must never imitate public emergency alerts.</string>
     <string name="guide_article_legal_point_3">Production Terms, Privacy Notice and regional notices require approved, versioned content.</string>
     <string name="guide_article_legal_note">This is development guidance, not legal advice or a substitute for approved production terms.</string>
+    <string name="settings_delete_account">Delete account</string>
+    <string name="settings_delete_account_description">Permanently remove sign-in data and anonymise your profile.</string>
+    <string name="settings_delete_account_confirm_title">Permanently delete this account?</string>
+    <string name="settings_delete_account_confirm_description">This cannot be undone. Sole-member households are closed. If other members remain, transfer ownership or remove them first. Google Play subscriptions must be cancelled separately.</string>
+    <string name="settings_current_password">Current password</string>
+    <string name="settings_delete_permanently">Delete permanently</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="notice_account_deleted">Your account was deleted and this device was signed out.</string>
+    <string name="error_account_owner_transfer">Transfer ownership or remove the other household members before deleting your account.</string>
+    <string name="error_recent_authentication">The current password was not accepted. Check it and try again.</string>
+    <string name="error_account_deletion">The account could not be deleted. No local success was assumed.</string>
 </resources>

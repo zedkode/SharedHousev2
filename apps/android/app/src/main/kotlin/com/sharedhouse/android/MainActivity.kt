@@ -27,6 +27,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
+import com.sharedhouse.android.platform.google.GoogleServicesCoordinator
 import com.sharedhouse.android.platform.security.AndroidKeystoreSessionStore
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppPreferences
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     }
     private val preferencesRepository by lazy { AppPreferencesRepository(applicationContext) }
     private val sessionStore by lazy { AndroidKeystoreSessionStore(applicationContext) }
+    private val googleServicesCoordinator by lazy { GoogleServicesCoordinator(this) }
     private val nullablePreferences by lazy {
         preferencesRepository.preferences.map<AppPreferences, AppPreferences?> { it }
     }
@@ -86,6 +88,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             val preferences = requireNotNull(preferenceSnapshot)
+            val googleServicesStatus by googleServicesCoordinator.status.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
             val useDarkTheme = when (preferences.appearanceMode) {
                 AppearanceMode.SYSTEM -> systemDark
@@ -102,6 +105,9 @@ class MainActivity : AppCompatActivity() {
 
             LaunchedEffect(preferences.language) {
                 applyAppLanguage(preferences.language)
+            }
+            LaunchedEffect(preferences.privacy) {
+                googleServicesCoordinator.apply(preferences.privacy)
             }
 
             CompositionLocalProvider(LocalDensity provides scaledDensity) {
@@ -126,12 +132,20 @@ class MainActivity : AppCompatActivity() {
                         SharedHouseApp(
                             viewModel = appViewModel,
                             preferencesRepository = preferencesRepository,
+                            appPreferences = preferences,
+                            googleServicesStatus = googleServicesStatus,
+                            onShowAdPrivacyOptions = googleServicesCoordinator::showPrivacyOptions,
                             onLanguageChanged = ::applyAppLanguage,
                         )
                     }
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        googleServicesCoordinator.close()
+        super.onDestroy()
     }
 
     private fun applyAppLanguage(language: AppLanguage) {

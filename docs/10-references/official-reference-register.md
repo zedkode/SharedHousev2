@@ -23,6 +23,18 @@ Verify these sources again at every store submission and legal/security review. 
 - Data safety — https://support.google.com/googleplay/android-developer/answer/10787469
 - Account deletion requirements — https://support.google.com/googleplay/android-developer/answer/13327111
 - Target API requirements — https://support.google.com/googleplay/android-developer/answer/11926878
+- New personal-account testing requirements — https://support.google.com/googleplay/android-developer/answer/14151465
+- Play Console requirements — https://support.google.com/googleplay/android-developer/answer/10788890
+- Ads policy — https://support.google.com/googleplay/android-developer/answer/9857753
+- Advertising ID — https://support.google.com/googleplay/android-developer/answer/6048248
+- Firebase Android setup — https://firebase.google.com/docs/android/setup
+- Firebase Play data disclosure — https://firebase.google.com/docs/android/play-data-disclosure
+- Firebase Analytics collection control — https://firebase.google.com/docs/analytics/android/configure-data-collection
+- Firebase Crashlytics Android setup — https://firebase.google.com/docs/crashlytics/android/get-started
+- GMA Next-Gen Android setup — https://developers.google.com/admob/android/next-gen/quick-start
+- AdMob UMP Android setup — https://developers.google.com/admob/android/privacy
+- AdMob data disclosure — https://developers.google.com/admob/android/privacy/play-data-disclosure
+- AdMob app-ads.txt setup — https://support.google.com/admob/answer/9363762
 
 ## UK
 

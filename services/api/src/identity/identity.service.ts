@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type {
   AccountSummary,
+  AccountDeletionResult,
   RefreshSessionRequest,
   RegisterRequest,
   RegistrationAccepted,
@@ -216,6 +217,47 @@ export class IdentityService {
     await this.repository.revokeSession(this.tokens.hash(accessToken), new Date().toISOString());
   }
 
+  async deleteAccount(userId: string, password: string): Promise<AccountDeletionResult> {
+    const credential = await this.repository.findCredentialByUserId(userId);
+    if (
+      credential === null ||
+      credential.status !== 'active' ||
+      !(await this.passwords.verifyPassword(password, credential))
+    ) {
+      throw recentAuthenticationRequired();
+    }
+    return this.completeAccountDeletion(userId);
+  }
+
+  async deleteAccountByCredentials(
+    email: string,
+    password: string,
+  ): Promise<AccountDeletionResult> {
+    const credential = await this.repository.findCredentialByEmail(email);
+    if (
+      credential === null ||
+      credential.status !== 'active' ||
+      !(await this.passwords.verifyPassword(password, credential))
+    ) {
+      if (credential === null) await this.passwords.consumeDummyVerification(password);
+      throw recentAuthenticationRequired();
+    }
+    return this.completeAccountDeletion(credential.account.id);
+  }
+
+  private async completeAccountDeletion(userId: string): Promise<AccountDeletionResult> {
+    const result = await this.repository.deleteAccount(userId, new Date().toISOString());
+    if (result.status === 'owner_transfer_required') {
+      throw new ApiProblemException({
+        status: 409,
+        code: 'ACCOUNT_DELETION_OWNER_TRANSFER_REQUIRED',
+        title:
+          'Transfer ownership or remove the other household members before deleting the account.',
+      });
+    }
+    return { status: 'completed', closedHouseholdIds: [...result.closedHouseholdIds] };
+  }
+
   private async createSession(
     account: AccountSummary,
     deviceName: string,
@@ -250,6 +292,14 @@ export class IdentityService {
       account,
     };
   }
+}
+
+function recentAuthenticationRequired(): ApiProblemException {
+  return new ApiProblemException({
+    status: 401,
+    code: 'RECENT_AUTHENTICATION_REQUIRED',
+    title: 'Confirm the current password to delete this account.',
+  });
 }
 
 function invalidCredentials(): ApiProblemException {

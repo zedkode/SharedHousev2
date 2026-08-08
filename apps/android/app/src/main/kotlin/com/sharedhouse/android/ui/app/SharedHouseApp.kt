@@ -29,7 +29,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
+import com.sharedhouse.android.platform.google.GoogleServicesStatus
+import com.sharedhouse.android.platform.google.CompliantAdBanner
 import com.sharedhouse.android.ui.auth.HouseholdGateScreen
 import com.sharedhouse.android.ui.auth.HouseholdChoiceScreen
 import com.sharedhouse.android.ui.auth.RegisterScreen
@@ -62,6 +65,9 @@ import kotlinx.coroutines.launch
 fun SharedHouseApp(
     viewModel: SharedHouseViewModel,
     preferencesRepository: AppPreferencesRepository,
+    appPreferences: AppPreferences,
+    googleServicesStatus: GoogleServicesStatus,
+    onShowAdPrivacyOptions: () -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -197,6 +203,9 @@ fun SharedHouseApp(
                 state = state,
                 viewModel = viewModel,
                 preferencesRepository = preferencesRepository,
+                appPreferences = appPreferences,
+                googleServicesStatus = googleServicesStatus,
+                onShowAdPrivacyOptions = onShowAdPrivacyOptions,
                 onLanguageChanged = onLanguageChanged,
             )
         }
@@ -215,6 +224,9 @@ private fun AuthenticatedHouseholdExperience(
     state: AppUiState,
     viewModel: SharedHouseViewModel,
     preferencesRepository: AppPreferencesRepository,
+    appPreferences: AppPreferences,
+    googleServicesStatus: GoogleServicesStatus,
+    onShowAdPrivacyOptions: () -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -276,12 +288,27 @@ private fun AuthenticatedHouseholdExperience(
                 onTutorialRequested = {
                     scope.launch { preferencesRepository.showTutorialAgain() }
                 },
+                accountError = state.error,
+                accountOperationInProgress = state.isSubmitting,
+                onDeleteAccount = viewModel::deleteAccount,
+                googleServicesStatus = googleServicesStatus,
+                onShowAdPrivacyOptions = onShowAdPrivacyOptions,
                 onLanguageChanged = onLanguageChanged,
             )
 
             SecondarySurface.GUIDES -> GuidesScreen(
                 onBack = { openSecondary(SecondarySurface.NONE) },
                 onOpenTopic = { topic -> openArticle(topic, SecondarySurface.GUIDES) },
+                sponsoredContent = {
+                    if (appPreferences.privacy.adsEnabled && googleServicesStatus.adsReady) {
+                        Text(
+                            text = stringResource(R.string.sponsored_content_label),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        CompliantAdBanner(enabled = true)
+                    }
+                },
             )
 
             SecondarySurface.ARTICLE -> GuideArticleScreen(

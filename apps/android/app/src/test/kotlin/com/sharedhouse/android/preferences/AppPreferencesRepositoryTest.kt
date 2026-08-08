@@ -59,6 +59,24 @@ class AppPreferencesRepositoryTest {
         assertFalse(notifications.sound)
         assertFalse(notifications.vibration)
     }
+
+    @Test
+    fun `optional diagnostics and advertising remain off until explicitly enabled`() = runTest {
+        val repository = AppPreferencesRepository(InMemoryPreferencesDataStore())
+
+        assertFalse(repository.preferences.first().privacy.analyticsEnabled)
+        assertFalse(repository.preferences.first().privacy.crashReportingEnabled)
+        assertFalse(repository.preferences.first().privacy.adsEnabled)
+
+        repository.setAnalyticsEnabled(true)
+        repository.setCrashReportingEnabled(true)
+        repository.setAdsEnabled(true)
+
+        val privacy = repository.preferences.first().privacy
+        assertTrue(privacy.analyticsEnabled)
+        assertTrue(privacy.crashReportingEnabled)
+        assertTrue(privacy.adsEnabled)
+    }
 }
 
 private class InMemoryPreferencesDataStore : DataStore<Preferences> {

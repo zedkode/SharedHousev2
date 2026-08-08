@@ -277,6 +277,123 @@ describe('authentication and household vertical slice', () => {
       await isolated.app.close();
     }
   });
+
+  it('re-authenticates, anonymises, revokes sessions, and closes a sole-member household', async () => {
+    const session = await registerAndVerify(server, 'delete-owner@example.test', 'Delete Owner');
+    const accessToken = readStringProperty(session, 'accessToken');
+    const created = await request(server)
+      .post('/v1/households')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Idempotency-Key', 'delete-owner-household-0001')
+      .send(householdBody('Delete owner home'))
+      .expect(201);
+    const householdId = readStringProperty(created.body, 'id');
+
+    await request(server)
+      .delete('/v1/account')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: 'wrong password', confirmation: 'DELETE' })
+      .expect(401);
+
+    const deleted = await request(server)
+      .delete('/v1/account')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ password: VALID_PASSWORD, confirmation: 'DELETE' })
+      .expect('Cache-Control', 'no-store')
+      .expect(200);
+    expect(deleted.body).toEqual({ status: 'completed', closedHouseholdIds: [householdId] });
+
+    await request(server)
+      .get('/v1/account')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+    await request(server)
+      .post('/v1/auth/sign-in')
+      .send({ email: 'delete-owner@example.test', password: VALID_PASSWORD })
+      .expect(401);
+
+    const database = app.get(DatabaseService);
+    const users = await database.query<{
+      readonly email_normalized: string;
+      readonly status: string;
+    }>(`SELECT email_normalized, status FROM users WHERE id = $1`, [
+      readStringProperty(session, 'account', 'id'),
+    ]);
+    expect(users[0]?.status).toBe('deleted');
+    expect(users[0]?.email_normalized).toContain('@deleted.sharedhouse.invalid');
+  });
+
+  it('blocks deletion while an owned household still has another active member', async () => {
+    const isolated = await createTestApplication();
+    try {
+      const owner = await registerAndVerify(
+        isolated.server,
+        'blocked-owner@example.test',
+        'Blocked Owner',
+      );
+      const member = await registerAndVerify(
+        isolated.server,
+        'blocked-member@example.test',
+        'Blocked Member',
+      );
+      const ownerToken = readStringProperty(owner, 'accessToken');
+      const created = await request(isolated.server)
+        .post('/v1/households')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Idempotency-Key', 'blocked-owner-household-0001')
+        .send(householdBody('Shared active home'))
+        .expect(201);
+      const database = isolated.app.get(DatabaseService);
+      await database.query(
+        `INSERT INTO household_memberships (id, household_id, user_id, role, status, joined_at)
+       VALUES ($1, $2, $3, 'member', 'active', $4)`,
+        [
+          '019f9c00-0000-7000-8000-000000000001',
+          readStringProperty(created.body, 'id'),
+          readStringProperty(member, 'account', 'id'),
+          new Date().toISOString(),
+        ],
+      );
+
+      const blocked = await request(isolated.server)
+        .delete('/v1/account')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ password: VALID_PASSWORD, confirmation: 'DELETE' })
+        .expect(409);
+      expect(blocked.body).toMatchObject({ code: 'ACCOUNT_DELETION_OWNER_TRANSFER_REQUIRED' });
+      await request(isolated.server)
+        .get('/v1/account')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+    } finally {
+      await isolated.app.close();
+    }
+  });
+
+  it('serves a public deletion form and accepts a credential-confirmed request', async () => {
+    const isolated = await createTestApplication();
+    try {
+      await registerAndVerify(isolated.server, 'web-delete@example.test', 'Web Delete');
+      await request(isolated.server)
+        .get('/account-deletion')
+        .expect('Content-Type', /text\/html/u)
+        .expect(200)
+        .expect(/Delete your account/u);
+      await request(isolated.server)
+        .post('/account-deletion')
+        .type('form')
+        .send({
+          email: 'web-delete@example.test',
+          password: VALID_PASSWORD,
+          confirmation: 'DELETE',
+        })
+        .expect('Cache-Control', 'no-store')
+        .expect(201)
+        .expect(/account was deleted/u);
+    } finally {
+      await isolated.app.close();
+    }
+  });
 });
 
 async function createTestApplication(): Promise<{
@@ -332,14 +449,21 @@ function householdBody(name: string): object {
   };
 }
 
-function readStringProperty(value: unknown, property: string): string {
+function readStringProperty(value: unknown, property: string, nestedProperty?: string): string {
+  const candidate =
+    nestedProperty === undefined
+      ? value
+      : typeof value === 'object' && value !== null && property in value
+        ? value[property as keyof typeof value]
+        : undefined;
+  const targetProperty = nestedProperty ?? property;
   if (
-    typeof value !== 'object' ||
-    value === null ||
-    !(property in value) ||
-    typeof value[property as keyof typeof value] !== 'string'
+    typeof candidate !== 'object' ||
+    candidate === null ||
+    !(targetProperty in candidate) ||
+    typeof candidate[targetProperty as keyof typeof candidate] !== 'string'
   ) {
-    throw new Error(`Response is missing string property ${property}.`);
+    throw new Error(`Response is missing string property ${targetProperty}.`);
   }
-  return value[property as keyof typeof value];
+  return candidate[targetProperty as keyof typeof candidate];
 }

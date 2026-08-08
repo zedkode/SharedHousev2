@@ -188,6 +188,37 @@ paths:
                 $ref: '#/components/schemas/AccountSummary'
         '401':
           $ref: '#/components/responses/Problem'
+    delete:
+      operationId: deleteAccount
+      summary: Re-authenticate, close eligible sole-member households, and delete the account
+      tags: [Account]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '200':
+          description: Credentials were removed, sessions revoked, and the profile anonymised.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResult'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          description: Ownership must be transferred while another active household member remains.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/Problem'
   /v1/households:
     get:
       operationId: listHouseholds
@@ -685,6 +716,33 @@ components:
         preferredLocale:
           type: string
           enum: [en, ro]
+    DeleteAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [password, confirmation]
+      properties:
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+        confirmation:
+          type: string
+          const: DELETE
+    AccountDeletionResult:
+      type: object
+      additionalProperties: false
+      required: [status, closedHouseholdIds]
+      properties:
+        status:
+          type: string
+          const: completed
+        closedHouseholdIds:
+          type: array
+          items:
+            type: string
+            format: uuid
     RegisterRequest:
       type: object
       additionalProperties: false

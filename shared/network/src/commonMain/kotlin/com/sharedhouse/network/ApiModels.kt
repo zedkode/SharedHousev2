@@ -62,6 +62,18 @@ data class SessionDto(
 )
 
 @Serializable
+data class DeleteAccountPayload(
+    val password: String,
+    val confirmation: String = "DELETE",
+)
+
+@Serializable
+data class AccountDeletionResultDto(
+    val status: String,
+    val closedHouseholdIds: List<String>,
+)
+
+@Serializable
 data class HouseholdConfigurationDto(
     val name: String,
     val countryCode: String,

@@ -14,7 +14,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sharedhouse.android.R
 import com.sharedhouse.android.platform.notifications.LocalTestNotificationResult
 import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
+import com.sharedhouse.android.platform.google.GoogleServicesStatus
 import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.ui.app.UiMessage
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
 import kotlinx.coroutines.CancellationException
@@ -34,6 +36,11 @@ fun SettingsRoute(
     onOpenSecurity: () -> Unit,
     onOpenLegal: () -> Unit,
     onTutorialRequested: () -> Unit,
+    accountError: UiMessage?,
+    accountOperationInProgress: Boolean,
+    onDeleteAccount: (String) -> Unit,
+    googleServicesStatus: GoogleServicesStatus,
+    onShowAdPrivacyOptions: () -> Unit,
     modifier: Modifier = Modifier,
     onLanguageChanged: (AppLanguage) -> Unit = {},
 ) {
@@ -82,6 +89,11 @@ fun SettingsRoute(
         onReminderLeadTimeChanged = { leadTime -> persist { repository.setReminderLeadTime(leadTime) } },
         onNotificationSoundChanged = { enabled -> persist { repository.setNotificationSound(enabled) } },
         onNotificationVibrationChanged = { enabled -> persist { repository.setNotificationVibration(enabled) } },
+        onAnalyticsChanged = { enabled -> persist { repository.setAnalyticsEnabled(enabled) } },
+        onCrashReportingChanged = { enabled -> persist { repository.setCrashReportingEnabled(enabled) } },
+        onAdsChanged = { enabled -> persist { repository.setAdsEnabled(enabled) } },
+        googleServicesStatus = googleServicesStatus,
+        onShowAdPrivacyOptions = onShowAdPrivacyOptions,
         onSendTestNotification = {
             notice = when (SharedHouseNotifications.postLocalTest(context, preferences.notifications)) {
                 LocalTestNotificationResult.POSTED -> SettingsNotice(R.string.notification_test_posted)
@@ -109,6 +121,9 @@ fun SettingsRoute(
                 onTutorialRequested()
             }
         },
+        accountError = accountError,
+        accountOperationInProgress = accountOperationInProgress,
+        onDeleteAccount = onDeleteAccount,
         modifier = modifier,
     )
 }

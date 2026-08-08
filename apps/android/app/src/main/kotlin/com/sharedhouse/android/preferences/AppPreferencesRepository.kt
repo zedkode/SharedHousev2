@@ -78,6 +78,12 @@ class AppPreferencesRepository(
 
     suspend fun setNotificationVibration(enabled: Boolean) = update(Keys.NOTIFICATION_VIBRATION, enabled)
 
+    suspend fun setAnalyticsEnabled(enabled: Boolean) = update(Keys.ANALYTICS_ENABLED, enabled)
+
+    suspend fun setCrashReportingEnabled(enabled: Boolean) = update(Keys.CRASH_REPORTING_ENABLED, enabled)
+
+    suspend fun setAdsEnabled(enabled: Boolean) = update(Keys.ADS_ENABLED, enabled)
+
     private suspend fun update(key: Preferences.Key<Boolean>, value: Boolean) {
         dataStore.edit { preferences -> preferences[key] = value }
     }
@@ -107,6 +113,9 @@ class AppPreferencesRepository(
         val REMINDER_LEAD_TIME = stringPreferencesKey("reminder_lead_time")
         val NOTIFICATION_SOUND = booleanPreferencesKey("notification_sound")
         val NOTIFICATION_VIBRATION = booleanPreferencesKey("notification_vibration")
+        val ANALYTICS_ENABLED = booleanPreferencesKey("privacy_analytics_enabled")
+        val CRASH_REPORTING_ENABLED = booleanPreferencesKey("privacy_crash_reporting_enabled")
+        val ADS_ENABLED = booleanPreferencesKey("privacy_ads_enabled")
 
         fun notificationCategory(category: NotificationCategory): Preferences.Key<Boolean> = when (category) {
             NotificationCategory.MONEY -> NOTIFICATION_MONEY
@@ -145,6 +154,11 @@ class AppPreferencesRepository(
                     leadTime = ReminderLeadTime.fromStorage(preferences[Keys.REMINDER_LEAD_TIME]),
                     sound = preferences[Keys.NOTIFICATION_SOUND] ?: true,
                     vibration = preferences[Keys.NOTIFICATION_VIBRATION] ?: true,
+                ),
+                privacy = PrivacyPreferences(
+                    analyticsEnabled = preferences[Keys.ANALYTICS_ENABLED] ?: false,
+                    crashReportingEnabled = preferences[Keys.CRASH_REPORTING_ENABLED] ?: false,
+                    adsEnabled = preferences[Keys.ADS_ENABLED] ?: false,
                 ),
             )
         }

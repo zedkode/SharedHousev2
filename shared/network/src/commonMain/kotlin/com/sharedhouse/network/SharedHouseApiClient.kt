@@ -104,6 +104,17 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun deleteAccount(
+        accessToken: String,
+        password: String,
+    ): ApiResult<AccountDeletionResultDto> = execute {
+        client.delete("$baseUrl/v1/account") {
+            bearerAuth(accessToken)
+            contentType(ContentType.Application.Json)
+            setBody(DeleteAccountPayload(password))
+        }
+    }
+
     suspend fun listHouseholds(accessToken: String): ApiResult<List<HouseholdDto>> = execute {
         client.get("$baseUrl/v1/households") {
             bearerAuth(accessToken)

@@ -1024,6 +1024,33 @@ class SharedHouseViewModel(
         }
     }
 
+    fun deleteAccount(password: String) {
+        if (_uiState.value.isSubmitting || password.isBlank()) return
+        submit {
+            when (val result = authorized { accessToken -> gateway.deleteAccount(accessToken, password) }) {
+                is ApiResult.Success -> {
+                    sessionStore.clear()
+                    clearSession(UiMessage.AccountDeleted)
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    val message = when (result.code) {
+                        "ACCOUNT_DELETION_OWNER_TRANSFER_REQUIRED" ->
+                            UiMessage.AccountDeletionOwnerTransferRequired
+                        "RECENT_AUTHENTICATION_REQUIRED" -> UiMessage.RecentAuthenticationRequired
+                        else -> UiMessage.AccountDeletionFailed
+                    }
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            error = message,
+                            correlationId = result.correlationId,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private suspend fun restoreSession() {
         when (val stored = sessionStore.load()) {
             SessionLoadResult.Missing -> {

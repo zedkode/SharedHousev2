@@ -69,6 +69,24 @@
     <string name="settings_legal_description">Consultă limitele acestei versiuni de dezvoltare.</string>
     <string name="settings_account_limitations">Endpointurile pentru gestionarea dispozitivelor și a contului nu sunt conectate în această versiune. Aici nu este inventată o listă de dispozitive, ștergerea contului sau o confirmare a serviciului.</string>
 
+    <string name="settings_optional_data_title">Confidențialitate și servicii opționale</string>
+    <string name="settings_optional_data_description">Alege dacă acest dispozitiv poate trimite diagnostice, semnale anonime de utilizare sau poate solicita reclame.</string>
+    <string name="settings_firebase_status">Diagnostice Firebase</string>
+    <string name="settings_admob_status">AdMob</string>
+    <string name="settings_service_configured">Configurat pentru această versiune</string>
+    <string name="settings_service_not_configured">Este necesară configurarea operatorului</string>
+    <string name="settings_service_test_mode">Numai reclame Google de test</string>
+    <string name="settings_analytics">Analiză anonimă a utilizării</string>
+    <string name="settings_analytics_description">Ajută la îmbunătățirea navigării și descoperirii funcțiilor. Conținutul gospodăriei, e-mailul și valorile financiare nu trebuie înregistrate.</string>
+    <string name="settings_crash_reporting">Diagnostice pentru blocări și ANR</string>
+    <string name="settings_crash_reporting_description">Trimite rapoarte tehnice de stabilitate fără a atașa identitatea contului SharedHouse.</string>
+    <string name="settings_ads">Susține SharedHouse prin reclame</string>
+    <string name="settings_ads_description">Permite un banner adaptiv etichetat clar numai în zona Ghiduri. Acțiunile principale ale gospodăriei rămân fără reclame.</string>
+    <string name="settings_ad_privacy_options">Revizuiește opțiunile de confidențialitate pentru reclame</string>
+    <string name="settings_ad_consent_error">Consimțământul pentru reclame nu a putut fi actualizat. Nu a fost solicitată nicio reclamă.</string>
+    <string name="settings_optional_data_note">Toate cele trei alegeri sunt dezactivate inițial. Opțiunile pentru reclame sunt furnizate prin Google UMP când regiunea le cere; dezactivarea reclamelor oprește solicitările noi în SharedHouse.</string>
+    <string name="sponsored_content_label">Sponsorizat</string>
+
     <!-- Canale și preferințe pentru notificări -->
     <string name="notification_channel_group">Activitatea gospodăriei</string>
     <string name="notification_channel_money">Bani</string>
@@ -187,4 +205,15 @@
     <string name="guide_article_legal_point_2">Notificările sunt mesaje obișnuite ale aplicației și nu trebuie să imite alertele publice de urgență.</string>
     <string name="guide_article_legal_point_3">Termenii, Nota de confidențialitate și informările regionale pentru producție necesită conținut aprobat și versionat.</string>
     <string name="guide_article_legal_note">Acestea sunt îndrumări de dezvoltare, nu consultanță juridică și nici înlocuitor pentru termeni de producție aprobați.</string>
+    <string name="settings_delete_account">Șterge contul</string>
+    <string name="settings_delete_account_description">Elimină permanent datele de autentificare și anonimizează profilul.</string>
+    <string name="settings_delete_account_confirm_title">Ștergi permanent acest cont?</string>
+    <string name="settings_delete_account_confirm_description">Acțiunea nu poate fi anulată. Gospodăriile în care ești singurul membru vor fi închise. Dacă există alți membri, transferă proprietatea sau elimină-i mai întâi. Abonamentele Google Play trebuie anulate separat.</string>
+    <string name="settings_current_password">Parola curentă</string>
+    <string name="settings_delete_permanently">Șterge permanent</string>
+    <string name="action_cancel">Anulează</string>
+    <string name="notice_account_deleted">Contul a fost șters, iar sesiunea de pe acest dispozitiv a fost închisă.</string>
+    <string name="error_account_owner_transfer">Transferă proprietatea sau elimină ceilalți membri ai gospodăriei înainte de ștergerea contului.</string>
+    <string name="error_recent_authentication">Parola curentă nu a fost acceptată. Verific-o și încearcă din nou.</string>
+    <string name="error_account_deletion">Contul nu a putut fi șters. Aplicația nu presupune în mod fals că operația a reușit.</string>
 </resources>

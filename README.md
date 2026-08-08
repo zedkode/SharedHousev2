@@ -27,6 +27,8 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
   idempotent creation and optimistic edit/delete protection;
 - secure, expiring household invitation codes with email restriction, role-aware creation and
   revocation, one-time acceptance, and an Android household switcher for multi-home accounts;
+- consent-gated Firebase Analytics/Crashlytics and GMA Next-Gen/UMP foundations, with optional ads
+  kept outside authentication and core household actions and disabled by default;
 - PostgreSQL-compatible migrations plus persistent embedded PGlite for Docker-free development;
 - synthetic-only local PostgreSQL, Redis and S3-compatible infrastructure definitions;
 - strict TypeScript checks, unit/API tests, dependency auditing and GitHub Actions CI.
@@ -38,7 +40,8 @@ transactional verification email through Resend, with the Android public profile
 Docker Compose and can deploy, back up and verify the public endpoint. This is not yet a complete
 production MVP: live provider/VPS validation, session-device management, recent-authentication,
 distributed rate limiting, emailed invitation links/App Links, recurring/generated calendar events,
-ledger, chores, shopping, remote notification delivery, store commerce and privacy workflows remain.
+ledger, chores, shopping, remote notification delivery, store billing, account deletion/export and
+final privacy/store evidence remain.
 
 ## Local development
 

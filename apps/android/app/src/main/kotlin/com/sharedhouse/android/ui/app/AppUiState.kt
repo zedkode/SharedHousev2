@@ -84,6 +84,10 @@ enum class UiMessage {
     VerificationCodeSent,
     SignedOut,
     SessionRevocationUnconfirmed,
+    AccountDeleted,
+    AccountDeletionOwnerTransferRequired,
+    RecentAuthenticationRequired,
+    AccountDeletionFailed,
 }
 
 data class AuthFormState(

@@ -2,6 +2,8 @@ import type {
   CalendarEventConfiguration,
   CalendarEventType,
   CreateHouseholdInvitationRequest,
+  DeleteAccountRequest,
+  ExportAccountRequest,
   HouseholdConfiguration,
   HouseholdInvitationRole,
   RefreshSessionRequest,
@@ -91,6 +93,44 @@ export function parseRefreshRequest(value: unknown): RefreshSessionRequest {
   const refreshToken = readString(body.refreshToken, 'refreshToken', 40, 256, violations, false);
   throwIfViolations(violations);
   return { refreshToken };
+}
+
+export function parseDeleteAccountRequest(value: unknown): DeleteAccountRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['password', 'confirmation']);
+  const violations: FieldViolation[] = [];
+  const password = readString(body.password, 'password', 1, 128, violations, false);
+  const confirmation = readString(body.confirmation, 'confirmation', 6, 6, violations, false);
+  if (confirmation !== 'DELETE') {
+    violations.push({ field: 'confirmation', message: 'Type DELETE to confirm.' });
+  }
+  throwIfViolations(violations);
+  return { password, confirmation: 'DELETE' };
+}
+
+export function parseExportAccountRequest(value: unknown): ExportAccountRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['password']);
+  const violations: FieldViolation[] = [];
+  const password = readString(body.password, 'password', 1, 128, violations, false);
+  throwIfViolations(violations);
+  return { password };
+}
+
+export function parsePublicDeleteAccountRequest(
+  value: unknown,
+): DeleteAccountRequest & { email: string } {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['email', 'password', 'confirmation']);
+  const violations: FieldViolation[] = [];
+  const email = readEmail(body.email, 'email', violations);
+  const password = readString(body.password, 'password', 1, 128, violations, false);
+  const confirmation = readString(body.confirmation, 'confirmation', 6, 6, violations, false);
+  if (confirmation !== 'DELETE') {
+    violations.push({ field: 'confirmation', message: 'Type DELETE to confirm.' });
+  }
+  throwIfViolations(violations);
+  return { email, password, confirmation: 'DELETE' };
 }
 
 export function parseHouseholdConfiguration(value: unknown): HouseholdConfiguration {

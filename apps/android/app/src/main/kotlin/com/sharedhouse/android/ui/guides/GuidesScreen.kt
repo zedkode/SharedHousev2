@@ -126,6 +126,7 @@ fun GuidesScreen(
     onBack: () -> Unit,
     onOpenTopic: (GuideTopic) -> Unit,
     modifier: Modifier = Modifier,
+    sponsoredContent: @Composable () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -174,6 +175,16 @@ fun GuidesScreen(
             guides.forEach { guide ->
                 item(key = guide.topic.name) {
                     GuideCard(guide = guide, onClick = { onOpenTopic(guide.topic) })
+                }
+            }
+            item(key = "sponsored_content") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 720.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    sponsoredContent()
                 }
             }
         }

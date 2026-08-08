@@ -4,6 +4,7 @@ import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.AcceptHouseholdInvitationDto
+import com.sharedhouse.network.AccountDeletionResultDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
@@ -29,6 +30,8 @@ interface SharedHouseGateway {
     suspend fun refresh(refreshToken: String): ApiResult<SessionDto>
 
     suspend fun signOut(accessToken: String): ApiResult<Unit>
+
+    suspend fun deleteAccount(accessToken: String, password: String): ApiResult<AccountDeletionResultDto>
 
     suspend fun listHouseholds(accessToken: String): ApiResult<List<HouseholdDto>>
 
@@ -116,6 +119,9 @@ class ApiSharedHouseGateway(
     override suspend fun refresh(refreshToken: String) = api.refresh(refreshToken)
 
     override suspend fun signOut(accessToken: String) = api.signOut(accessToken)
+
+    override suspend fun deleteAccount(accessToken: String, password: String) =
+        api.deleteAccount(accessToken, password)
 
     override suspend fun listHouseholds(accessToken: String) = api.listHouseholds(accessToken)
 

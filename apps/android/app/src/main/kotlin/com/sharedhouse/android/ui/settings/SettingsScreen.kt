@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,9 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,15 +44,22 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -55,6 +67,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
 import com.sharedhouse.android.platform.notifications.NotificationPermissionExplainer
+import com.sharedhouse.android.platform.google.GoogleServicesStatus
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppearanceMode
@@ -63,6 +76,8 @@ import com.sharedhouse.android.preferences.ReminderLeadTime
 import com.sharedhouse.android.preferences.TextScale
 import com.sharedhouse.android.preferences.adjustedQuietTime
 import com.sharedhouse.android.preferences.formatMinutesOfDay
+import com.sharedhouse.android.ui.app.UiMessage
+import com.sharedhouse.android.ui.components.localized
 
 private data class Choice<T>(
     val value: T,
@@ -87,15 +102,25 @@ fun SettingsScreen(
     onReminderLeadTimeChanged: (ReminderLeadTime) -> Unit,
     onNotificationSoundChanged: (Boolean) -> Unit,
     onNotificationVibrationChanged: (Boolean) -> Unit,
+    onAnalyticsChanged: (Boolean) -> Unit,
+    onCrashReportingChanged: (Boolean) -> Unit,
+    onAdsChanged: (Boolean) -> Unit,
+    googleServicesStatus: GoogleServicesStatus,
+    onShowAdPrivacyOptions: () -> Unit,
     onSendTestNotification: () -> Unit,
     onOpenGuides: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenSecurity: () -> Unit,
     onOpenLegal: () -> Unit,
     onShowTutorial: () -> Unit,
+    accountError: UiMessage?,
+    accountOperationInProgress: Boolean,
+    onDeleteAccount: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val notifications = preferences.notifications
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deletionPassword by remember { mutableStateOf("") }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -246,6 +271,84 @@ fun SettingsScreen(
                         ),
                         selected = preferences.textScale,
                         onSelected = onTextScaleChanged,
+                    )
+                }
+            }
+
+            item {
+                SettingsSection(
+                    icon = Icons.Outlined.PrivacyTip,
+                    title = R.string.settings_optional_data_title,
+                    description = R.string.settings_optional_data_description,
+                ) {
+                    ServiceStatusRow(
+                        icon = if (googleServicesStatus.firebaseConfigured) {
+                            Icons.Outlined.CloudDone
+                        } else {
+                            Icons.Outlined.CloudOff
+                        },
+                        title = R.string.settings_firebase_status,
+                        status = if (googleServicesStatus.firebaseConfigured) {
+                            R.string.settings_service_configured
+                        } else {
+                            R.string.settings_service_not_configured
+                        },
+                    )
+                    ServiceStatusRow(
+                        icon = if (googleServicesStatus.admobConfigured) {
+                            Icons.Outlined.CloudDone
+                        } else {
+                            Icons.Outlined.CloudOff
+                        },
+                        title = R.string.settings_admob_status,
+                        status = when {
+                            !googleServicesStatus.admobConfigured -> R.string.settings_service_not_configured
+                            googleServicesStatus.admobTestMode -> R.string.settings_service_test_mode
+                            else -> R.string.settings_service_configured
+                        },
+                    )
+                    HorizontalDivider()
+                    ToggleSetting(
+                        title = R.string.settings_analytics,
+                        description = R.string.settings_analytics_description,
+                        checked = preferences.privacy.analyticsEnabled,
+                        onCheckedChange = onAnalyticsChanged,
+                        enabled = googleServicesStatus.firebaseConfigured,
+                    )
+                    HorizontalDivider()
+                    ToggleSetting(
+                        title = R.string.settings_crash_reporting,
+                        description = R.string.settings_crash_reporting_description,
+                        checked = preferences.privacy.crashReportingEnabled,
+                        onCheckedChange = onCrashReportingChanged,
+                        enabled = googleServicesStatus.firebaseConfigured,
+                    )
+                    HorizontalDivider()
+                    ToggleSetting(
+                        title = R.string.settings_ads,
+                        description = R.string.settings_ads_description,
+                        checked = preferences.privacy.adsEnabled,
+                        onCheckedChange = onAdsChanged,
+                        enabled = googleServicesStatus.admobConfigured,
+                    )
+                    if (googleServicesStatus.consentRequestFailed) {
+                        Text(
+                            text = stringResource(R.string.settings_ad_consent_error),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Button(
+                        onClick = onShowAdPrivacyOptions,
+                        enabled = googleServicesStatus.privacyOptionsRequired,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_ad_privacy_options))
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_optional_data_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -403,14 +506,60 @@ fun SettingsScreen(
                         onClick = onOpenLegal,
                     )
                     HorizontalDivider()
-                    Text(
-                        text = stringResource(R.string.settings_account_limitations),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    NavigationSetting(
+                        icon = Icons.Outlined.DeleteForever,
+                        title = R.string.settings_delete_account,
+                        description = R.string.settings_delete_account_description,
+                        onClick = { showDeleteDialog = true },
                     )
+                    accountError?.let {
+                        Text(
+                            text = it.localized(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!accountOperationInProgress) showDeleteDialog = false },
+            icon = { Icon(Icons.Outlined.DeleteForever, contentDescription = null) },
+            title = { Text(stringResource(R.string.settings_delete_account_confirm_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.settings_delete_account_confirm_description))
+                    OutlinedTextField(
+                        value = deletionPassword,
+                        onValueChange = { deletionPassword = it },
+                        label = { Text(stringResource(R.string.settings_current_password)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !accountOperationInProgress,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteAccount(deletionPassword)
+                        deletionPassword = ""
+                        showDeleteDialog = false
+                    },
+                    enabled = deletionPassword.isNotBlank() && !accountOperationInProgress,
+                ) { Text(stringResource(R.string.settings_delete_permanently)) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !accountOperationInProgress,
+                ) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 }
 
@@ -497,12 +646,15 @@ private fun ToggleSetting(
     @StringRes description: Int,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.55f)
             .toggleable(
                 value = checked,
+                enabled = enabled,
                 role = Role.Switch,
                 onValueChange = onCheckedChange,
             )
@@ -521,7 +673,34 @@ private fun ToggleSetting(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+@Composable
+private fun ServiceStatusRow(
+    icon: ImageVector,
+    @StringRes title: Int,
+    @StringRes status: Int,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringResource(status),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

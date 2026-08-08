@@ -83,6 +83,10 @@ fun UiMessage.localized(): String = stringResource(
         UiMessage.VerificationCodeSent -> R.string.notice_verification_code_sent
         UiMessage.SignedOut -> R.string.notice_signed_out
         UiMessage.SessionRevocationUnconfirmed -> R.string.notice_session_revocation_unconfirmed
+        UiMessage.AccountDeleted -> R.string.notice_account_deleted
+        UiMessage.AccountDeletionOwnerTransferRequired -> R.string.error_account_owner_transfer
+        UiMessage.RecentAuthenticationRequired -> R.string.error_recent_authentication
+        UiMessage.AccountDeletionFailed -> R.string.error_account_deletion
     },
 )
 

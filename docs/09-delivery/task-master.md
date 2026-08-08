@@ -117,6 +117,9 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-13 Store commerce
 
+- [in progress] Android monetisation/measurement foundation. Firebase Analytics/Crashlytics and GMA
+  Next-Gen with UMP are integrated behind local opt-in and release configuration gates; Play Billing,
+  entitlements and production provider validation remain.
 - StoreKit and Google Play Billing adapters.
 - Backend verification and account binding.
 - Apple server notifications and Google RTDN.
@@ -125,7 +128,9 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-14 Privacy and compliance
 
-- Data inventory, notices and consent records.
+- [in progress] Data inventory, notices and consent records. Android optional analytics, crash and ad
+  choices persist locally and default off; production notices, server consent history and withdrawal
+  evidence remain.
 - Export generator and secure delivery.
 - Account/household deletion and retention engine.
 - Vendor/transfer records and release evidence.
@@ -143,4 +148,6 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 - Mobile/admin E2E suites and accessibility checks.
 - Load/performance and backup restoration.
 - Penetration test, incident exercise and remediation.
-- Store metadata/assets/review accounts and staged rollout.
+- [in progress] Store metadata/assets/review accounts and staged rollout. The detailed Google Play,
+  Firebase, AdMob, signing and Data safety runbook exists; real accounts/assets and closed-track
+  evidence remain.

@@ -114,6 +114,12 @@ data class NotificationPreferences(
     }
 }
 
+data class PrivacyPreferences(
+    val analyticsEnabled: Boolean = false,
+    val crashReportingEnabled: Boolean = false,
+    val adsEnabled: Boolean = false,
+)
+
 data class AppPreferences(
     val tutorialCompleted: Boolean = false,
     val tutorialSkipped: Boolean = false,
@@ -124,6 +130,7 @@ data class AppPreferences(
     val highContrast: Boolean = false,
     val textScale: TextScale = TextScale.STANDARD,
     val notifications: NotificationPreferences = NotificationPreferences(),
+    val privacy: PrivacyPreferences = PrivacyPreferences(),
 )
 
 fun formatMinutesOfDay(minutes: Int): String {

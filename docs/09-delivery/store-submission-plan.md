@@ -1,5 +1,8 @@
 # Store Submission Plan
 
+For the exact Android operator sequence, configuration paths, commands and evidence gates, use
+`docs/09-delivery/google-play-firebase-admob-runbook.md`.
+
 ## 1. Eight-to-twelve weeks before submission
 
 - Verify current Apple/Google SDK, target API, billing and policy requirements.

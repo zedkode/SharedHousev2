@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { AccountSummary } from '@sharedhouse/contracts';
+import type {
+  AccountExport,
+  AccountExportConsentRecord,
+  AccountExportInvitation,
+  AccountExportSession,
+  AccountSummary,
+  CalendarEventSummary,
+  HouseholdSummary,
+} from '@sharedhouse/contracts';
 
 import { newUuidV7 } from '../common/uuid-v7.js';
 import { DatabaseService, type SqlExecutor } from '../database/database.service.js';
@@ -54,6 +62,11 @@ interface PendingVerificationRow {
 
 interface ChallengeCreatedAtRow {
   readonly created_at: Date | string;
+}
+
+interface OwnedHouseholdRow {
+  readonly id: string;
+  readonly active_member_count: number;
 }
 
 @Injectable()
@@ -205,6 +218,193 @@ export class IdentityRepository {
       [email],
     );
     return rows[0] === undefined ? null : mapCredential(rows[0]);
+  }
+
+  async findCredentialByUserId(userId: string): Promise<UserCredentialRecord | null> {
+    const rows = await this.database.query<UserCredentialRow>(credentialQuery('u.id = $1'), [
+      userId,
+    ]);
+    return rows[0] === undefined ? null : mapCredential(rows[0]);
+  }
+
+  async exportAccount(userId: string, occurredAt: string): Promise<AccountExport> {
+    return this.database.transaction(async (transaction) => {
+      const credentials = await transaction.query<UserCredentialRow>(credentialQuery('u.id = $1'), [
+        userId,
+      ]);
+      const credential = credentials[0];
+      if (credential === undefined) throw new Error('Authenticated account disappeared.');
+      const households = await transaction.query<ExportHouseholdRow>(
+        `${exportHouseholdSelect()}
+         WHERE m.user_id = $1 AND h.status = 'active'
+         ORDER BY h.created_at, h.id`,
+        [userId],
+      );
+      const events = await transaction.query<ExportCalendarRow>(
+        `${exportCalendarSelect()}
+         WHERE c.created_by_user_id = $1
+         ORDER BY c.event_date, c.created_at, c.id`,
+        [userId],
+      );
+      const consents = await transaction.query<ExportConsentRow>(
+        `SELECT purpose, policy_version, granted, recorded_at
+         FROM consent_records WHERE user_id = $1 ORDER BY recorded_at, id`,
+        [userId],
+      );
+      const sessions = await transaction.query<ExportSessionRow>(
+        `SELECT device_name, authenticated_at, last_seen_at, revoked_at
+         FROM user_sessions WHERE user_id = $1 ORDER BY authenticated_at, id`,
+        [userId],
+      );
+      const invitations = await transaction.query<ExportInvitationRow>(
+        `SELECT id, household_id, role, email_normalized, status, expires_at, created_at
+         FROM household_invitations
+         WHERE invited_by = $1 OR accepted_by = $1
+         ORDER BY created_at, id`,
+        [userId],
+      );
+      const result: AccountExport = {
+        formatVersion: '1',
+        generatedAt: occurredAt,
+        account: mapAccount(credential),
+        households: households.map(mapExportHousehold),
+        calendarEvents: events.map(mapExportCalendar),
+        consentRecords: consents.map(mapExportConsent),
+        sessions: sessions.map(mapExportSession),
+        invitations: invitations.map(mapExportInvitation),
+      };
+      await transaction.query(
+        `INSERT INTO privacy_requests (
+           id, user_id, request_type, status, result_summary, requested_at, completed_at
+         ) VALUES ($1, $2, 'export', 'completed', $3::jsonb, $4, $4)`,
+        [
+          newUuidV7(Date.parse(occurredAt)),
+          userId,
+          JSON.stringify({
+            householdCount: households.length,
+            calendarEventCount: events.length,
+            consentRecordCount: consents.length,
+            sessionCount: sessions.length,
+            invitationCount: invitations.length,
+          }),
+          occurredAt,
+        ],
+      );
+      await insertAudit(transaction, {
+        actorUserId: userId,
+        action: 'privacy.account_exported',
+        targetType: 'user',
+        targetId: userId,
+        occurredAt,
+      });
+      return result;
+    });
+  }
+
+  async deleteAccount(
+    userId: string,
+    occurredAt: string,
+  ): Promise<
+    | { readonly status: 'completed'; readonly closedHouseholdIds: readonly string[] }
+    | { readonly status: 'owner_transfer_required'; readonly householdIds: readonly string[] }
+  > {
+    return this.database.transaction(async (transaction) => {
+      const owned = await transaction.query<OwnedHouseholdRow>(
+        `SELECT h.id,
+           (SELECT count(*)::int FROM household_memberships active
+            WHERE active.household_id = h.id AND active.status = 'active') AS active_member_count
+         FROM households h
+         JOIN household_memberships owner_membership ON owner_membership.household_id = h.id
+         WHERE owner_membership.user_id = $1
+           AND owner_membership.role = 'owner'
+           AND owner_membership.status = 'active'
+           AND h.status = 'active'
+         ORDER BY h.id
+         FOR UPDATE OF h`,
+        [userId],
+      );
+      const blockedIds = owned.filter((row) => row.active_member_count > 1).map((row) => row.id);
+      if (blockedIds.length > 0) {
+        await transaction.query(
+          `INSERT INTO privacy_requests (
+             id, user_id, request_type, status, result_summary, requested_at
+           ) VALUES ($1, $2, 'deletion', 'blocked', $3::jsonb, $4)`,
+          [
+            newUuidV7(Date.parse(occurredAt)),
+            userId,
+            JSON.stringify({ reason: 'owner_transfer_required' }),
+            occurredAt,
+          ],
+        );
+        return { status: 'owner_transfer_required', householdIds: blockedIds };
+      }
+
+      const closedHouseholdIds = owned.map((row) => row.id);
+      if (closedHouseholdIds.length > 0) {
+        await transaction.query(
+          `UPDATE households SET status = 'closed', updated_at = $2, version = version + 1
+           WHERE id = ANY($1::uuid[])`,
+          [closedHouseholdIds, occurredAt],
+        );
+        await transaction.query(
+          `UPDATE calendar_events
+           SET status = 'deleted', deleted_at = $2, updated_at = $2, version = version + 1
+           WHERE household_id = ANY($1::uuid[]) AND status = 'active'`,
+          [closedHouseholdIds, occurredAt],
+        );
+        await transaction.query(
+          `UPDATE household_invitations
+           SET status = 'revoked', revoked_at = $2, updated_at = $2
+           WHERE household_id = ANY($1::uuid[]) AND status = 'pending'`,
+          [closedHouseholdIds, occurredAt],
+        );
+      }
+
+      await transaction.query(
+        `UPDATE household_memberships
+         SET status = 'left', left_at = $2
+         WHERE user_id = $1 AND status = 'active'`,
+        [userId, occurredAt],
+      );
+      await transaction.query(
+        `UPDATE user_sessions SET revoked_at = COALESCE(revoked_at, $2) WHERE user_id = $1`,
+        [userId, occurredAt],
+      );
+      await transaction.query('DELETE FROM email_verification_challenges WHERE user_id = $1', [
+        userId,
+      ]);
+      await transaction.query('DELETE FROM password_credentials WHERE user_id = $1', [userId]);
+      await transaction.query('DELETE FROM idempotency_records WHERE user_id = $1', [userId]);
+      await transaction.query(
+        `UPDATE user_profiles SET display_name = 'Former member' WHERE user_id = $1`,
+        [userId],
+      );
+      await transaction.query(
+        `UPDATE users
+         SET email_normalized = $2, email_verified_at = NULL, status = 'deleted', updated_at = $3
+         WHERE id = $1`,
+        [userId, `deleted-${userId}@deleted.sharedhouse.invalid`, occurredAt],
+      );
+      await transaction.query(
+        `INSERT INTO privacy_requests (
+           id, user_id, request_type, status, result_summary, requested_at, completed_at
+         ) VALUES ($1, $2, 'deletion', 'completed', $3::jsonb, $4, $4)`,
+        [
+          newUuidV7(Date.parse(occurredAt)),
+          userId,
+          JSON.stringify({ closedHouseholdCount: closedHouseholdIds.length }),
+          occurredAt,
+        ],
+      );
+      await insertAudit(transaction, {
+        actorUserId: userId,
+        action: 'privacy.account_deleted',
+        targetType: 'user',
+        targetId: userId,
+        occurredAt,
+      });
+      return { status: 'completed', closedHouseholdIds };
+    });
   }
 
   async verifyEmail(
@@ -403,6 +603,149 @@ export class IdentityRepository {
       [accessTokenHash, occurredAt],
     );
   }
+}
+
+interface ExportHouseholdRow {
+  readonly id: string;
+  readonly name: string;
+  readonly country_code: string;
+  readonly timezone: string;
+  readonly default_currency: string;
+  readonly first_day_of_week: 1 | 6 | 7;
+  readonly cycle_type: HouseholdSummary['cycleType'];
+  readonly cycle_anchor: Date | string;
+  readonly status: 'active';
+  readonly version: number;
+  readonly created_at: Date | string;
+  readonly updated_at: Date | string;
+  readonly role: HouseholdSummary['role'];
+}
+
+interface ExportCalendarRow {
+  readonly id: string;
+  readonly household_id: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly event_type: CalendarEventSummary['type'];
+  readonly event_date: Date | string;
+  readonly start_time: string | null;
+  readonly end_time: string | null;
+  readonly reminder_minutes_before: number | null;
+  readonly created_by_user_id: string;
+  readonly version: number;
+  readonly created_at: Date | string;
+  readonly updated_at: Date | string;
+}
+
+interface ExportConsentRow {
+  readonly purpose: string;
+  readonly policy_version: string;
+  readonly granted: boolean;
+  readonly recorded_at: Date | string;
+}
+
+interface ExportSessionRow {
+  readonly device_name: string;
+  readonly authenticated_at: Date | string;
+  readonly last_seen_at: Date | string;
+  readonly revoked_at: Date | string | null;
+}
+
+interface ExportInvitationRow {
+  readonly id: string;
+  readonly household_id: string;
+  readonly role: AccountExportInvitation['role'];
+  readonly email_normalized: string | null;
+  readonly status: AccountExportInvitation['status'];
+  readonly expires_at: Date | string;
+  readonly created_at: Date | string;
+}
+
+function exportHouseholdSelect(): string {
+  return `SELECT h.id, h.name, h.country_code, h.timezone, h.default_currency,
+    h.first_day_of_week, h.cycle_type, h.cycle_anchor, h.status, h.version,
+    h.created_at, h.updated_at, m.role
+    FROM households h JOIN household_memberships m ON m.household_id = h.id`;
+}
+
+function exportCalendarSelect(): string {
+  return `SELECT c.id, c.household_id, c.title, c.description, c.event_type, c.event_date,
+    c.start_time, c.end_time, c.reminder_minutes_before, c.created_by_user_id,
+    c.version, c.created_at, c.updated_at FROM calendar_events c`;
+}
+
+function mapExportHousehold(row: ExportHouseholdRow): HouseholdSummary {
+  return {
+    id: row.id,
+    name: row.name,
+    countryCode: row.country_code,
+    timezone: row.timezone,
+    currency: row.default_currency,
+    firstDayOfWeek: row.first_day_of_week,
+    cycleType: row.cycle_type,
+    cycleAnchor: toDate(row.cycle_anchor),
+    role: row.role,
+    status: row.status,
+    version: row.version,
+    createdAt: toInstant(row.created_at),
+    updatedAt: toInstant(row.updated_at),
+  };
+}
+
+function mapExportCalendar(row: ExportCalendarRow): CalendarEventSummary {
+  return {
+    id: row.id,
+    householdId: row.household_id,
+    title: row.title,
+    description: row.description,
+    type: row.event_type,
+    date: toDate(row.event_date),
+    startTime: row.start_time?.slice(0, 5) ?? null,
+    endTime: row.end_time?.slice(0, 5) ?? null,
+    reminderMinutesBefore: row.reminder_minutes_before,
+    createdByUserId: row.created_by_user_id,
+    version: row.version,
+    createdAt: toInstant(row.created_at),
+    updatedAt: toInstant(row.updated_at),
+  };
+}
+
+function mapExportConsent(row: ExportConsentRow): AccountExportConsentRecord {
+  return {
+    purpose: row.purpose,
+    policyVersion: row.policy_version,
+    granted: row.granted,
+    recordedAt: toInstant(row.recorded_at),
+  };
+}
+
+function mapExportSession(row: ExportSessionRow): AccountExportSession {
+  return {
+    deviceName: row.device_name,
+    authenticatedAt: toInstant(row.authenticated_at),
+    lastSeenAt: toInstant(row.last_seen_at),
+    revokedAt: row.revoked_at === null ? null : toInstant(row.revoked_at),
+  };
+}
+
+function mapExportInvitation(row: ExportInvitationRow): AccountExportInvitation {
+  return {
+    id: row.id,
+    householdId: row.household_id,
+    role: row.role,
+    email: row.email_normalized,
+    status: row.status,
+    expiresAt: toInstant(row.expires_at),
+    createdAt: toInstant(row.created_at),
+  };
+}
+
+function toInstant(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function toDate(value: Date | string): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
 }
 
 function credentialSelect(): string {

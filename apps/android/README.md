@@ -13,7 +13,10 @@ light/dark/dynamic/high-contrast themes, text scaling, a skippable first-run tut
 English/Romanian resources. The server-backed calendar offers interactive week, month, quarter and
 year periods with day sheets and role-aware one-off event create/edit/delete actions. Advanced
 settings persist appearance, language, accessibility, notification categories, quiet hours, lead
-time, sound and vibration. Six Android notification channels and a local test notification exist;
+time, sound and vibration. A Material 3 privacy centre exposes opt-in Analytics, Crashlytics and
+AdMob controls. Collection starts disabled; ads require UMP permission and are limited to a labelled
+adaptive banner in Guides. Debug variants use Google's test inventory. Six Android notification
+channels and a local test notification exist;
 remote push scheduling does not. Unimplemented Money and Tasks areas remain explicit unavailable
 states and never fabricate household activity.
 
@@ -85,13 +88,16 @@ $env:SHAREDHOUSE_RELEASE_STORE_FILE = "C:\secure\sharedhouse-upload.jks"
 $env:SHAREDHOUSE_RELEASE_STORE_PASSWORD = "<from-secret-manager>"
 $env:SHAREDHOUSE_RELEASE_KEY_ALIAS = "<upload-key-alias>"
 $env:SHAREDHOUSE_RELEASE_KEY_PASSWORD = "<from-secret-manager>"
+$env:SHAREDHOUSE_VERSION_CODE = "2"
+$env:SHAREDHOUSE_VERSION_NAME = "0.2.0"
+$env:SHAREDHOUSE_ADMOB_APP_ID = "<real-AdMob-app-id>"
+$env:SHAREDHOUSE_ADMOB_BANNER_ID = "<real-banner-unit-id>"
 
 .\gradlew.bat :apps:android:app:packagePublicReleaseApk
 .\gradlew.bat :apps:android:app:copyPublicReleaseBundle
 ```
 
-The named outputs are `app/build/outputs/apk/release/SharedHouse-v0.1.0-public-release-signed.apk`
-and `app/build/outputs/bundle/release/SharedHouse-v0.1.0-public-release-signed.aab`. They are created
-only after complete signing configuration is supplied. Follow `infra/production/README.md` to
-deploy the API/database/tunnel/email path. Public launch also requires privacy/support endpoints and
-store/release review; building an APK by itself does not publish the service.
+Add the production Firebase configuration at `app/src/public/google-services.json`. Release builds
+reject missing Firebase configuration, Google demo AdMob IDs, incomplete signing, or a non-production
+API. Output names use `SHAREDHOUSE_VERSION_NAME`. Follow
+`docs/09-delivery/google-play-firebase-admob-runbook.md` for the full console and release sequence.

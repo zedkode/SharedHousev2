@@ -9,6 +9,7 @@ import com.sharedhouse.android.platform.security.SessionLoadResult
 import com.sharedhouse.android.platform.security.SessionSaveResult
 import com.sharedhouse.android.platform.security.SessionStore
 import com.sharedhouse.network.AccountDto
+import com.sharedhouse.network.AccountDeletionResultDto
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
@@ -468,6 +469,32 @@ class SharedHouseViewModelTest {
         }
     }
 
+    @Test
+    fun `confirmed account deletion clears the encrypted local session`() = runTest {
+        withMainDispatcher {
+            val store = FakeSessionStore()
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household())) }
+                deleteAccountHandler = { _, _ ->
+                    ApiResult.Success(AccountDeletionResultDto("completed", emptyList()))
+                }
+            }
+            val viewModel = viewModel(fake, store)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            viewModel.deleteAccount("current password")
+            advanceUntilIdle()
+
+            assertEquals(AppRoute.Welcome, viewModel.uiState.value.route)
+            assertEquals(UiMessage.AccountDeleted, viewModel.uiState.value.notice)
+            assertEquals(1, store.clearCalls)
+            assertNull(viewModel.uiState.value.account)
+        }
+    }
+
     private suspend fun TestScope.withMainDispatcher(block: suspend TestScope.() -> Unit) {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -558,6 +585,9 @@ private class FakeGateway : SharedHouseGateway {
     var signOutHandler: suspend (String) -> ApiResult<Unit> = {
         error("Unexpected sign out")
     }
+    var deleteAccountHandler: suspend (String, String) -> ApiResult<AccountDeletionResultDto> = { _, _ ->
+        error("Unexpected account deletion")
+    }
     var listHandler: suspend (String) -> ApiResult<List<HouseholdDto>> = {
         error("Unexpected list")
     }
@@ -609,6 +639,8 @@ private class FakeGateway : SharedHouseGateway {
     override suspend fun signIn(payload: SignInPayload) = signInHandler(payload)
     override suspend fun refresh(refreshToken: String) = refreshHandler(refreshToken)
     override suspend fun signOut(accessToken: String) = signOutHandler(accessToken)
+    override suspend fun deleteAccount(accessToken: String, password: String) =
+        deleteAccountHandler(accessToken, password)
     override suspend fun listHouseholds(accessToken: String) = listHandler(accessToken)
     override suspend fun createHousehold(
         accessToken: String,
