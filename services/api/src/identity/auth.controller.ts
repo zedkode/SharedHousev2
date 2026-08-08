@@ -12,6 +12,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type {
   AccountDeletionResult,
+  AccountExport,
   AccountSummary,
   RegistrationAccepted,
   SessionResponse,
@@ -21,6 +22,7 @@ import type { Request } from 'express';
 import {
   parseRefreshRequest,
   parseDeleteAccountRequest,
+  parseExportAccountRequest,
   parsePublicDeleteAccountRequest,
   parseRegisterRequest,
   parseResendEmailVerificationRequest,
@@ -112,6 +114,20 @@ export class AccountController {
   ): Promise<AccountDeletionResult> {
     const request = parseDeleteAccountRequest(body);
     return this.identity.deleteAccount(principal.userId, request.password);
+  }
+
+  @Post('export')
+  @HttpCode(200)
+  @UseGuards(AuthenticationGuard)
+  @Header('Cache-Control', 'no-store')
+  @Header('Content-Disposition', 'attachment; filename="sharedhouse-account-export.json"')
+  @Throttle({ default: { limit: 3, ttl: 60 * 60_000 } })
+  exportAccount(
+    @CurrentPrincipal() principal: AuthenticatedPrincipal,
+    @Body() body: unknown,
+  ): Promise<AccountExport> {
+    const request = parseExportAccountRequest(body);
+    return this.identity.exportAccount(principal.userId, request.password);
   }
 }
 

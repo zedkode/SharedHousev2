@@ -219,6 +219,32 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
           $ref: '#/components/responses/Problem'
+  /v1/account/export:
+    post:
+      operationId: exportAccount
+      summary: Re-authenticate and download the current account data as JSON
+      tags: [Account]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAccountRequest'
+      responses:
+        '200':
+          description: A machine-readable snapshot of data associated with the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountExport'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
   /v1/households:
     get:
       operationId: listHouseholds
@@ -743,6 +769,74 @@ components:
           items:
             type: string
             format: uuid
+    ExportAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+    AccountExport:
+      type: object
+      description: Versioned JSON export. Nested records follow the public account, household, calendar, invitation, consent and session contracts.
+      required: [formatVersion, generatedAt, account, households, calendarEvents, consentRecords, sessions, invitations]
+      properties:
+        formatVersion:
+          type: string
+          const: '1'
+        generatedAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/AccountSummary'
+        households:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseholdSummary'
+        calendarEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEventSummary'
+        consentRecords:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [purpose, policyVersion, granted, recordedAt]
+            properties:
+              purpose: { type: string }
+              policyVersion: { type: string }
+              granted: { type: boolean }
+              recordedAt: { type: string, format: date-time }
+        sessions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [deviceName, authenticatedAt, lastSeenAt, revokedAt]
+            properties:
+              deviceName: { type: string }
+              authenticatedAt: { type: string, format: date-time }
+              lastSeenAt: { type: string, format: date-time }
+              revokedAt: { type: [string, 'null'], format: date-time }
+        invitations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, householdId, role, email, status, expiresAt, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              householdId: { type: string, format: uuid }
+              role: { type: string, enum: [admin, member, read_only] }
+              email: { type: [string, 'null'], format: email }
+              status: { type: string, enum: [pending, accepted, revoked, expired] }
+              expiresAt: { type: string, format: date-time }
+              createdAt: { type: string, format: date-time }
     RegisterRequest:
       type: object
       additionalProperties: false

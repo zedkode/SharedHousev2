@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   AccountSummary,
   AccountDeletionResult,
+  AccountExport,
   RefreshSessionRequest,
   RegisterRequest,
   RegistrationAccepted,
@@ -227,6 +228,22 @@ export class IdentityService {
       throw recentAuthenticationRequired();
     }
     return this.completeAccountDeletion(userId);
+  }
+
+  async exportAccount(userId: string, password: string): Promise<AccountExport> {
+    const credential = await this.repository.findCredentialByUserId(userId);
+    if (
+      credential === null ||
+      credential.status !== 'active' ||
+      !(await this.passwords.verifyPassword(password, credential))
+    ) {
+      throw new ApiProblemException({
+        status: 401,
+        code: 'RECENT_AUTHENTICATION_REQUIRED',
+        title: 'Confirm the current password to export this account.',
+      });
+    }
+    return this.repository.exportAccount(userId, new Date().toISOString());
   }
 
   async deleteAccountByCredentials(
