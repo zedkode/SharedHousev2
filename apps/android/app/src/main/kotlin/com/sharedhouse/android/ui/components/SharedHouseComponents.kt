@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Card
@@ -58,6 +58,9 @@ fun UiMessage.localized(): String = stringResource(
         UiMessage.VerificationCodeExpired -> R.string.error_verification_code_expired
         UiMessage.AccountUnavailable -> R.string.error_account_unavailable
         UiMessage.SessionExpired -> R.string.error_session_expired
+        UiMessage.SecureSessionReset -> R.string.notice_secure_session_reset
+        UiMessage.SecureStorageUnavailable -> R.string.error_secure_storage_unavailable
+        UiMessage.SessionRestoreNetworkUnavailable -> R.string.notice_session_restore_network
         UiMessage.IdempotencyKeyReused -> R.string.error_idempotency_key
         UiMessage.RequestInvalid -> R.string.error_request_invalid
         UiMessage.RateLimited -> R.string.error_rate_limited
@@ -137,7 +140,7 @@ fun FormScreenScaffold(
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Outlined.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back),
                             )
                         }

@@ -2,6 +2,9 @@ package com.sharedhouse.android.ui.app
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sharedhouse.android.platform.security.SessionLoadResult
+import com.sharedhouse.android.platform.security.SessionSaveResult
+import com.sharedhouse.android.platform.security.SessionStore
 import com.sharedhouse.android.ui.calendar.CalendarAction
 import com.sharedhouse.android.ui.calendar.CalendarContent
 import com.sharedhouse.android.ui.calendar.CalendarEventDraft
@@ -35,29 +38,54 @@ import kotlinx.coroutines.launch
 /**
  * Coordinates the first real account and household vertical slice.
  *
- * The session deliberately lives only in memory. Process death returns the user to Welcome until
- * a Keystore-backed session store is implemented; the UI states this limitation explicitly.
+ * Session activation is accepted locally only after the rotating credentials are safely persisted.
  */
 class SharedHouseViewModel(
     private val gateway: SharedHouseGateway,
+    private val sessionStore: SessionStore,
     private val deviceName: String,
-    private val preferredLocale: String,
+    preferredLocale: String,
     initialHousehold: HouseholdFormState,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AppUiState(household = initialHousehold))
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     private var session: SessionDto? = null
+    private var preferredLocale = preferredLocale
     private var householdCreationIdempotencyKey: String? = null
+    private var sessionRestoreJob: Job? = null
     private var calendarLoadJob: Job? = null
     private var calendarCreationIdempotencyKey: String? = null
     private var calendarCreationDraft: CalendarEventDraft? = null
+
+    init {
+        retrySessionRestore()
+    }
 
     fun openWelcome() = moveTo(AppRoute.Welcome)
 
     fun openRegister() = moveTo(AppRoute.Register)
 
     fun openSignIn() = moveTo(AppRoute.SignIn)
+
+    fun retrySessionRestore() {
+        if (session != null || sessionRestoreJob?.isActive == true) return
+        _uiState.update {
+            it.copy(
+                route = AppRoute.Welcome,
+                isRestoringSession = true,
+                canRetrySessionRestore = false,
+                error = null,
+                notice = null,
+                correlationId = null,
+            )
+        }
+        sessionRestoreJob = viewModelScope.launch { restoreSession() }
+    }
+
+    fun updatePreferredLocale(value: String) {
+        preferredLocale = if (value == "ro") "ro" else "en"
+    }
 
     fun updateDisplayName(value: String) = updateAuth(FormField.DisplayName) {
         copy(displayName = value)
@@ -356,7 +384,7 @@ class SharedHouseViewModel(
             val range = state.calendar.visibleRange()
             val updated = state.calendar.readyEvents()
                 .filterNot { it.id == mapped.id }
-                .plus(mapped.takeIf { it.date in range }.let(::listOfNotNull))
+                .plus(if (mapped.date in range) listOf(mapped) else emptyList())
                 .sortedForCalendar()
             state.copy(
                 calendar = state.calendar.copy(
@@ -393,7 +421,7 @@ class SharedHouseViewModel(
 
     fun register() {
         val snapshot = _uiState.value
-        if (snapshot.isSubmitting) return
+        if (snapshot.isSubmitting || snapshot.isRestoringSession) return
         val errors = AppFormValidator.registration(snapshot.auth)
         if (errors.isNotEmpty()) {
             _uiState.update { it.copy(fieldErrors = errors, error = null, correlationId = null) }
@@ -435,7 +463,7 @@ class SharedHouseViewModel(
 
     fun verifyEmail() {
         val snapshot = _uiState.value
-        if (snapshot.isSubmitting) return
+        if (snapshot.isSubmitting || snapshot.isRestoringSession) return
         val errors = AppFormValidator.verification(snapshot.auth)
         if (errors.isNotEmpty()) {
             _uiState.update { it.copy(fieldErrors = errors, error = null, correlationId = null) }
@@ -460,7 +488,7 @@ class SharedHouseViewModel(
 
     fun signIn() {
         val snapshot = _uiState.value
-        if (snapshot.isSubmitting) return
+        if (snapshot.isSubmitting || snapshot.isRestoringSession) return
         val errors = AppFormValidator.signIn(snapshot.auth)
         if (errors.isNotEmpty()) {
             _uiState.update { it.copy(fieldErrors = errors, error = null, correlationId = null) }
@@ -572,8 +600,10 @@ class SharedHouseViewModel(
                             households = updatedHouseholds,
                             selectedHousehold = result.value,
                             householdEditorMode = HouseholdEditorMode.Edit,
+                            calendar = it.calendar.forHousehold(result.value),
                         )
                     }
+                    loadCalendar()
                 }
 
                 is ApiResult.Failure -> {
@@ -625,13 +655,21 @@ class SharedHouseViewModel(
         if (_uiState.value.isSubmitting) return
         val active = session
         if (active === null) {
-            clearSession(UiMessage.SignedOut)
+            submit {
+                val cleared = sessionStore.clear()
+                clearSession(
+                    if (cleared) UiMessage.SignedOut else UiMessage.SecureStorageUnavailable,
+                )
+            }
             return
         }
         submit {
             val result = gateway.signOut(active.accessToken)
+            val cleared = sessionStore.clear()
             clearSession(
-                if (result is ApiResult.Success) {
+                if (!cleared) {
+                    UiMessage.SecureStorageUnavailable
+                } else if (result is ApiResult.Success) {
                     UiMessage.SignedOut
                 } else {
                     UiMessage.SessionRevocationUnconfirmed
@@ -640,11 +678,115 @@ class SharedHouseViewModel(
         }
     }
 
+    private suspend fun restoreSession() {
+        when (val stored = sessionStore.load()) {
+            SessionLoadResult.Missing -> {
+                _uiState.update {
+                    it.copy(
+                        isRestoringSession = false,
+                        canRetrySessionRestore = false,
+                    )
+                }
+            }
+
+            SessionLoadResult.Invalid -> {
+                _uiState.update {
+                    it.copy(
+                        route = AppRoute.Welcome,
+                        isRestoringSession = false,
+                        canRetrySessionRestore = false,
+                        notice = UiMessage.SecureSessionReset,
+                    )
+                }
+            }
+
+            SessionLoadResult.Unavailable -> showSessionRestoreFailure(
+                message = UiMessage.SecureStorageUnavailable,
+            )
+
+            is SessionLoadResult.Restored -> restoreSession(stored.session)
+        }
+    }
+
+    private suspend fun restoreSession(stored: SessionDto) {
+        when (val refreshed = gateway.refresh(stored.refreshToken)) {
+            is ApiResult.Success -> {
+                if (sessionStore.save(refreshed.value) == SessionSaveResult.SAVED) {
+                    activateSession(refreshed.value)
+                } else {
+                    gateway.signOut(refreshed.value.accessToken)
+                    sessionStore.clear()
+                    showSessionRestoreFailure(
+                        message = UiMessage.SecureStorageUnavailable,
+                        retryAllowed = false,
+                    )
+                }
+            }
+
+            is ApiResult.Failure -> {
+                if (refreshed.code == "NETWORK_UNAVAILABLE") {
+                    showSessionRestoreFailure(UiMessage.SessionRestoreNetworkUnavailable)
+                } else {
+                    sessionStore.clear()
+                    _uiState.update {
+                        it.copy(
+                            route = AppRoute.Welcome,
+                            isRestoringSession = false,
+                            canRetrySessionRestore = false,
+                            account = null,
+                            notice = UiMessage.SessionExpired,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showSessionRestoreFailure(
+        message: UiMessage,
+        retryAllowed: Boolean = true,
+    ) {
+        _uiState.update {
+            it.copy(
+                route = AppRoute.Welcome,
+                isRestoringSession = false,
+                canRetrySessionRestore = retryAllowed,
+                account = null,
+                error = null,
+                notice = message,
+                correlationId = null,
+            )
+        }
+    }
+
     private suspend fun establishSession(newSession: SessionDto) {
+        if (sessionStore.save(newSession) != SessionSaveResult.SAVED) {
+            gateway.signOut(newSession.accessToken)
+            sessionStore.clear()
+            _uiState.update {
+                it.copy(
+                    isRestoringSession = false,
+                    canRetrySessionRestore = false,
+                    isSubmitting = false,
+                    auth = it.auth.copy(password = "", verificationCode = ""),
+                    account = null,
+                    error = UiMessage.SecureStorageUnavailable,
+                    notice = null,
+                    correlationId = null,
+                )
+            }
+            return
+        }
+        activateSession(newSession)
+    }
+
+    private suspend fun activateSession(newSession: SessionDto) {
         session = newSession
         _uiState.update {
             it.copy(
                 route = AppRoute.HouseholdGate,
+                isRestoringSession = false,
+                canRetrySessionRestore = false,
                 auth = it.auth.copy(password = "", verificationCode = ""),
                 account = newSession.account,
                 isSubmitting = true,
@@ -665,12 +807,13 @@ class SharedHouseViewModel(
         when (val result = authorized { token -> gateway.listHouseholds(token) }) {
             is ApiResult.Success -> {
                 val active = result.value.filter { it.status == "active" }
+                val selected = active.firstOrNull()
                 _uiState.update {
                     it.copy(
                         route = if (active.isEmpty()) AppRoute.HouseholdSetup else AppRoute.Home,
                         households = active,
-                        selectedHousehold = active.firstOrNull(),
-                        household = active.firstOrNull()?.toForm() ?: it.household,
+                        selectedHousehold = selected,
+                        household = selected?.toForm() ?: it.household,
                         householdEditorMode = if (active.isEmpty()) {
                             HouseholdEditorMode.Create
                         } else {
@@ -680,8 +823,12 @@ class SharedHouseViewModel(
                         error = null,
                         fieldErrors = emptyMap(),
                         correlationId = null,
+                        calendar = selected?.let { household ->
+                            it.calendar.forHousehold(household)
+                        } ?: CalendarUiState(),
                     )
                 }
+                if (selected != null) loadCalendar()
             }
 
             is ApiResult.Failure -> {
@@ -714,14 +861,23 @@ class SharedHouseViewModel(
 
         return when (val refreshed = gateway.refresh(active.refreshToken)) {
             is ApiResult.Success -> {
-                session = refreshed.value
-                _uiState.update { it.copy(account = refreshed.value.account) }
-                request(refreshed.value.accessToken)
+                if (sessionStore.save(refreshed.value) == SessionSaveResult.SAVED) {
+                    session = refreshed.value
+                    _uiState.update { it.copy(account = refreshed.value.account) }
+                    request(refreshed.value.accessToken)
+                } else {
+                    gateway.signOut(refreshed.value.accessToken)
+                    expireSession(UiMessage.SecureStorageUnavailable)
+                    ApiResult.Failure(
+                        code = "LOCAL_SECURE_STORAGE_UNAVAILABLE",
+                        title = "Secure session storage is unavailable.",
+                    )
+                }
             }
 
             is ApiResult.Failure -> {
                 if (refreshed.code != "NETWORK_UNAVAILABLE") {
-                    expireSession()
+                    expireSession(UiMessage.SessionExpired)
                 }
                 refreshed
             }
@@ -788,9 +944,13 @@ class SharedHouseViewModel(
             }
         }.toMap()
 
-    private fun expireSession() {
+    private suspend fun expireSession(message: UiMessage) {
+        sessionStore.clear()
+        calendarLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
+        calendarCreationIdempotencyKey = null
+        calendarCreationDraft = null
         _uiState.update {
             it.copy(
                 route = AppRoute.SignIn,
@@ -798,29 +958,36 @@ class SharedHouseViewModel(
                 account = null,
                 households = emptyList(),
                 selectedHousehold = null,
+                isRestoringSession = false,
+                canRetrySessionRestore = false,
                 isSubmitting = false,
-                error = UiMessage.SessionExpired,
+                error = message,
                 notice = null,
                 fieldErrors = emptyMap(),
+                calendar = CalendarUiState(),
             )
         }
     }
 
     private fun clearSession(notice: UiMessage) {
+        calendarLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
+        calendarCreationIdempotencyKey = null
+        calendarCreationDraft = null
         _uiState.update {
             AppUiState(
                 route = AppRoute.Welcome,
                 auth = AuthFormState(email = it.auth.email),
                 household = it.household.copy(name = ""),
+                isRestoringSession = false,
                 notice = notice,
             )
         }
     }
 
     private fun moveTo(route: AppRoute) {
-        if (_uiState.value.isSubmitting) return
+        if (_uiState.value.isSubmitting || _uiState.value.isRestoringSession) return
         _uiState.update {
             it.copy(
                 route = route,
@@ -862,6 +1029,72 @@ class SharedHouseViewModel(
         }
     }
 
+    private fun CalendarUiState.visibleRange() = CalendarPeriodCalculator.rangeFor(
+        view = view,
+        anchorDate = anchorDate,
+        firstDayOfWeek = firstDayOfWeek,
+    )
+
+    private fun CalendarUiState.readyEvents(): List<CalendarEventUi> =
+        (content as? CalendarContent.Ready)?.events.orEmpty()
+
+    private fun List<CalendarEventUi>.sortedForCalendar(): List<CalendarEventUi> = sortedWith(
+        compareBy<CalendarEventUi> { it.date }
+            .thenBy { it.startTime ?: LocalTime.MIN }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title },
+    )
+
+    private fun CalendarUiState.forHousehold(
+        household: com.sharedhouse.network.HouseholdDto,
+    ): CalendarUiState {
+        val householdZone = runCatching { ZoneId.of(household.timezone) }
+            .getOrDefault(ZoneId.systemDefault())
+        val today = LocalDate.now(householdZone)
+        return CalendarUiState(
+            view = view,
+            anchorDate = today,
+            selectedDate = today,
+            firstDayOfWeek = runCatching { DayOfWeek.of(household.firstDayOfWeek) }
+                .getOrDefault(DayOfWeek.MONDAY),
+            zoneId = householdZone,
+            content = CalendarContent.Loading,
+            canCreateEvents = household.role in CALENDAR_WRITER_ROLES,
+        )
+    }
+
+    private fun CalendarEventDraft.toDto() = CalendarEventConfigurationDto(
+        title = title,
+        description = description,
+        type = type.wireValue,
+        date = date.toString(),
+        startTime = startTime?.toString(),
+        endTime = endTime?.toString(),
+        reminderMinutesBefore = reminderMinutesBefore,
+    )
+
+    private fun CalendarEventDto.toCalendarUi(state: AppUiState): CalendarEventUi {
+        val household = requireNotNull(state.selectedHousehold) {
+            "A selected household is required to map calendar events."
+        }
+        require(householdId == household.id) { "Calendar event belongs to another household." }
+        val roleCanManageAll = household.role == "owner" || household.role == "admin"
+        val memberOwnsEvent = household.role == "member" && createdByUserId == state.account?.id
+        val canChange = roleCanManageAll || memberOwnsEvent
+        return CalendarEventUi(
+            id = id,
+            title = title,
+            description = description,
+            type = CalendarEventType.fromWireValue(type),
+            date = LocalDate.parse(date),
+            startTime = startTime?.let(LocalTime::parse),
+            endTime = endTime?.let(LocalTime::parse),
+            reminderMinutesBefore = reminderMinutesBefore,
+            version = version,
+            canEdit = canChange,
+            canDelete = canChange,
+        )
+    }
+
     private fun HouseholdFormState.toDto() = HouseholdConfigurationDto(
         name = name.trim(),
         countryCode = countryCode.trim().uppercase(),
@@ -881,4 +1114,8 @@ class SharedHouseViewModel(
         cycleType = cycleType,
         cycleAnchor = cycleAnchor,
     )
+
+    private companion object {
+        val CALENDAR_WRITER_ROLES = setOf("owner", "admin", "member")
+    }
 }

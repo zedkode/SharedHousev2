@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -173,10 +173,10 @@ fun UnavailableHouseholdFeatureScreen(
                                 .weight(1f)
                                 .padding(start = 8.dp),
                         )
-                        Icon(Icons.Outlined.ArrowForward, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
                     }
                     FilledTonalButton(onClick = onOpenGuides, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Outlined.MenuBook, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null)
                         Text(
                             text = stringResource(R.string.feature_open_guides),
                             modifier = Modifier.padding(start = 8.dp),

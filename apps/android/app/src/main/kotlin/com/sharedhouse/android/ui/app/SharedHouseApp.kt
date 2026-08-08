@@ -1,42 +1,81 @@
 package com.sharedhouse.android.ui.app
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.sharedhouse.android.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.sharedhouse.android.R
+import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.preferences.AppPreferencesRepository
 import com.sharedhouse.android.ui.auth.HouseholdGateScreen
 import com.sharedhouse.android.ui.auth.RegisterScreen
 import com.sharedhouse.android.ui.auth.SignInScreen
 import com.sharedhouse.android.ui.auth.VerifyEmailScreen
 import com.sharedhouse.android.ui.auth.WelcomeScreen
-import com.sharedhouse.android.ui.home.HomeFoundationState
-import com.sharedhouse.android.ui.home.SharedHouseHome
+import com.sharedhouse.android.ui.calendar.CalendarContent
+import com.sharedhouse.android.ui.calendar.CalendarScreen
+import com.sharedhouse.android.ui.guides.GuideArticleScreen
+import com.sharedhouse.android.ui.guides.GuideTopic
+import com.sharedhouse.android.ui.guides.GuidesScreen
+import com.sharedhouse.android.ui.home.DashboardCalendarContent
+import com.sharedhouse.android.ui.home.HouseholdDashboardScreen
+import com.sharedhouse.android.ui.home.HouseholdDashboardUiModel
+import com.sharedhouse.android.ui.home.HouseholdDestination
+import com.sharedhouse.android.ui.home.HouseholdHubScreen
+import com.sharedhouse.android.ui.home.HouseholdHubUiModel
+import com.sharedhouse.android.ui.home.HouseholdNavigationShell
+import com.sharedhouse.android.ui.home.UnavailableHouseholdFeature
+import com.sharedhouse.android.ui.home.UnavailableHouseholdFeatureScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
-import kotlinx.coroutines.launch
+import com.sharedhouse.android.ui.settings.SettingsRoute
+import java.time.LocalDate
 
 @Composable
 fun SharedHouseApp(
     viewModel: SharedHouseViewModel,
+    preferencesRepository: AppPreferencesRepository,
+    onLanguageChanged: (AppLanguage) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    if (state.isRestoringSession) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(24.dp),
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    text = stringResource(R.string.session_restoring),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+        return
+    }
 
     LaunchedEffect(state.route, currentRoute) {
         if (currentRoute != state.route.path) {
@@ -56,6 +95,7 @@ fun SharedHouseApp(
                 state = state,
                 onRegister = viewModel::openRegister,
                 onSignIn = viewModel::openSignIn,
+                onRetrySession = viewModel::retrySessionRestore,
                 onDismissNotice = viewModel::clearNotice,
             )
         }
@@ -113,68 +153,176 @@ fun SharedHouseApp(
             )
         }
         composable(AppRoute.Home.path) {
-            AuthenticatedHome(
+            AuthenticatedHouseholdExperience(
                 state = state,
-                onEditHousehold = viewModel::openHouseholdEditor,
-                onSignOut = viewModel::signOut,
+                viewModel = viewModel,
+                preferencesRepository = preferencesRepository,
+                onLanguageChanged = onLanguageChanged,
             )
         }
     }
 }
 
+private enum class SecondarySurface {
+    NONE,
+    SETTINGS,
+    GUIDES,
+    ARTICLE,
+}
+
 @Composable
-private fun AuthenticatedHome(
+private fun AuthenticatedHouseholdExperience(
     state: AppUiState,
-    onEditHousehold: () -> Unit,
-    onSignOut: () -> Unit,
+    viewModel: SharedHouseViewModel,
+    preferencesRepository: AppPreferencesRepository,
+    onLanguageChanged: (AppLanguage) -> Unit,
 ) {
     val household = state.selectedHousehold
-    val account = state.account
-    var showAccountDialog by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    if (household == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
-    SharedHouseHome(
-        snackbarHostState = snackbarHostState,
-        onMessage = { message ->
-            scope.launch { snackbarHostState.showSnackbar(message) }
+    var selectedDestinationName by rememberSaveable {
+        mutableStateOf(HouseholdDestination.HOME.name)
+    }
+    var secondarySurfaceName by rememberSaveable { mutableStateOf(SecondarySurface.NONE.name) }
+    var guideTopicName by rememberSaveable { mutableStateOf(GuideTopic.GETTING_STARTED.name) }
+    var articleParentName by rememberSaveable { mutableStateOf(SecondarySurface.GUIDES.name) }
+
+    val selectedDestination = runCatching {
+        HouseholdDestination.valueOf(selectedDestinationName)
+    }.getOrDefault(HouseholdDestination.HOME)
+    val secondarySurface = runCatching {
+        SecondarySurface.valueOf(secondarySurfaceName)
+    }.getOrDefault(SecondarySurface.NONE)
+    val guideTopic = runCatching { GuideTopic.valueOf(guideTopicName) }
+        .getOrDefault(GuideTopic.GETTING_STARTED)
+
+    fun openSecondary(surface: SecondarySurface) {
+        secondarySurfaceName = surface.name
+    }
+
+    fun openArticle(topic: GuideTopic, parent: SecondarySurface) {
+        guideTopicName = topic.name
+        articleParentName = parent.name
+        secondarySurfaceName = SecondarySurface.ARTICLE.name
+    }
+
+    HouseholdNavigationShell(
+        selectedDestination = selectedDestination,
+        onDestinationSelected = { destination ->
+            selectedDestinationName = destination.name
+            secondarySurfaceName = SecondarySurface.NONE.name
         },
-        onProfileClick = { showAccountDialog = true },
-        onHouseholdClick = onEditHousehold,
-        state = HomeFoundationState.authenticated(
-            householdName = household?.name.orEmpty(),
-            accountDisplayName = account?.displayName.orEmpty(),
-        ),
-    )
+    ) {
+        when (secondarySurface) {
+            SecondarySurface.SETTINGS -> SettingsRoute(
+                repository = preferencesRepository,
+                onBack = { openSecondary(SecondarySurface.NONE) },
+                onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                onOpenPrivacy = {
+                    openArticle(GuideTopic.PRIVACY, SecondarySurface.SETTINGS)
+                },
+                onOpenSecurity = {
+                    openArticle(GuideTopic.SECURITY, SecondarySurface.SETTINGS)
+                },
+                onOpenLegal = {
+                    openArticle(GuideTopic.LEGAL, SecondarySurface.SETTINGS)
+                },
+                onTutorialRequested = {},
+                onLanguageChanged = onLanguageChanged,
+            )
 
-    if (showAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showAccountDialog = false },
-            title = { Text(stringResource(R.string.account_title)) },
-            text = {
-                Text(
-                    text = stringResource(
-                        R.string.account_session_details,
-                        account?.displayName.orEmpty(),
-                        account?.email.orEmpty(),
-                    ) + "\n\n" + stringResource(R.string.session_memory_notice),
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showAccountDialog = false
-                        onSignOut()
+            SecondarySurface.GUIDES -> GuidesScreen(
+                onBack = { openSecondary(SecondarySurface.NONE) },
+                onOpenTopic = { topic -> openArticle(topic, SecondarySurface.GUIDES) },
+            )
+
+            SecondarySurface.ARTICLE -> GuideArticleScreen(
+                topic = guideTopic,
+                onBack = {
+                    secondarySurfaceName = runCatching {
+                        SecondarySurface.valueOf(articleParentName).name
+                    }.getOrDefault(SecondarySurface.GUIDES.name)
+                },
+            )
+
+            SecondarySurface.NONE -> when (selectedDestination) {
+                HouseholdDestination.HOME -> HouseholdDashboardScreen(
+                    model = HouseholdDashboardUiModel(
+                        householdName = household.name,
+                        accountDisplayName = state.account?.displayName.orEmpty(),
+                        calendar = state.calendar.toDashboardCalendar(),
+                    ),
+                    onOpenCalendar = {
+                        selectedDestinationName = HouseholdDestination.CALENDAR.name
                     },
-                ) {
-                    Text(stringResource(R.string.sign_out))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAccountDialog = false }) {
-                    Text(stringResource(R.string.action_close))
-                }
+                    onRetryCalendar = viewModel::refreshCalendar,
+                    onEditHousehold = viewModel::openHouseholdEditor,
+                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                    onOpenSettings = { openSecondary(SecondarySurface.SETTINGS) },
+                    onOpenMoney = {
+                        selectedDestinationName = HouseholdDestination.MONEY.name
+                    },
+                    onOpenTasks = {
+                        selectedDestinationName = HouseholdDestination.TASKS.name
+                    },
+                )
+
+                HouseholdDestination.CALENDAR -> CalendarScreen(
+                    state = state.calendar,
+                    onAction = viewModel::handleCalendarAction,
+                )
+
+                HouseholdDestination.MONEY -> UnavailableHouseholdFeatureScreen(
+                    feature = UnavailableHouseholdFeature.MONEY,
+                    onOpenCalendar = {
+                        selectedDestinationName = HouseholdDestination.CALENDAR.name
+                    },
+                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                )
+
+                HouseholdDestination.TASKS -> UnavailableHouseholdFeatureScreen(
+                    feature = UnavailableHouseholdFeature.TASKS,
+                    onOpenCalendar = {
+                        selectedDestinationName = HouseholdDestination.CALENDAR.name
+                    },
+                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                )
+
+                HouseholdDestination.HOUSE -> HouseholdHubScreen(
+                    model = HouseholdHubUiModel(
+                        householdName = household.name,
+                        accountDisplayName = state.account?.displayName.orEmpty(),
+                        countryCode = household.countryCode,
+                        timezone = household.timezone,
+                        currencyCode = household.currency,
+                        firstDayOfWeek = household.firstDayOfWeek,
+                        cycleType = household.cycleType,
+                        cycleAnchor = household.cycleAnchor,
+                        householdRole = household.role,
+                        membershipStatus = household.status,
+                    ),
+                    onEditHousehold = viewModel::openHouseholdEditor,
+                    onOpenSettings = { openSecondary(SecondarySurface.SETTINGS) },
+                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                    onSignOut = viewModel::signOut,
+                )
+            }
+        }
+    }
+}
+
+private fun com.sharedhouse.android.ui.calendar.CalendarUiState.toDashboardCalendar():
+    DashboardCalendarContent = when (val current = content) {
+        CalendarContent.Loading -> DashboardCalendarContent.Loading
+        is CalendarContent.Error -> DashboardCalendarContent.Error
+        is CalendarContent.Ready -> DashboardCalendarContent.Ready(
+            events = current.events.filter { event ->
+                !event.date.isBefore(LocalDate.now(zoneId))
             },
         )
     }
-}

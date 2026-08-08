@@ -33,11 +33,12 @@
     <string name="setup_not_available">Configurarea locuinței nu este încă conectată. Nu au fost create date de cont sau de locuință.</string>
 
     <string name="action_back">Înapoi</string>
-    <string name="action_close">Închide</string>
     <string name="action_retry">Reîncearcă</string>
     <string name="welcome_title">O modalitate mai calmă de a organiza locuința împreună</string>
     <string name="welcome_description">Creează un cont verificat, configurează locuința și păstrează responsabilitățile clare, fără a pretinde că SharedHouse transferă bani.</string>
-    <string name="session_memory_notice">În această versiune de dezvoltare, sesiunea securizată este păstrată doar cât timp rulează aplicația. Închiderea procesului te deconectează.</string>
+    <string name="session_secure_notice">Sesiunea este criptată cu o cheie protejată de acest dispozitiv și este eliminată când te deconectezi.</string>
+    <string name="session_restoring">Verificăm sesiunea securizată…</string>
+    <string name="retry_secure_session">Încearcă din nou recuperarea sesiunii</string>
     <string name="create_account">Creează contul</string>
     <string name="creating_account">Se creează contul…</string>
     <string name="sign_in">Autentificare</string>
@@ -95,8 +96,6 @@
     <string name="saving_household">Se salvează locuința…</string>
     <string name="reload_household_settings">Reîncarcă setările curente</string>
 
-    <string name="account_title">Cont și sesiune</string>
-    <string name="account_session_details">%1$s\n%2$s</string>
     <string name="household_connected_title">Locuință conectată</string>
     <string name="household_connected_description">%1$s a fost confirmată de serviciul SharedHouse. API-urile pentru bani, sarcini și cereri nu sunt conectate în această etapă, deci nu este inventată activitate.</string>
     <string name="household_activity_not_connected">Endpointurile pentru activitate nu sunt încă conectate</string>
@@ -123,6 +122,9 @@
     <string name="error_verification_code_expired">Codul de verificare a expirat. Solicitarea unui cod nou nu este încă disponibilă în această etapă a aplicației.</string>
     <string name="error_account_unavailable">Acest cont nu este disponibil. Contactează asistența dacă situația este neașteptată.</string>
     <string name="error_session_expired">Sesiunea nu mai este validă. Autentifică-te din nou.</string>
+    <string name="notice_secure_session_reset">Sesiunea salvată nu a putut fi citită și a fost eliminată în siguranță. Autentifică-te din nou.</string>
+    <string name="error_secure_storage_unavailable">Stocarea securizată a sesiunii nu este disponibilă. Contul nu a rămas autentificat pe acest dispozitiv.</string>
+    <string name="notice_session_restore_network">Nu am putut contacta SharedHouse pentru a restaura sesiunea. Verifică conexiunea și încearcă din nou.</string>
     <string name="error_idempotency_key">Solicitarea anterioară pentru locuință nu poate fi refolosită cu detalii schimbate. Verifică formularul și reîncearcă.</string>
     <string name="error_request_invalid">Verifică câmpurile evidențiate și încearcă din nou.</string>
     <string name="error_rate_limited">Au fost efectuate prea multe încercări. Așteaptă înainte de a reîncerca.</string>
@@ -133,7 +135,7 @@
     <string name="notice_household_reloaded">Setările curente ale locuinței au fost reîncărcate din serviciu.</string>
     <string name="notice_registration_accepted">Înregistrarea a fost acceptată. Verificarea adresei de e-mail este încă necesară.</string>
     <string name="notice_signed_out">Te-ai deconectat pe acest dispozitiv.</string>
-    <string name="notice_session_revocation_unconfirmed">Deconectarea locală a reușit, dar serviciul nu a confirmat revocarea sesiunii de pe server. Aplicația de dezvoltare nu a păstrat niciun token.</string>
+    <string name="notice_session_revocation_unconfirmed">Deconectarea locală a reușit și datele de autentificare salvate au fost eliminate, dar serviciul nu a confirmat revocarea sesiunii de pe server.</string>
     <!-- Calendar: doar evenimente reale ale locuinței; stările goale nu sugerează date sincronizate. -->
     <string name="calendar_title">Calendar</string>
     <string name="calendar_view_week">Săpt.</string>
@@ -156,9 +158,17 @@
     <string name="calendar_empty_title">Nu există încă evenimente în locuință</string>
     <string name="calendar_empty_description">Calendarul este conectat, dar serviciul nu a returnat evenimente pentru această perioadă. Adaugă unul când locuința are un plan real de coordonat.</string>
     <string name="calendar_empty_read_only_description">Calendarul este conectat, dar serviciul nu a returnat evenimente pentru această perioadă. Rolul tău în locuință permite doar citirea calendarului.</string>
-    <string name="calendar_day_accessibility">%1$s. %2$d evenimente, inclusiv %3$d de mentenanță și %4$d programări.</string>
+    <plurals name="calendar_day_accessibility">
+        <item quantity="one">%1$s. %2$d eveniment, inclusiv %3$d de mentenanță și %4$d programări.</item>
+        <item quantity="few">%1$s. %2$d evenimente, inclusiv %3$d de mentenanță și %4$d programări.</item>
+        <item quantity="other">%1$s. %2$d de evenimente, inclusiv %3$d de mentenanță și %4$d programări.</item>
+    </plurals>
     <string name="calendar_day_no_events">Niciun eveniment programat</string>
-    <string name="calendar_more_events">încă %1$d</string>
+    <plurals name="calendar_more_events">
+        <item quantity="one">încă %1$d eveniment</item>
+        <item quantity="few">încă %1$d evenimente</item>
+        <item quantity="other">încă %1$d de evenimente</item>
+    </plurals>
     <string name="calendar_day_agenda">Agenda zilei</string>
     <string name="calendar_day_empty_title">Nimic planificat pentru această zi</string>
     <string name="calendar_day_empty_description">Adaugă un eveniment doar când există un plan real de împărtășit cu locuința.</string>

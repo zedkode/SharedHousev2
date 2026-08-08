@@ -48,6 +48,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -295,16 +296,16 @@ internal fun CalendarEventEditorDialog(
         mutableStateOf((event?.date ?: initialDate).toString())
     }
     var startHour by rememberSaveable(identity) {
-        mutableStateOf(event?.startTime?.hour ?: 9)
+        mutableIntStateOf(event?.startTime?.hour ?: 9)
     }
     var startMinute by rememberSaveable(identity) {
-        mutableStateOf(event?.startTime?.minute ?: 0)
+        mutableIntStateOf(event?.startTime?.minute ?: 0)
     }
     var endHour by rememberSaveable(identity) {
-        mutableStateOf(event?.endTime?.hour ?: 10)
+        mutableIntStateOf(event?.endTime?.hour ?: 10)
     }
     var endMinute by rememberSaveable(identity) {
-        mutableStateOf(event?.endTime?.minute ?: 0)
+        mutableIntStateOf(event?.endTime?.minute ?: 0)
     }
     var allDay by rememberSaveable(identity) { mutableStateOf(event?.startTime == null) }
     var typeName by rememberSaveable(identity) {

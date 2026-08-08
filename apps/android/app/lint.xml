@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Adaptive-icon XML still requires a v26-qualified resource for AAPT, even
+         though this application's minimum SDK is 26. Keep the portable base
+         icon beside it and suppress only this contradictory folder warning. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>

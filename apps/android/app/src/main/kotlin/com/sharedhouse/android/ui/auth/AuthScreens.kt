@@ -1,6 +1,7 @@
 package com.sharedhouse.android.ui.auth
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.heading
@@ -69,6 +70,7 @@ fun WelcomeScreen(
     state: AppUiState,
     onRegister: () -> Unit,
     onSignIn: () -> Unit,
+    onRetrySession: () -> Unit,
     onDismissNotice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -90,17 +92,11 @@ fun WelcomeScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 item {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = MaterialTheme.shapes.extraLarge,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Home,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(18.dp).size(36.dp),
-                        )
-                    }
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground_art),
+                        contentDescription = null,
+                        modifier = Modifier.size(112.dp),
+                    )
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -120,7 +116,11 @@ fun WelcomeScreen(
                     item {
                         StatusMessage(
                             message = notice,
-                            isError = notice == com.sharedhouse.android.ui.app.UiMessage.SessionRevocationUnconfirmed,
+                            isError = notice in setOf(
+                                com.sharedhouse.android.ui.app.UiMessage.SessionRevocationUnconfirmed,
+                                com.sharedhouse.android.ui.app.UiMessage.SecureStorageUnavailable,
+                                com.sharedhouse.android.ui.app.UiMessage.SessionRestoreNetworkUnavailable,
+                            ),
                             correlationId = null,
                             modifier = Modifier.clickable(onClick = onDismissNotice),
                         )
@@ -142,7 +142,7 @@ fun WelcomeScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = stringResource(R.string.session_memory_notice),
+                            text = stringResource(R.string.session_secure_notice),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
@@ -151,6 +151,14 @@ fun WelcomeScreen(
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (state.canRetrySessionRestore) {
+                            FilledTonalButton(
+                                onClick = onRetrySession,
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                            ) {
+                                Text(text = stringResource(R.string.retry_secure_session))
+                            }
+                        }
                         Button(
                             onClick = onRegister,
                             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -527,4 +535,3 @@ private fun SubmitButton(
         Text(text = stringResource(if (loading) loadingText else text))
     }
 }
-

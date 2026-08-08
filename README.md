@@ -19,15 +19,21 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
   account access and tenant-scoped household configuration;
 - Kotlin Multiplatform domain and Ktor network modules targeting Android, iOS and JVM tests;
 - an installable Android Compose application with a Material 3 light/dark/dynamic theme,
-  English/Romanian resources and real authentication and household setup/editing flows;
+  English/Romanian resources, a skippable first-run tutorial, responsive navigation, persistent
+  accessibility/notification settings and real authentication and household setup/editing flows;
+- Android session recovery backed by a non-exportable AES-256-GCM Android Keystore key, atomic
+  no-backup storage and server-side refresh rotation before household data is shown;
+- a tenant-scoped one-off calendar vertical with an interactive Android week/month/quarter/year UI,
+  idempotent creation and optimistic edit/delete protection;
 - PostgreSQL-compatible migrations plus persistent embedded PGlite for Docker-free development;
 - synthetic-only local PostgreSQL, Redis and S3-compatible infrastructure definitions;
 - strict TypeScript checks, unit/API tests, dependency auditing and GitHub Actions CI.
 
-The identity and initial household-configuration vertical is functional in local development, but
-this is not yet a production MVP. Real email delivery, Keystore-backed session persistence,
-distributed rate limiting, invitations, ledger, chores, shopping, notifications, store commerce
-and privacy workflows remain implementation work.
+The identity, household-configuration and one-off calendar verticals are functional in local
+development, but this is not yet a production MVP. Real email delivery, session-device management,
+recent-authentication, distributed rate limiting, invitations,
+recurring/generated calendar events, ledger, chores, shopping, remote notification delivery, store
+commerce and privacy workflows remain implementation work.
 
 ## Local development
 
@@ -40,11 +46,15 @@ npm run check
 npm run smoke:api
 .\gradlew.bat :shared:domain:jvmTest
 .\gradlew.bat :shared:network:jvmTest
-.\gradlew.bat :apps:android:app:lintDebug :apps:android:app:testDebugUnitTest :apps:android:app:assembleDebug
+.\gradlew.bat :apps:android:app:lintLocalDebug :apps:android:app:testLocalDebugUnitTest :apps:android:app:packageLocalTestingApk
 ```
 
 Android commands require `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) to point to an SDK containing
-platform 36. Debug APKs are written under `apps/android/app/build/outputs/apk/debug/`.
+platform 36. The named testing artifact is
+`apps/android/app/build/outputs/apk/testing/SharedHouse-v0.1.0-local-testing-signed.apk`. The local
+application ID is `com.sharedhouse.android.local`, allowing it to coexist with the public app. It is
+signed by the Android debug keystore for local installation and testing; it is not a production or
+Play Store release signature.
 
 Run individual development processes with:
 
@@ -58,7 +68,21 @@ The API listens on `http://localhost:3000` by default. With no `DATABASE_URL`, d
 persistent PGlite database under `tmp/sharedhouse-pglite`; registration responses include a local
 verification code only outside production. The Android debug build connects to
 `http://10.0.2.2:3000` from the emulator. Override it with the
-`SHAREDHOUSE_DEBUG_API_BASE_URL` Gradle property when testing against another local host.
+`SHAREDHOUSE_LOCAL_API_BASE_URL` Gradle property when testing against another local host.
+
+The public profile keeps the production application ID `com.sharedhouse.android`, prohibits
+cleartext traffic and requires a deployed HTTPS API. A public testing APK can be built with
+`packagePublicTestingApk -PSHAREDHOUSE_PUBLIC_API_BASE_URL=https://api.example.org`. A production
+APK or Play Store AAB additionally requires the four `SHAREDHOUSE_RELEASE_*` signing environment
+variables documented in `apps/android/README.md`; builds fail closed when the endpoint or signing
+material is absent.
+
+To create the first local account, start the API and install the testing APK. Complete or skip the
+tutorial, choose **Create account**, enter an adult display name, email and a unique password of at
+least 15 characters, accept the required terms, and submit. The development-only verification code
+is displayed on the next screen. Enter it, then create the household by choosing its name, country,
+timezone, currency, week start and billing cycle. These local accounts remain in the development
+database and are not production cloud accounts.
 
 ## Start here
 

@@ -71,7 +71,7 @@ fun HouseholdSetupScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = stringResource(R.string.session_memory_notice),
+                    text = stringResource(R.string.session_secure_notice),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
             )

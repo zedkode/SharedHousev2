@@ -45,7 +45,7 @@ try {
   });
   const initialAccessToken = readString(verifiedSession, 'accessToken');
 
-  await request('/v1/households', {
+  const createdHousehold = await request('/v1/households', {
     method: 'POST',
     expectedStatus: 201,
     accessToken: initialAccessToken,
@@ -60,6 +60,24 @@ try {
       cycleAnchor: '2026-08-01',
     },
   });
+  const householdId = readString(createdHousehold, 'id');
+  const calendarEndpoint = `/v1/households/${householdId}/calendar-events`;
+  const createdEvent = await request(calendarEndpoint, {
+    method: 'POST',
+    expectedStatus: 201,
+    accessToken: initialAccessToken,
+    headers: { 'Idempotency-Key': randomUUID() },
+    body: {
+      title: 'Boiler safety visit',
+      description: 'Synthetic runtime calendar smoke',
+      type: 'maintenance',
+      date: '2026-08-14',
+      startTime: '09:30',
+      endTime: '10:30',
+      reminderMinutesBefore: 60,
+    },
+  });
+  const calendarEventId = readString(createdEvent, 'id');
 
   await stopApi(apiProcess);
   apiProcess = await startApi();
@@ -88,6 +106,50 @@ try {
   if (typeof household !== 'object' || household === null) {
     throw new Error('Persisted household response is invalid.');
   }
+  if (household.id !== householdId) {
+    throw new Error('Persisted household identifier changed after restart.');
+  }
+
+  const persistedEvents = await request(`${calendarEndpoint}?from=2026-08-01&to=2026-08-31`, {
+    method: 'GET',
+    expectedStatus: 200,
+    accessToken,
+  });
+  if (!Array.isArray(persistedEvents) || persistedEvents.length !== 1) {
+    throw new Error('Expected exactly one persisted calendar event after restart.');
+  }
+  const updatedEvent = await request(`${calendarEndpoint}/${calendarEventId}`, {
+    method: 'PATCH',
+    expectedStatus: 200,
+    accessToken,
+    headers: { 'If-Match': '"1"' },
+    body: {
+      title: 'Boiler safety visit confirmed',
+      description: 'Synthetic runtime calendar smoke',
+      type: 'maintenance',
+      date: '2026-08-14',
+      startTime: '09:30',
+      endTime: '10:30',
+      reminderMinutesBefore: 60,
+    },
+  });
+  if (updatedEvent.version !== 2) {
+    throw new Error('Calendar event update did not advance its version.');
+  }
+  await request(`${calendarEndpoint}/${calendarEventId}`, {
+    method: 'DELETE',
+    expectedStatus: 204,
+    accessToken,
+    headers: { 'If-Match': '"2"' },
+  });
+  const eventsAfterDelete = await request(`${calendarEndpoint}?from=2026-08-01&to=2026-08-31`, {
+    method: 'GET',
+    expectedStatus: 200,
+    accessToken,
+  });
+  if (!Array.isArray(eventsAfterDelete) || eventsAfterDelete.length !== 0) {
+    throw new Error('Deleted calendar event remained visible.');
+  }
 
   process.stdout.write(
     `${JSON.stringify(
@@ -97,6 +159,8 @@ try {
         householdCountAfterRestart: households.length,
         householdName: household.name,
         householdVersion: household.version,
+        calendarEventPersistedAfterRestart: true,
+        calendarEventUpdatedAndDeleted: true,
         dataDirectory,
       },
       null,
@@ -178,7 +242,8 @@ async function request(path, { method, expectedStatus, body, accessToken, header
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: globalThis.AbortSignal.timeout(20_000),
   });
-  const responseBody = await response.json();
+  const responseText = await response.text();
+  const responseBody = responseText.length === 0 ? null : JSON.parse(responseText);
   if (response.status !== expectedStatus) {
     const safeCode = readOptionalString(responseBody, 'code') ?? 'UNKNOWN_RESPONSE';
     throw new Error(`${method} ${path} returned ${response.status} (${safeCode}).`);

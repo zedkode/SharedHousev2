@@ -4,6 +4,10 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
+| 2026-08-08 | progress | EPIC-01-02C Android local and public profiles | `progress/2026-08-08__EPIC-01-02C__android-local-public-profiles.md` | completed configuration slice |
+| 2026-08-08 | progress | EPIC-01-02B Android 3D brand and named testing APK | `progress/2026-08-08__EPIC-01-02B__android-3d-brand-testing-apk.md` | completed slice |
+| 2026-08-08 | progress | EPIC-03-01B Android secure session recovery | `progress/2026-08-08__EPIC-03-01B__android-secure-session-recovery.md` | completed slice |
+| 2026-08-08 | progress | EPIC-02-09-12A Android calendar, onboarding and settings | `progress/2026-08-01__EPIC-02-09-12A__android-calendar-onboarding-settings.md` | completed slice |
 | 2026-08-02 | progress | Admin web setup and user-flow documentation | `progress/2026-08-02__DOC-001__admin-web-setup-and-user-flow.md` | completed |
 | 2026-08-01 | progress | EPIC-02-04A identity and household Android vertical slice | `progress/2026-08-01__EPIC-02-04A__identity-household-android-vertical-slice.md` | completed slice |
 | 2026-08-01 | progress | EPIC-01-02A Android application foundation | `progress/2026-08-01__EPIC-01-02A__android-application-foundation.md` | completed |

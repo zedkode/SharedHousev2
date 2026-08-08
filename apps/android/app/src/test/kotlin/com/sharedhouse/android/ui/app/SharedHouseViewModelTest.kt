@@ -1,7 +1,17 @@
 package com.sharedhouse.android.ui.app
 
+import com.sharedhouse.android.ui.calendar.CalendarAction
+import com.sharedhouse.android.ui.calendar.CalendarContent
+import com.sharedhouse.android.ui.calendar.CalendarEventDraft
+import com.sharedhouse.android.ui.calendar.CalendarEventType
+import com.sharedhouse.android.ui.calendar.CalendarMutationProblem
+import com.sharedhouse.android.platform.security.SessionLoadResult
+import com.sharedhouse.android.platform.security.SessionSaveResult
+import com.sharedhouse.android.platform.security.SessionStore
 import com.sharedhouse.network.AccountDto
 import com.sharedhouse.network.ApiResult
+import com.sharedhouse.network.CalendarEventConfigurationDto
+import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
 import com.sharedhouse.network.RegisterPayload
@@ -9,9 +19,12 @@ import com.sharedhouse.network.RegistrationAcceptedDto
 import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
+import java.time.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +50,7 @@ class SharedHouseViewModelTest {
                 }
             }
             val viewModel = viewModel(fake)
+            runCurrent()
             validRegistration(viewModel)
 
             viewModel.register()
@@ -69,6 +83,7 @@ class SharedHouseViewModelTest {
                 }
             }
             val viewModel = viewModel(fake)
+            runCurrent()
             signIn(viewModel)
             advanceUntilIdle()
             assertEquals(AppRoute.HouseholdSetup, viewModel.uiState.value.route)
@@ -106,12 +121,15 @@ class SharedHouseViewModelTest {
                     ApiResult.Success(session("fresh-access", "refresh-2"))
                 }
             }
-            val viewModel = viewModel(fake)
+            val store = FakeSessionStore()
+            val viewModel = viewModel(fake, store)
+            runCurrent()
 
             signIn(viewModel)
             advanceUntilIdle()
 
             assertEquals(1, fake.refreshCalls)
+            assertEquals("refresh-2", store.savedSessions.last().refreshToken)
             assertEquals(AppRoute.Home, viewModel.uiState.value.route)
             assertEquals("Oak House", viewModel.uiState.value.selectedHousehold?.name)
         }
@@ -134,6 +152,7 @@ class SharedHouseViewModelTest {
                 }
             }
             val viewModel = viewModel(fake)
+            runCurrent()
             signIn(viewModel)
             advanceUntilIdle()
             viewModel.openHouseholdEditor()
@@ -156,6 +175,214 @@ class SharedHouseViewModelTest {
         }
     }
 
+    @Test
+    fun `calendar loads real events and derives member permissions from authorship`() = runTest {
+        withMainDispatcher {
+            var requestedRange: Pair<String, String>? = null
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "member"))) }
+                listCalendarHandler = { _, householdId, from, to ->
+                    requestedRange = from to to
+                    ApiResult.Success(
+                        listOf(
+                            calendarEvent(
+                                id = "018f0000-0000-7000-8000-000000000010",
+                                householdId = householdId,
+                                date = from,
+                                createdByUserId = "018f0000-0000-7000-8000-000000000001",
+                            ),
+                            calendarEvent(
+                                id = "018f0000-0000-7000-8000-000000000011",
+                                householdId = householdId,
+                                date = to,
+                                createdByUserId = "018f0000-0000-7000-8000-000000000099",
+                            ),
+                        ),
+                    )
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            val events = (state.calendar.content as CalendarContent.Ready).events
+            assertTrue(state.calendar.canCreateEvents)
+            assertTrue(events.first().canEdit)
+            assertTrue(events.first().canDelete)
+            assertFalse(events.last().canEdit)
+            assertFalse(events.last().canDelete)
+            assertTrue(requestedRange?.let { (from, to) -> from <= to } == true)
+        }
+    }
+
+    @Test
+    fun `calendar create retry reuses idempotency key and updates only after server success`() = runTest {
+        withMainDispatcher {
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "owner"))) }
+                createCalendarHandler = { _, householdId, key, configuration ->
+                    calendarCreateKeys += key
+                    if (calendarCreateKeys.size == 1) {
+                        ApiResult.Failure(code = "NETWORK_UNAVAILABLE", title = "offline")
+                    } else {
+                        ApiResult.Success(
+                            calendarEvent(
+                                householdId = householdId,
+                                date = configuration.date,
+                                title = configuration.title,
+                            ),
+                        )
+                    }
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+            val draft = CalendarEventDraft(
+                title = "Boiler service",
+                description = "Annual visit",
+                type = CalendarEventType.MAINTENANCE,
+                date = viewModel.uiState.value.calendar.selectedDate,
+                startTime = LocalTime.of(10, 0),
+                endTime = LocalTime.of(11, 0),
+                reminderMinutesBefore = 60,
+            )
+
+            viewModel.handleCalendarAction(CalendarAction.CreateEvent(draft))
+            advanceUntilIdle()
+            assertEquals(CalendarMutationProblem.CREATE_FAILED, viewModel.uiState.value.calendar.mutationProblem)
+            assertTrue((viewModel.uiState.value.calendar.content as CalendarContent.Ready).events.isEmpty())
+
+            viewModel.handleCalendarAction(CalendarAction.CreateEvent(draft))
+            advanceUntilIdle()
+
+            assertEquals(2, fake.calendarCreateKeys.size)
+            assertEquals(fake.calendarCreateKeys[0], fake.calendarCreateKeys[1])
+            assertEquals(
+                "Boiler service",
+                (viewModel.uiState.value.calendar.content as CalendarContent.Ready).events.single().title,
+            )
+        }
+    }
+
+    @Test
+    fun `saved session is rotated before household content is restored`() = runTest {
+        withMainDispatcher {
+            val stored = session("old-access", "old-refresh")
+            val rotated = session("rotated-access", "rotated-refresh")
+            val store = FakeSessionStore(loadResult = SessionLoadResult.Restored(stored))
+            val fake = FakeGateway().apply {
+                refreshHandler = { token ->
+                    assertEquals("old-refresh", token)
+                    ApiResult.Success(rotated)
+                }
+                listHandler = { token ->
+                    assertEquals("rotated-access", token)
+                    ApiResult.Success(listOf(household()))
+                }
+            }
+
+            val viewModel = viewModel(fake, store)
+            advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.isRestoringSession)
+            assertEquals(AppRoute.Home, viewModel.uiState.value.route)
+            assertEquals("rotated-refresh", store.savedSessions.single().refreshToken)
+            assertEquals("Alex", viewModel.uiState.value.account?.displayName)
+        }
+    }
+
+    @Test
+    fun `network failure keeps saved session available for explicit retry`() = runTest {
+        withMainDispatcher {
+            var attempts = 0
+            val stored = session("old-access", "old-refresh")
+            val store = FakeSessionStore(loadResult = SessionLoadResult.Restored(stored))
+            val fake = FakeGateway().apply {
+                refreshHandler = {
+                    attempts += 1
+                    if (attempts == 1) {
+                        ApiResult.Failure(code = "NETWORK_UNAVAILABLE", title = "offline")
+                    } else {
+                        ApiResult.Success(session("fresh-access", "fresh-refresh"))
+                    }
+                }
+                listHandler = { ApiResult.Success(listOf(household())) }
+            }
+            val viewModel = viewModel(fake, store)
+
+            advanceUntilIdle()
+            assertEquals(AppRoute.Welcome, viewModel.uiState.value.route)
+            assertTrue(viewModel.uiState.value.canRetrySessionRestore)
+            assertEquals(UiMessage.SessionRestoreNetworkUnavailable, viewModel.uiState.value.notice)
+            assertEquals(0, store.clearCalls)
+
+            viewModel.retrySessionRestore()
+            advanceUntilIdle()
+
+            assertEquals(2, attempts)
+            assertEquals(AppRoute.Home, viewModel.uiState.value.route)
+            assertEquals("fresh-refresh", store.savedSessions.single().refreshToken)
+        }
+    }
+
+    @Test
+    fun `sign in is rejected locally when rotated credentials cannot be secured`() = runTest {
+        withMainDispatcher {
+            val store = FakeSessionStore(saveResult = SessionSaveResult.UNAVAILABLE)
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                signOutHandler = {
+                    signOutCalls += 1
+                    ApiResult.Success(Unit)
+                }
+            }
+            val viewModel = viewModel(fake, store)
+            runCurrent()
+
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            assertEquals(AppRoute.SignIn, viewModel.uiState.value.route)
+            assertEquals(UiMessage.SecureStorageUnavailable, viewModel.uiState.value.error)
+            assertNull(viewModel.uiState.value.account)
+            assertEquals(1, fake.signOutCalls)
+            assertEquals(1, store.clearCalls)
+        }
+    }
+
+    @Test
+    fun `sign out removes local credentials even when server revocation is unavailable`() = runTest {
+        withMainDispatcher {
+            val store = FakeSessionStore()
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household())) }
+                signOutHandler = {
+                    ApiResult.Failure(code = "NETWORK_UNAVAILABLE", title = "offline")
+                }
+            }
+            val viewModel = viewModel(fake, store)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            viewModel.signOut()
+            advanceUntilIdle()
+
+            assertEquals(AppRoute.Welcome, viewModel.uiState.value.route)
+            assertEquals(UiMessage.SessionRevocationUnconfirmed, viewModel.uiState.value.notice)
+            assertEquals(1, store.clearCalls)
+            assertNull(viewModel.uiState.value.account)
+        }
+    }
+
     private suspend fun TestScope.withMainDispatcher(block: suspend TestScope.() -> Unit) {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -165,8 +392,12 @@ class SharedHouseViewModelTest {
         }
     }
 
-    private fun viewModel(fake: FakeGateway) = SharedHouseViewModel(
+    private fun viewModel(
+        fake: FakeGateway,
+        sessionStore: FakeSessionStore = FakeSessionStore(),
+    ) = SharedHouseViewModel(
         gateway = fake,
+        sessionStore = sessionStore,
         deviceName = "Test phone",
         preferredLocale = "en",
         initialHousehold = HouseholdFormState(
@@ -195,10 +426,32 @@ class SharedHouseViewModelTest {
     }
 }
 
+private class FakeSessionStore(
+    var loadResult: SessionLoadResult = SessionLoadResult.Missing,
+    var saveResult: SessionSaveResult = SessionSaveResult.SAVED,
+) : SessionStore {
+    val savedSessions = mutableListOf<SessionDto>()
+    var clearCalls = 0
+
+    override suspend fun load(): SessionLoadResult = loadResult
+
+    override suspend fun save(session: SessionDto): SessionSaveResult {
+        if (saveResult == SessionSaveResult.SAVED) savedSessions += session
+        return saveResult
+    }
+
+    override suspend fun clear(): Boolean {
+        clearCalls += 1
+        return true
+    }
+}
+
 private class FakeGateway : SharedHouseGateway {
     var registerCalls = 0
     var refreshCalls = 0
+    var signOutCalls = 0
     val createKeys = mutableListOf<String>()
+    val calendarCreateKeys = mutableListOf<String>()
 
     var registerHandler: suspend (RegisterPayload) -> ApiResult<RegistrationAcceptedDto> = {
         error("Unexpected register")
@@ -226,6 +479,20 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String, Int, HouseholdConfigurationDto) -> ApiResult<HouseholdDto> = { _, _, _, _ ->
             error("Unexpected update")
         }
+    var listCalendarHandler:
+        suspend (String, String, String, String) -> ApiResult<List<CalendarEventDto>> = { _, _, _, _ ->
+            ApiResult.Success(emptyList())
+        }
+    var createCalendarHandler:
+        suspend (String, String, String, CalendarEventConfigurationDto) -> ApiResult<CalendarEventDto> =
+        { _, _, _, _ -> error("Unexpected calendar create") }
+    var updateCalendarHandler:
+        suspend (String, String, String, Int, CalendarEventConfigurationDto) -> ApiResult<CalendarEventDto> =
+        { _, _, _, _, _ -> error("Unexpected calendar update") }
+    var deleteCalendarHandler:
+        suspend (String, String, String, Int) -> ApiResult<Unit> = { _, _, _, _ ->
+            error("Unexpected calendar delete")
+        }
 
     override suspend fun register(payload: RegisterPayload) = registerHandler(payload)
     override suspend fun verifyEmail(payload: VerifyEmailPayload) = verifyHandler(payload)
@@ -245,6 +512,35 @@ private class FakeGateway : SharedHouseGateway {
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ) = updateHandler(accessToken, householdId, expectedVersion, configuration)
+
+    override suspend fun listCalendarEvents(
+        accessToken: String,
+        householdId: String,
+        from: String,
+        to: String,
+    ) = listCalendarHandler(accessToken, householdId, from, to)
+
+    override suspend fun createCalendarEvent(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: CalendarEventConfigurationDto,
+    ) = createCalendarHandler(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun updateCalendarEvent(
+        accessToken: String,
+        householdId: String,
+        eventId: String,
+        expectedVersion: Int,
+        configuration: CalendarEventConfigurationDto,
+    ) = updateCalendarHandler(accessToken, householdId, eventId, expectedVersion, configuration)
+
+    override suspend fun deleteCalendarEvent(
+        accessToken: String,
+        householdId: String,
+        eventId: String,
+        expectedVersion: Int,
+    ) = deleteCalendarHandler(accessToken, householdId, eventId, expectedVersion)
 }
 
 private fun session(accessToken: String, refreshToken: String) = SessionDto(
@@ -264,6 +560,7 @@ private fun session(accessToken: String, refreshToken: String) = SessionDto(
 private fun household(
     name: String = "Oak House",
     version: Int = 1,
+    role: String = "owner",
 ) = HouseholdDto(
     id = "018f0000-0000-7000-8000-000000000002",
     name = name,
@@ -273,10 +570,31 @@ private fun household(
     firstDayOfWeek = 1,
     cycleType = "fourteen_day",
     cycleAnchor = "2026-08-01",
-    role = "owner",
+    role = role,
     status = "active",
     version = version,
     createdAt = "2026-08-01T12:00:00Z",
     updatedAt = "2026-08-01T12:00:00Z",
 )
 
+private fun calendarEvent(
+    id: String = "018f0000-0000-7000-8000-000000000010",
+    householdId: String = "018f0000-0000-7000-8000-000000000002",
+    date: String,
+    title: String = "Household event",
+    createdByUserId: String = "018f0000-0000-7000-8000-000000000001",
+) = CalendarEventDto(
+    id = id,
+    householdId = householdId,
+    title = title,
+    description = null,
+    type = "household",
+    date = date,
+    startTime = "10:00",
+    endTime = "11:00",
+    reminderMinutesBefore = 15,
+    createdByUserId = createdByUserId,
+    version = 1,
+    createdAt = "2026-08-08T09:00:00Z",
+    updatedAt = "2026-08-08T09:00:00Z",
+)

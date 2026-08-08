@@ -21,6 +21,19 @@
 - Do not request exact alarms for routine reminders; server push and WorkManager/local scheduling are sufficient.
 - Do not request background location, contacts, SMS, phone, broad storage or accessibility-service permissions.
 
+## Implemented secure-session behaviour
+
+- Android encrypts the complete rotating session envelope with AES-256-GCM and a non-exportable
+  `AndroidKeyStore` key; token material is never written to DataStore, logs, backup storage or UI
+  state.
+- Ciphertext is application/format-bound with authenticated additional data and atomically replaced
+  in `noBackupFilesDir` after sign-in, verification and every successful refresh rotation.
+- Process startup exchanges the stored refresh token before presenting household content. A
+  network failure retains the credential for explicit retry; a terminal rejection, corrupt payload
+  or sign-out makes the local session unrecoverable.
+- The flow does not claim biometric unlock or device management. Those require dedicated policy,
+  backend endpoints and instrumented device validation.
+
 ## Store baseline
 
 The release branch must target the current Google Play requirement. As of 31 August 2026, new apps and updates must target Android 16/API 36 or higher. Use Android App Bundles, Play App Signing, internal testing, closed testing and staged production rollout.

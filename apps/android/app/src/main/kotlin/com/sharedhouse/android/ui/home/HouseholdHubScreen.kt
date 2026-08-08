@@ -17,14 +17,14 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.Logout
-import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Schedule
@@ -384,17 +384,17 @@ private fun HouseholdActionPanel(
                         .weight(1f)
                         .padding(start = 8.dp),
                 )
-                Icon(Icons.Outlined.ArrowForward, contentDescription = null)
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
             }
             OutlinedButton(onClick = onOpenGuides, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.MenuBook, contentDescription = null)
+                Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null)
                 Text(
                     text = stringResource(R.string.househub_guides),
                     modifier = Modifier
                         .weight(1f)
                         .padding(start = 8.dp),
                 )
-                Icon(Icons.Outlined.ArrowForward, contentDescription = null)
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
             }
         }
     }
@@ -435,7 +435,7 @@ private fun AccountPanel(displayName: String, onSignOut: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             TextButton(onClick = onSignOut, modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Outlined.Logout, contentDescription = null)
+                Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)
                 Text(
                     text = stringResource(R.string.househub_signout),
                     modifier = Modifier.padding(start = 8.dp),

@@ -33,11 +33,12 @@
     <string name="setup_not_available">Household setup is not connected yet. No account or household data was created.</string>
 
     <string name="action_back">Back</string>
-    <string name="action_close">Close</string>
     <string name="action_retry">Retry</string>
     <string name="welcome_title">A calmer way to organise home together</string>
     <string name="welcome_description">Create a verified account, configure your household and keep responsibilities clear without pretending that SharedHouse moves money.</string>
-    <string name="session_memory_notice">For this development build, your secure session is held only while the app is running. Closing the process signs you out.</string>
+    <string name="session_secure_notice">Your session is encrypted with a key protected by this device and is removed when you sign out.</string>
+    <string name="session_restoring">Checking your secure session…</string>
+    <string name="retry_secure_session">Try session recovery again</string>
     <string name="create_account">Create account</string>
     <string name="creating_account">Creating account…</string>
     <string name="sign_in">Sign in</string>
@@ -95,8 +96,6 @@
     <string name="saving_household">Saving household…</string>
     <string name="reload_household_settings">Reload current settings</string>
 
-    <string name="account_title">Account and session</string>
-    <string name="account_session_details">%1$s\n%2$s</string>
     <string name="household_connected_title">Household connected</string>
     <string name="household_connected_description">%1$s was confirmed by the SharedHouse service. Financial, task and request APIs are not connected in this slice, so no activity is fabricated.</string>
     <string name="household_activity_not_connected">Activity endpoints are not connected yet</string>
@@ -123,6 +122,9 @@
     <string name="error_verification_code_expired">The verification code has expired. Requesting a replacement code is not available in this app slice yet.</string>
     <string name="error_account_unavailable">This account is not available. Contact support if this is unexpected.</string>
     <string name="error_session_expired">Your session is no longer valid. Sign in again.</string>
+    <string name="notice_secure_session_reset">The saved session could not be read and was removed safely. Sign in again.</string>
+    <string name="error_secure_storage_unavailable">Secure session storage is unavailable. Your account was not left signed in on this device.</string>
+    <string name="notice_session_restore_network">We could not reach SharedHouse to restore your session. Check your connection and try again.</string>
     <string name="error_idempotency_key">The previous household request cannot be reused with changed details. Review the form and retry.</string>
     <string name="error_request_invalid">Review the highlighted fields and try again.</string>
     <string name="error_rate_limited">Too many attempts were made. Wait before trying again.</string>
@@ -133,7 +135,7 @@
     <string name="notice_household_reloaded">Current household settings were reloaded from the service.</string>
     <string name="notice_registration_accepted">Registration was accepted. Email verification is still required.</string>
     <string name="notice_signed_out">You are signed out on this device.</string>
-    <string name="notice_session_revocation_unconfirmed">Local sign-out succeeded, but the service could not confirm server-session revocation. This development app kept no token.</string>
+    <string name="notice_session_revocation_unconfirmed">Local sign-out succeeded and the saved credentials were removed, but the service could not confirm server-session revocation.</string>
     <!-- Calendar: real household events only; empty states never imply synced data. -->
     <string name="calendar_title">Calendar</string>
     <string name="calendar_view_week">Week</string>
@@ -156,9 +158,15 @@
     <string name="calendar_empty_title">No household events yet</string>
     <string name="calendar_empty_description">The calendar is connected, but no events were returned for this period. Add an event when the household has something real to coordinate.</string>
     <string name="calendar_empty_read_only_description">The calendar is connected, but no events were returned for this period. Your household role has read-only calendar access.</string>
-    <string name="calendar_day_accessibility">%1$s. %2$d events, including %3$d maintenance and %4$d appointments.</string>
+    <plurals name="calendar_day_accessibility">
+        <item quantity="one">%1$s. %2$d event, including %3$d maintenance and %4$d appointments.</item>
+        <item quantity="other">%1$s. %2$d events, including %3$d maintenance and %4$d appointments.</item>
+    </plurals>
     <string name="calendar_day_no_events">No events scheduled</string>
-    <string name="calendar_more_events">+%1$d more</string>
+    <plurals name="calendar_more_events">
+        <item quantity="one">+%1$d more event</item>
+        <item quantity="other">+%1$d more events</item>
+    </plurals>
     <string name="calendar_day_agenda">Day agenda</string>
     <string name="calendar_day_empty_title">Nothing planned for this day</string>
     <string name="calendar_day_empty_description">Add an event only when there is a real household plan to share.</string>

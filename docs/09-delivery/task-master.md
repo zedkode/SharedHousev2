@@ -17,20 +17,22 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 ## EPIC-02 Design system and onboarding
 
 - [in progress] Design tokens, typography, spacing, semantic colours and component states. Android
-  authentication and household forms now use the Material 3 product theme; the full component
-  catalogue remains.
+  authentication, dashboard, calendar, household and settings surfaces use the expanded Material 3
+  product theme; the full cross-platform component catalogue remains.
 - [in progress] Native navigation and responsive layouts. The Android account/household gate is
-  implemented; broader feature navigation and device-size validation remain.
+  followed by a phone navigation bar or large-screen navigation rail; physical device-size and
+  foldable validation remain.
 - [in progress] Language detection and English/Romanian resources. The Android vertical has parity;
   remaining platforms and content still require coverage.
 - [in progress] Appearance, accessibility settings and progressive tutorial. System light/dark and
-  Android dynamic colour exist; user overrides and the tutorial remain.
+  dynamic colour overrides, text scale, high contrast, reduced motion and a skippable persisted
+  first-run tutorial are implemented on Android; iOS parity remains.
 
 ## EPIC-03 Identity and account security
 
 - [in progress] Registration, verification, sign-in, rotating sessions and devices. The API and
-  Android vertical work locally; email delivery, secure mobile persistence and device management
-  remain.
+  Android vertical work locally, and Android now persists/rotates sessions through AES-256-GCM with
+  a non-exportable Keystore key; email delivery, recent-authentication and device management remain.
 - Profile/avatar and secure media pipeline.
 - Re-authentication, export and deletion request entry points.
 - Admin MFA and policy-based RBAC.
@@ -75,10 +77,15 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-09 Calendar
 
-- Unified event query/read model.
-- Agenda/week/month and filters.
+- [in progress] Unified event query/read model. Authenticated one-off household events are stored,
+  tenant-isolated and exposed through versioned CRUD; generated chore/bill/shopping events remain.
+- [in progress] Agenda/week/month and filters. Android now provides interactive week, month,
+  quarter and year views, Today/period navigation, day selection and event detail/create/edit/delete
+  sheets; advanced type/member filters remain.
 - Avatar assignment rendering and amount/status display.
-- Conflict, recurring-edit and action-sheet behaviours.
+- [in progress] Conflict, recurring-edit and action-sheet behaviours. Role-aware actions,
+  idempotent creation and optimistic conflict feedback exist; recurrence is intentionally not yet
+  supported.
 
 ## EPIC-10 Shopping
 
@@ -95,9 +102,13 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-12 Notifications
 
-- Preferences, quiet hours, lead times and lock-screen privacy.
+- [in progress] Preferences, quiet hours, lead times and lock-screen privacy. Android persists
+  category toggles, quiet hours, reminder lead time, sound/vibration and creates six scoped channels;
+  lock-screen content policy still requires implementation.
 - Push tokens, notification jobs, delivery telemetry and inbox.
-- High-priority household design without emergency-alert imitation.
+- [in progress] High-priority household design without emergency-alert imitation. Android uses a
+  contextual runtime-permission explanation, system settings shortcut and local test notification;
+  remote delivery remains absent.
 
 ## EPIC-13 Store commerce
 

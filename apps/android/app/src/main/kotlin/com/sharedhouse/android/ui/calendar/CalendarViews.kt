@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -147,8 +148,9 @@ private fun WeekDayCard(
     onClick: () -> Unit,
 ) {
     val dateDescription = localizedDate(summary.date, FormatStyle.FULL)
-    val accessibility = stringResource(
-        R.string.calendar_day_accessibility,
+    val accessibility = pluralStringResource(
+        R.plurals.calendar_day_accessibility,
+        summary.eventCount,
         dateDescription,
         summary.eventCount,
         summary.maintenanceCount,
@@ -226,8 +228,9 @@ private fun WeekDayCard(
                 }
                 if (summary.events.size > 3) {
                     Text(
-                        text = stringResource(
-                            R.string.calendar_more_events,
+                        text = pluralStringResource(
+                            R.plurals.calendar_more_events,
+                            summary.events.size - 3,
                             summary.events.size - 3,
                         ),
                         color = MaterialTheme.colorScheme.primary,
@@ -449,8 +452,9 @@ private fun CalendarDayCell(
     modifier: Modifier = Modifier,
 ) {
     val dateDescription = localizedDate(summary.date, FormatStyle.FULL)
-    val accessibility = stringResource(
-        R.string.calendar_day_accessibility,
+    val accessibility = pluralStringResource(
+        R.plurals.calendar_day_accessibility,
+        summary.eventCount,
         dateDescription,
         summary.eventCount,
         summary.maintenanceCount,
@@ -511,8 +515,9 @@ private fun MiniCalendarDayCell(
     modifier: Modifier = Modifier,
 ) {
     val dateDescription = localizedDate(summary.date, FormatStyle.FULL)
-    val accessibility = stringResource(
-        R.string.calendar_day_accessibility,
+    val accessibility = pluralStringResource(
+        R.plurals.calendar_day_accessibility,
+        summary.eventCount,
         dateDescription,
         summary.eventCount,
         summary.maintenanceCount,

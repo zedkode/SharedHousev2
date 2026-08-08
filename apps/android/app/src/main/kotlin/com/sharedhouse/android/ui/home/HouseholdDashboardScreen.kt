@@ -20,14 +20,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -237,7 +238,7 @@ private fun QuickActions(
                 )
                 QuickAction(
                     title = R.string.dashboard_action_guides,
-                    icon = Icons.Outlined.MenuBook,
+                    icon = Icons.AutoMirrored.Outlined.MenuBook,
                     onClick = onOpenGuides,
                     modifier = Modifier.weight(1f),
                 )
@@ -267,7 +268,7 @@ private fun QuickActions(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     QuickAction(
                         title = R.string.dashboard_action_guides,
-                        icon = Icons.Outlined.MenuBook,
+                        icon = Icons.AutoMirrored.Outlined.MenuBook,
                         onClick = onOpenGuides,
                         modifier = Modifier.weight(1f),
                     )
@@ -369,7 +370,7 @@ private fun CalendarOverviewCard(
             ) {
                 Text(stringResource(R.string.dashboard_calendar_open))
                 Icon(
-                    Icons.Outlined.ArrowForward,
+                    Icons.AutoMirrored.Outlined.ArrowForward,
                     contentDescription = null,
                     modifier = Modifier.padding(start = 8.dp),
                 )
@@ -382,8 +383,9 @@ private fun CalendarOverviewCard(
 private fun calendarStatusText(content: DashboardCalendarContent): String = when (content) {
     DashboardCalendarContent.Loading -> stringResource(R.string.dashboard_calendar_loading_short)
     DashboardCalendarContent.Error -> stringResource(R.string.dashboard_calendar_error_short)
-    is DashboardCalendarContent.Ready -> stringResource(
-        R.string.dashboard_calendar_event_count,
+    is DashboardCalendarContent.Ready -> pluralStringResource(
+        R.plurals.dashboard_calendar_event_count,
+        content.events.size,
         content.events.size,
     )
 }
@@ -478,8 +480,9 @@ private fun CalendarReady(events: List<CalendarEventUi>) {
         }
         if (events.size > visibleEvents.size) {
             Text(
-                text = stringResource(
-                    R.string.dashboard_calendar_more_events,
+                text = pluralStringResource(
+                    R.plurals.dashboard_calendar_more_events,
+                    events.size - visibleEvents.size,
                     events.size - visibleEvents.size,
                 ),
                 color = MaterialTheme.colorScheme.primary,
@@ -669,7 +672,7 @@ private fun GuidanceCard(onOpenGuides: () -> Unit) {
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Outlined.MenuBook, contentDescription = null)
+            Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null)
             Text(
                 text = stringResource(R.string.dashboard_guidance_title),
                 style = MaterialTheme.typography.titleLarge,
