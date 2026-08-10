@@ -28,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -195,22 +196,64 @@ fun FormScreenScaffold(
                     }
                 }
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            content = content,
-                        )
-                    }
+                    GlassCard(modifier = Modifier.fillMaxWidth(), content = content)
                 }
             }
         }
     }
 }
+
+@Composable
+fun GlassCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = modifier,
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = containerColor,
+            ),
+            border = BorderStroke(1.dp, borderColor),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 3.dp,
+                pressedElevation = 1.dp,
+            ),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                content = content,
+            )
+        }
+    } else {
+        Card(
+            modifier = modifier,
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = containerColor,
+            ),
+            border = BorderStroke(1.dp, borderColor),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 3.dp,
+            ),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+

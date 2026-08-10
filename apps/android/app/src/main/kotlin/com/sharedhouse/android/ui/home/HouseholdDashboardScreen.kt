@@ -63,7 +63,9 @@ import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
 import com.sharedhouse.android.ui.calendar.CalendarEventType
 import com.sharedhouse.android.ui.calendar.CalendarEventUi
+import com.sharedhouse.android.ui.components.GlassCard
 import java.time.format.DateTimeFormatter
+
 import java.time.format.FormatStyle
 
 /**
@@ -291,26 +293,17 @@ private fun RowScope.QuickAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    GlassCard(
         onClick = onClick,
         modifier = modifier.heightIn(min = 104.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text(
-                text = stringResource(title),
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(
+            text = stringResource(title),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -320,61 +313,53 @@ private fun CalendarOverviewCard(
     onOpenCalendar: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = MaterialTheme.shapes.large,
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Today, contentDescription = null)
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.dashboard_calendar_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        text = calendarStatusText(content),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Today, contentDescription = null)
                 }
             }
-
-            when (content) {
-                DashboardCalendarContent.Loading -> CalendarLoading()
-                DashboardCalendarContent.Error -> CalendarError(onRetry)
-                is DashboardCalendarContent.Ready -> CalendarReady(content.events)
-            }
-
-            Button(
-                onClick = onOpenCalendar,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.dashboard_calendar_open))
-                Icon(
-                    Icons.AutoMirrored.Outlined.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = 8.dp),
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.dashboard_calendar_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Text(
+                    text = calendarStatusText(content),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+
+        when (content) {
+            DashboardCalendarContent.Loading -> CalendarLoading()
+            DashboardCalendarContent.Error -> CalendarError(onRetry)
+            is DashboardCalendarContent.Ready -> CalendarReady(content.events)
+        }
+
+        Button(
+            onClick = onOpenCalendar,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.dashboard_calendar_open))
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.padding(start = 8.dp),
+            )
         }
     }
 }
@@ -617,46 +602,39 @@ private fun FeatureReadinessCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    GlassCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = MaterialTheme.shapes.extraLarge,
             ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    shape = MaterialTheme.shapes.extraLarge,
-                ) {
-                    Text(
-                        text = stringResource(R.string.dashboard_not_connected_badge),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.dashboard_not_connected_badge),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                )
             }
-            Text(text = stringResource(title), style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = stringResource(description),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = stringResource(R.string.dashboard_feature_learn_more),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
         }
+        Text(text = stringResource(title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = stringResource(description),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = stringResource(R.string.dashboard_feature_learn_more),
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        )
     }
 }
 
