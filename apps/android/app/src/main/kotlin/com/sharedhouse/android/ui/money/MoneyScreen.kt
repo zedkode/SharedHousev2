@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -79,6 +82,10 @@ fun MoneyScreen(
     var filterName by rememberSaveable { mutableStateOf(MoneyFilter.ACTIVE.name) }
     var createOpen by rememberSaveable { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var templatePrefillId by rememberSaveable { mutableStateOf<String?>(null) }
+    var templateAdminOpen by rememberSaveable { mutableStateOf(false) }
+    var templateEditorId by rememberSaveable { mutableStateOf<String?>(null) }
+    var archiveTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
     val problemText = state.problem?.let { stringResource(it.messageResource) }
     LaunchedEffect(problemText) { problemText?.let { snackbar.showSnackbar(it) } }
 
@@ -93,6 +100,7 @@ fun MoneyScreen(
         }
     }
     val selected = selectedId?.let { id -> expenses.firstOrNull { it.id == id } }
+    val templatePrefill = templatePrefillId?.let { id -> state.templates.firstOrNull { it.id == id } }
     val approved = expenses.filter { it.status == ExpenseStatus.APPROVED }
     val householdTotal = approved.sumOf { it.amountMinor }
     val personalTotal = approved.sumOf { it.currentUserShareMinor }
@@ -109,6 +117,13 @@ fun MoneyScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                },
+                actions = {
+                    if (state.canManageTemplates) {
+                        IconButton(onClick = { templateAdminOpen = true }) {
+                            Icon(Icons.Outlined.Settings, stringResource(R.string.money_manage_costs))
+                        }
                     }
                 },
             )
@@ -157,8 +172,24 @@ fun MoneyScreen(
                         )
                     }
                 }
+                if (state.templates.any { it.active }) {
+                    item {
+                        TemplateOverview(
+                            templates = state.templates.filter { it.active },
+                            canManage = state.canManageTemplates,
+                            onUse = { template ->
+                                templatePrefillId = template.id
+                                createOpen = true
+                            },
+                            onManage = { templateAdminOpen = true },
+                        )
+                    }
+                }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         MoneyFilter.entries.forEach { candidate ->
                             FilterChip(
                                 selected = candidate == filter,
@@ -182,11 +213,13 @@ fun MoneyScreen(
     if (createOpen) {
         ExpenseEditor(
             currency = state.currency,
+            initialTemplate = templatePrefill,
             busy = state.isMutationInProgress,
-            onDismiss = { createOpen = false },
+            onDismiss = { createOpen = false; templatePrefillId = null },
             onSubmit = {
                 onAction(MoneyAction.Create(it))
                 createOpen = false
+                templatePrefillId = null
             },
         )
     }
@@ -199,6 +232,46 @@ fun MoneyScreen(
             onReverse = { reason ->
                 onAction(MoneyAction.Reverse(selected.id, selected.version, reason))
                 selectedId = null
+            },
+        )
+    }
+    if (templateAdminOpen) {
+        ExpenseTemplateAdminSheet(
+            templates = state.templates,
+            busy = state.isMutationInProgress,
+            onDismiss = { templateAdminOpen = false },
+            onAdd = { templateAdminOpen = false; templateEditorId = NEW_TEMPLATE_ID },
+            onEdit = { templateAdminOpen = false; templateEditorId = it.id },
+            onUse = {
+                templateAdminOpen = false
+                templatePrefillId = it.id
+                createOpen = true
+            },
+            onArchive = { templateAdminOpen = false; archiveTemplateId = it.id },
+        )
+    }
+    if (templateEditorId != null) {
+        val editing = state.templates.firstOrNull { it.id == templateEditorId }
+        ExpenseTemplateEditor(
+            currency = state.currency,
+            initial = editing,
+            busy = state.isMutationInProgress,
+            onDismiss = { templateEditorId = null },
+            onSubmit = { draft ->
+                if (editing == null) onAction(MoneyAction.CreateTemplate(draft))
+                else onAction(MoneyAction.UpdateTemplate(editing.id, editing.version, draft))
+                templateEditorId = null
+            },
+        )
+    }
+    val archiveTemplate = state.templates.firstOrNull { it.id == archiveTemplateId }
+    if (archiveTemplate != null) {
+        ArchiveTemplateDialog(
+            template = archiveTemplate,
+            onDismiss = { archiveTemplateId = null },
+            onConfirm = { reason ->
+                onAction(MoneyAction.ArchiveTemplate(archiveTemplate.id, archiveTemplate.version, reason))
+                archiveTemplateId = null
             },
         )
     }
@@ -222,7 +295,7 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(expense.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(expense.category.labelResource), style = MaterialTheme.typography.bodySmall)
+                    Text(expense.category.displayName(expense.customCategoryName), style = MaterialTheme.typography.bodySmall)
                 }
                 Text(formatMoney(expense.amountMinor, expense.currency), style = MaterialTheme.typography.titleMedium)
                 Icon(Icons.Outlined.MoreVert, null)
@@ -241,6 +314,219 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun TemplateOverview(
+    templates: List<ExpenseTemplateUi>,
+    canManage: Boolean,
+    onUse: (ExpenseTemplateUi) -> Unit,
+    onManage: () -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.money_planned_costs), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.money_planned_costs_description), style = MaterialTheme.typography.bodySmall)
+                }
+                if (canManage) TextButton(onClick = onManage) { Text(stringResource(R.string.money_manage)) }
+            }
+            templates.take(3).forEach { template ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(template.title, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(
+                                R.string.money_template_schedule,
+                                stringResource(template.cadence.labelResource),
+                                template.nextDueDate.toString(),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Text(formatMoney(template.amountMinor, template.currency))
+                    TextButton(onClick = { onUse(template) }) { Text(stringResource(R.string.money_use_template)) }
+                }
+            }
+            if (templates.size > 3) Text(stringResource(R.string.money_more_templates, templates.size - 3), style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpenseTemplateAdminSheet(
+    templates: List<ExpenseTemplateUi>,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (ExpenseTemplateUi) -> Unit,
+    onUse: (ExpenseTemplateUi) -> Unit,
+    onArchive: (ExpenseTemplateUi) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Text(stringResource(R.string.money_admin_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.money_admin_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = onAdd, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Add, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.money_add_household_cost))
+                }
+            }
+            if (templates.isEmpty()) {
+                item { Text(stringResource(R.string.money_no_templates), modifier = Modifier.padding(vertical = 24.dp)) }
+            } else {
+                items(templates, key = ExpenseTemplateUi::id) { template ->
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(template.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(template.category.displayName(template.customCategoryName), style = MaterialTheme.typography.bodySmall)
+                                }
+                                Text(formatMoney(template.amountMinor, template.currency), style = MaterialTheme.typography.titleMedium)
+                            }
+                            Text(stringResource(R.string.money_template_schedule, stringResource(template.cadence.labelResource), template.nextDueDate.toString()))
+                            Text(
+                                stringResource(if (template.active) R.string.money_template_active else R.string.money_template_archived),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (template.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            )
+                            if (template.active) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { onUse(template) }, enabled = !busy) { Text(stringResource(R.string.money_use_template)) }
+                                TextButton(onClick = { onEdit(template) }, enabled = !busy) { Text(stringResource(R.string.money_edit_template)) }
+                                TextButton(onClick = { onArchive(template) }, enabled = !busy) { Text(stringResource(R.string.money_archive_template)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExpenseTemplateEditor(
+    currency: String,
+    initial: ExpenseTemplateUi?,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (ExpenseTemplateDraft) -> Unit,
+) {
+    var title by rememberSaveable(initial?.id) { mutableStateOf(initial?.title.orEmpty()) }
+    var amount by rememberSaveable(initial?.id) { mutableStateOf(initial?.let { editableMoney(it.amountMinor, currency) }.orEmpty()) }
+    var categoryName by rememberSaveable(initial?.id) { mutableStateOf((initial?.category ?: ExpenseCategory.RENT).name) }
+    var customName by rememberSaveable(initial?.id) { mutableStateOf(initial?.customCategoryName.orEmpty()) }
+    var cadenceName by rememberSaveable(initial?.id) { mutableStateOf((initial?.cadence ?: ExpenseTemplateCadence.MONTHLY).name) }
+    var nextDue by rememberSaveable(initial?.id) { mutableStateOf((initial?.nextDueDate ?: LocalDate.now()).toString()) }
+    var notes by rememberSaveable(initial?.id) { mutableStateOf(initial?.notes.orEmpty()) }
+    var categoriesOpen by remember { mutableStateOf(false) }
+    var cadenceOpen by remember { mutableStateOf(false) }
+    var dateOpen by remember { mutableStateOf(false) }
+    var attempted by rememberSaveable { mutableStateOf(false) }
+    val category = ExpenseCategory.valueOf(categoryName)
+    val cadence = ExpenseTemplateCadence.valueOf(cadenceName)
+    val parsedAmount = parseMoney(amount, currency)
+    val valid = title.trim().isNotEmpty() && parsedAmount != null && parsedAmount > 0 &&
+        (category != ExpenseCategory.CUSTOM || customName.trim().isNotEmpty())
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item { Text(stringResource(if (initial == null) R.string.money_add_household_cost else R.string.money_edit_household_cost), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.money_template_editor_explanation), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { OutlinedTextField(title, { title = it.take(120) }, label = { Text(stringResource(R.string.money_expense_title)) }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+            item {
+                OutlinedTextField(
+                    value = category.displayName(customName.ifEmpty { null }),
+                    onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.money_category)) },
+                    trailingIcon = { IconButton(onClick = { categoriesOpen = true }) { Icon(Icons.Outlined.MoreVert, null) } },
+                )
+                DropdownMenu(categoriesOpen, { categoriesOpen = false }) {
+                    ExpenseCategory.entries.forEach { item ->
+                        DropdownMenuItem(text = { Text(stringResource(item.labelResource)) }, onClick = {
+                            categoryName = item.name
+                            if (item != ExpenseCategory.CUSTOM) customName = ""
+                            categoriesOpen = false
+                        })
+                    }
+                }
+            }
+            if (category == ExpenseCategory.CUSTOM) item {
+                OutlinedTextField(customName, { customName = it.take(60) }, label = { Text(stringResource(R.string.money_custom_category_name)) }, modifier = Modifier.fillMaxWidth(), singleLine = true, isError = attempted && customName.trim().isEmpty())
+            }
+            item {
+                OutlinedTextField(
+                    amount, { amount = it.filter { char -> char.isDigit() || char == '.' || char == ',' }.take(16) },
+                    label = { Text(stringResource(R.string.money_amount, currency)) }, modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
+                    isError = attempted && parsedAmount == null,
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = stringResource(cadence.labelResource), onValueChange = {}, readOnly = true,
+                    label = { Text(stringResource(R.string.money_cadence)) }, modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = { IconButton(onClick = { cadenceOpen = true }) { Icon(Icons.Outlined.MoreVert, null) } },
+                )
+                DropdownMenu(cadenceOpen, { cadenceOpen = false }) {
+                    ExpenseTemplateCadence.entries.forEach { item ->
+                        DropdownMenuItem(text = { Text(stringResource(item.labelResource)) }, onClick = { cadenceName = item.name; cadenceOpen = false })
+                    }
+                }
+            }
+            item {
+                OutlinedTextField(nextDue, {}, readOnly = true, label = { Text(stringResource(R.string.money_next_due_date)) }, modifier = Modifier.fillMaxWidth(), trailingIcon = { IconButton(onClick = { dateOpen = true }) { Icon(Icons.Outlined.CalendarMonth, null) } })
+            }
+            item { OutlinedTextField(notes, { notes = it.take(1000) }, label = { Text(stringResource(R.string.money_notes_optional)) }, modifier = Modifier.fillMaxWidth(), minLines = 2) }
+            item {
+                Button(
+                    onClick = {
+                        attempted = true
+                        if (valid) onSubmit(ExpenseTemplateDraft(title.trim(), category, customName.trim().ifEmpty { null }, requireNotNull(parsedAmount), cadence, LocalDate.parse(nextDue), notes.trim().ifEmpty { null }))
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.money_save_household_cost)) }
+            }
+        }
+    }
+    if (dateOpen) {
+        val picker = androidx.compose.material3.rememberDatePickerState(initialSelectedDateMillis = LocalDate.parse(nextDue).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { dateOpen = false },
+            confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let { nextDue = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }; dateOpen = false }) { Text(stringResource(R.string.action_confirm)) } },
+            dismissButton = { TextButton(onClick = { dateOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
+        ) { DatePicker(picker) }
+    }
+}
+
+@Composable
+private fun ArchiveTemplateDialog(template: ExpenseTemplateUi, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var reason by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.money_archive_title, template.title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.money_archive_explanation))
+                OutlinedTextField(reason, { reason = it.take(500) }, label = { Text(stringResource(R.string.money_archive_reason)) }, minLines = 2)
+            }
+        },
+        confirmButton = { Button(onClick = { onConfirm(reason.trim()) }, enabled = reason.trim().length >= 3) { Text(stringResource(R.string.money_archive_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }
 
 @Composable
@@ -266,18 +552,26 @@ private fun MoneyError(onRetry: () -> Unit, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpenseEditor(currency: String, busy: Boolean, onDismiss: () -> Unit, onSubmit: (ExpenseDraft) -> Unit) {
-    var title by rememberSaveable { mutableStateOf("") }
-    var amount by rememberSaveable { mutableStateOf("") }
-    var notes by rememberSaveable { mutableStateOf("") }
-    var categoryName by rememberSaveable { mutableStateOf(ExpenseCategory.GROCERIES.name) }
-    var dueDate by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
+private fun ExpenseEditor(
+    currency: String,
+    initialTemplate: ExpenseTemplateUi? = null,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (ExpenseDraft) -> Unit,
+) {
+    var title by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.title.orEmpty()) }
+    var amount by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.let { editableMoney(it.amountMinor, currency) }.orEmpty()) }
+    var notes by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.notes.orEmpty()) }
+    var categoryName by rememberSaveable(initialTemplate?.id) { mutableStateOf((initialTemplate?.category ?: ExpenseCategory.GROCERIES).name) }
+    var customCategoryName by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.customCategoryName.orEmpty()) }
+    var dueDate by rememberSaveable(initialTemplate?.id) { mutableStateOf((initialTemplate?.nextDueDate ?: LocalDate.now()).toString()) }
     var categoriesOpen by remember { mutableStateOf(false) }
     var dateOpen by remember { mutableStateOf(false) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val category = ExpenseCategory.valueOf(categoryName)
     val parsedAmount = parseMoney(amount, currency)
-    val valid = title.trim().isNotEmpty() && parsedAmount != null && parsedAmount > 0
+    val valid = title.trim().isNotEmpty() && parsedAmount != null && parsedAmount > 0 &&
+        (category != ExpenseCategory.CUSTOM || customCategoryName.trim().isNotEmpty())
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -299,10 +593,19 @@ private fun ExpenseEditor(currency: String, busy: Boolean, onDismiss: () -> Unit
                         ExpenseCategory.entries.forEach { item ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(item.labelResource)) },
-                                onClick = { categoryName = item.name; categoriesOpen = false },
+                                onClick = { categoryName = item.name; if (item != ExpenseCategory.CUSTOM) customCategoryName = ""; categoriesOpen = false },
                             )
                         }
                     }
+                }
+                if (category == ExpenseCategory.CUSTOM) {
+                    OutlinedTextField(
+                        customCategoryName,
+                        { customCategoryName = it.take(60) },
+                        label = { Text(stringResource(R.string.money_custom_category_name)) },
+                        singleLine = true,
+                        isError = attempted && customCategoryName.trim().isEmpty(),
+                    )
                 }
                 OutlinedTextField(
                     amount,
@@ -328,7 +631,14 @@ private fun ExpenseEditor(currency: String, busy: Boolean, onDismiss: () -> Unit
                 enabled = !busy,
                 onClick = {
                     attempted = true
-                    if (valid) onSubmit(ExpenseDraft(title.trim(), category, requireNotNull(parsedAmount), LocalDate.parse(dueDate), notes.trim().ifEmpty { null }))
+                    if (valid) onSubmit(ExpenseDraft(
+                        title = title.trim(),
+                        category = category,
+                        customCategoryName = customCategoryName.trim().ifEmpty { null },
+                        amountMinor = requireNotNull(parsedAmount),
+                        dueDate = LocalDate.parse(dueDate),
+                        notes = notes.trim().ifEmpty { null },
+                    ))
                 },
             ) { Text(stringResource(R.string.money_save_expense)) }
         },
@@ -403,6 +713,16 @@ private fun formatMoney(minor: Long, currency: String): String = runCatching {
     NumberFormat.getCurrencyInstance().apply { this.currency = unit }.format(BigDecimal.valueOf(minor, unit.defaultFractionDigits))
 }.getOrElse { "$minor $currency" }
 
+private fun editableMoney(minor: Long, currency: String): String = runCatching {
+    val exponent = Currency.getInstance(currency).defaultFractionDigits.coerceIn(0, 3)
+    BigDecimal.valueOf(minor, exponent).toPlainString()
+}.getOrElse { minor.toString() }
+
+@Composable
+private fun ExpenseCategory.displayName(customName: String?): String =
+    if (this == ExpenseCategory.CUSTOM && !customName.isNullOrBlank()) customName
+    else stringResource(labelResource)
+
 private val ExpenseCategory.labelResource: Int @StringRes get() = when (this) {
     ExpenseCategory.RENT -> R.string.money_category_rent
     ExpenseCategory.ELECTRICITY -> R.string.money_category_electricity
@@ -414,6 +734,14 @@ private val ExpenseCategory.labelResource: Int @StringRes get() = when (this) {
     ExpenseCategory.HOUSEHOLD_SUPPLIES -> R.string.money_category_household_supplies
     ExpenseCategory.MAINTENANCE -> R.string.money_category_maintenance
     ExpenseCategory.OTHER -> R.string.money_category_other
+    ExpenseCategory.CUSTOM -> R.string.money_category_custom
+}
+
+private val ExpenseTemplateCadence.labelResource: Int @StringRes get() = when (this) {
+    ExpenseTemplateCadence.WEEKLY -> R.string.money_cadence_weekly
+    ExpenseTemplateCadence.MONTHLY -> R.string.money_cadence_monthly
+    ExpenseTemplateCadence.QUARTERLY -> R.string.money_cadence_quarterly
+    ExpenseTemplateCadence.YEARLY -> R.string.money_cadence_yearly
 }
 
 private val ExpenseStatus.labelResource: Int @StringRes get() = when (this) {
@@ -445,5 +773,8 @@ private val MoneyProblem.messageResource: Int @StringRes get() = when (this) {
     MoneyProblem.CREATE_FAILED -> R.string.money_create_error
     MoneyProblem.APPROVE_FAILED -> R.string.money_approve_error
     MoneyProblem.REVERSE_FAILED -> R.string.money_reverse_error
+    MoneyProblem.TEMPLATE_FAILED -> R.string.money_template_error
     MoneyProblem.VERSION_CONFLICT -> R.string.money_version_conflict
 }
+
+private const val NEW_TEMPLATE_ID = "new"

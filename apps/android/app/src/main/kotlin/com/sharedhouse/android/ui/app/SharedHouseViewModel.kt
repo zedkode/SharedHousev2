@@ -17,6 +17,8 @@ import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.android.ui.money.ExpenseAllocationUi
 import com.sharedhouse.android.ui.money.ExpenseDraft
 import com.sharedhouse.android.ui.money.ExpenseStatus
+import com.sharedhouse.android.ui.money.ExpenseTemplateDraft
+import com.sharedhouse.android.ui.money.ExpenseTemplateUi
 import com.sharedhouse.android.ui.money.ExpenseUi
 import com.sharedhouse.android.ui.money.MoneyAction
 import com.sharedhouse.android.ui.money.MoneyContent
@@ -28,6 +30,8 @@ import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.ExpenseConfigurationDto
 import com.sharedhouse.network.ExpenseDto
+import com.sharedhouse.network.ExpenseTemplateConfigurationDto
+import com.sharedhouse.network.ExpenseTemplateDto
 import com.sharedhouse.network.FieldViolationDto
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.MoneyDto
@@ -73,6 +77,8 @@ class SharedHouseViewModel(
     private var moneyLoadJob: Job? = null
     private var expenseCreationIdempotencyKey: String? = null
     private var expenseCreationDraft: ExpenseDraft? = null
+    private var templateCreationIdempotencyKey: String? = null
+    private var templateCreationDraft: ExpenseTemplateDraft? = null
 
     init {
         retrySessionRestore()
@@ -199,6 +205,9 @@ class SharedHouseViewModel(
             is MoneyAction.Create -> createExpense(action.draft)
             is MoneyAction.Approve -> transitionExpense(action.expenseId, action.expectedVersion, true, null)
             is MoneyAction.Reverse -> transitionExpense(action.expenseId, action.expectedVersion, false, action.reason)
+            is MoneyAction.CreateTemplate -> createExpenseTemplate(action.draft)
+            is MoneyAction.UpdateTemplate -> updateExpenseTemplate(action.templateId, action.expectedVersion, action.draft)
+            is MoneyAction.ArchiveTemplate -> archiveExpenseTemplate(action.templateId, action.expectedVersion, action.reason)
         }
     }
 
@@ -214,26 +223,31 @@ class SharedHouseViewModel(
             ))
         }
         moneyLoadJob = viewModelScope.launch {
-            when (val result = authorized { gateway.listExpenses(it, household.id) }) {
-                is ApiResult.Success -> {
-                    if (_uiState.value.selectedHousehold?.id != household.id) return@launch
-                    val mapped = runCatching { result.value.map { expense -> expense.toMoneyUi() } }.getOrNull()
-                    _uiState.update { state ->
-                        state.copy(money = state.money.copy(
-                            content = mapped?.let { MoneyContent.Ready(it.sortedBy(ExpenseUi::dueDate)) }
-                                ?: MoneyContent.Error,
-                            isMutationInProgress = false,
-                            problem = if (mapped == null) MoneyProblem.LOAD_FAILED else state.money.problem,
-                        ))
-                    }
-                }
-                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
-                    _uiState.update { it.copy(money = it.money.copy(
-                        content = MoneyContent.Error,
+            val expensesResult = authorized { gateway.listExpenses(it, household.id) }
+            val templatesResult = if (expensesResult is ApiResult.Success) {
+                authorized { gateway.listExpenseTemplates(it, household.id) }
+            } else null
+            if (_uiState.value.selectedHousehold?.id != household.id) return@launch
+            if (expensesResult is ApiResult.Success && templatesResult is ApiResult.Success) {
+                val mapped = runCatching {
+                    expensesResult.value.map { it.toMoneyUi() } to templatesResult.value.map { it.toTemplateUi() }
+                }.getOrNull()
+                _uiState.update { state ->
+                    state.copy(money = state.money.copy(
+                        content = mapped?.first?.let { MoneyContent.Ready(it.sortedBy(ExpenseUi::dueDate)) }
+                            ?: MoneyContent.Error,
+                        templates = mapped?.second?.sortedBy(ExpenseTemplateUi::nextDueDate).orEmpty(),
                         isMutationInProgress = false,
-                        problem = MoneyProblem.LOAD_FAILED,
-                    )) }
+                        problem = if (mapped == null) MoneyProblem.LOAD_FAILED else state.money.problem,
+                    ))
                 }
+            } else if (_uiState.value.route != AppRoute.SignIn) {
+                _uiState.update { it.copy(money = it.money.copy(
+                    content = MoneyContent.Error,
+                    templates = emptyList(),
+                    isMutationInProgress = false,
+                    problem = MoneyProblem.LOAD_FAILED,
+                )) }
             }
         }
     }
@@ -257,6 +271,7 @@ class SharedHouseViewModel(
                     ExpenseConfigurationDto(
                         title = draft.title,
                         category = draft.category.wireValue,
+                        customCategoryName = draft.customCategoryName,
                         amount = MoneyDto(draft.amountMinor, household.currency),
                         dueDate = draft.dueDate.toString(),
                         notes = draft.notes,
@@ -295,6 +310,77 @@ class SharedHouseViewModel(
         }
     }
 
+    private fun createExpenseTemplate(draft: ExpenseTemplateDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        if (!snapshot.money.canManageTemplates || snapshot.money.isMutationInProgress) return
+        val key = (if (templateCreationDraft == draft) templateCreationIdempotencyKey else null)
+            ?: UUID.randomUUID().toString().also {
+                templateCreationDraft = draft
+                templateCreationIdempotencyKey = it
+            }
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized { token ->
+                gateway.createExpenseTemplate(token, household.id, key, draft.toDto(household.currency))
+            }) {
+                is ApiResult.Success -> {
+                    templateCreationDraft = null
+                    templateCreationIdempotencyKey = null
+                    applyExpenseTemplate(result.value)
+                }
+                is ApiResult.Failure -> finishMoneyMutation(result, MoneyProblem.TEMPLATE_FAILED)
+            }
+        }
+    }
+
+    private fun updateExpenseTemplate(id: String, version: Int, draft: ExpenseTemplateDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val template = snapshot.money.templates.firstOrNull { it.id == id } ?: return
+        if (!snapshot.money.canManageTemplates || !template.canManage || snapshot.money.isMutationInProgress) return
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized { token ->
+                gateway.updateExpenseTemplate(token, household.id, id, version, draft.toDto(household.currency))
+            }) {
+                is ApiResult.Success -> applyExpenseTemplate(result.value)
+                is ApiResult.Failure -> finishMoneyMutation(result, MoneyProblem.TEMPLATE_FAILED)
+            }
+        }
+    }
+
+    private fun archiveExpenseTemplate(id: String, version: Int, reason: String) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val template = snapshot.money.templates.firstOrNull { it.id == id } ?: return
+        if (!snapshot.money.canManageTemplates || !template.canManage || snapshot.money.isMutationInProgress) return
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized { token ->
+                gateway.archiveExpenseTemplate(token, household.id, id, version, reason)
+            }) {
+                is ApiResult.Success -> applyExpenseTemplate(result.value)
+                is ApiResult.Failure -> finishMoneyMutation(result, MoneyProblem.TEMPLATE_FAILED)
+            }
+        }
+    }
+
+    private fun applyExpenseTemplate(dto: ExpenseTemplateDto) {
+        val mapped = runCatching { dto.toTemplateUi() }.getOrElse {
+            finishMoneyMutation(ApiResult.Failure("INVALID_RESPONSE", "Invalid template response"), MoneyProblem.TEMPLATE_FAILED)
+            return
+        }
+        _uiState.update { state ->
+            state.copy(money = state.money.copy(
+                templates = state.money.templates.filterNot { it.id == mapped.id }.plus(mapped)
+                    .sortedBy(ExpenseTemplateUi::nextDueDate),
+                isMutationInProgress = false,
+                problem = null,
+            ))
+        }
+    }
+
     private fun beginMoneyMutation() = _uiState.update {
         it.copy(money = it.money.copy(isMutationInProgress = true, problem = null))
     }
@@ -323,12 +409,13 @@ class SharedHouseViewModel(
 
     private fun finishMoneyMutation(failure: ApiResult.Failure, fallback: MoneyProblem) {
         if (_uiState.value.route == AppRoute.SignIn) return
-        val conflict = failure.status == 412 || failure.code == "EXPENSE_VERSION_CONFLICT"
+        val conflict = failure.status == 412 || failure.code == "EXPENSE_VERSION_CONFLICT" ||
+            failure.code == "EXPENSE_TEMPLATE_VERSION_CONFLICT"
         _uiState.update { it.copy(money = it.money.copy(
             isMutationInProgress = false,
             problem = if (conflict) MoneyProblem.VERSION_CONFLICT else fallback,
         )) }
-        if (conflict || failure.code == "EXPENSE_NOT_FOUND") loadMoney(true)
+        if (conflict || failure.code == "EXPENSE_NOT_FOUND" || failure.code == "EXPENSE_TEMPLATE_NOT_FOUND") loadMoney(true)
     }
 
     private fun loadCalendar(preserveMutationProblem: Boolean = false) {
@@ -1534,6 +1621,8 @@ class SharedHouseViewModel(
         calendarCreationDraft = null
         expenseCreationIdempotencyKey = null
         expenseCreationDraft = null
+        templateCreationIdempotencyKey = null
+        templateCreationDraft = null
         _uiState.update {
             it.copy(
                 route = AppRoute.SignIn,
@@ -1563,6 +1652,8 @@ class SharedHouseViewModel(
         calendarCreationDraft = null
         expenseCreationIdempotencyKey = null
         expenseCreationDraft = null
+        templateCreationIdempotencyKey = null
+        templateCreationDraft = null
         _uiState.update {
             AppUiState(
                 route = AppRoute.Welcome,
@@ -1656,6 +1747,7 @@ class SharedHouseViewModel(
         currency = household.currency,
         content = MoneyContent.Loading,
         canCreate = household.role in MONEY_WRITER_ROLES,
+        canManageTemplates = household.role in MONEY_MANAGER_ROLES,
     )
 
     private fun ExpenseDto.toMoneyUi(): ExpenseUi {
@@ -1672,6 +1764,7 @@ class SharedHouseViewModel(
             id = id,
             title = title,
             category = com.sharedhouse.android.ui.money.ExpenseCategory.fromWire(category),
+            customCategoryName = customCategoryName,
             amountMinor = amount.minorUnits,
             currency = amount.currency,
             dueDate = LocalDate.parse(dueDate),
@@ -1689,6 +1782,35 @@ class SharedHouseViewModel(
             currentUserShareMinor = currentUserShare.minorUnits,
             canApprove = canApprove,
             canReverse = canReverse,
+            version = version,
+        )
+    }
+
+    private fun ExpenseTemplateDraft.toDto(currency: String) = ExpenseTemplateConfigurationDto(
+        title = title,
+        category = category.wireValue,
+        customCategoryName = customCategoryName,
+        amount = MoneyDto(amountMinor, currency),
+        cadence = cadence.wireValue,
+        nextDueDate = nextDueDate.toString(),
+        notes = notes,
+    )
+
+    private fun ExpenseTemplateDto.toTemplateUi(): ExpenseTemplateUi {
+        val household = requireNotNull(_uiState.value.selectedHousehold)
+        require(householdId == household.id && amount.currency == household.currency)
+        return ExpenseTemplateUi(
+            id = id,
+            title = title,
+            category = com.sharedhouse.android.ui.money.ExpenseCategory.fromWire(category),
+            customCategoryName = customCategoryName,
+            amountMinor = amount.minorUnits,
+            currency = amount.currency,
+            cadence = com.sharedhouse.android.ui.money.ExpenseTemplateCadence.fromWire(cadence),
+            nextDueDate = LocalDate.parse(nextDueDate),
+            notes = notes,
+            active = status == "active",
+            canManage = canManage,
             version = version,
         )
     }
@@ -1749,6 +1871,7 @@ class SharedHouseViewModel(
     private companion object {
         val CALENDAR_WRITER_ROLES = setOf("owner", "admin", "member")
         val MONEY_WRITER_ROLES = setOf("owner", "admin", "member")
+        val MONEY_MANAGER_ROLES = setOf("owner", "admin")
         val INVITATION_TOKEN = Regex("^sh_inv_[A-Za-z0-9_-]{43}$")
         val EMAIL = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
     }

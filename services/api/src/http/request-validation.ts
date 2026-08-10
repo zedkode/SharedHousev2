@@ -5,6 +5,9 @@ import type {
   DeleteAccountRequest,
   ExpenseCategory,
   ExpenseConfiguration,
+  ExpenseTemplateCadence,
+  ExpenseTemplateConfiguration,
+  ArchiveExpenseTemplateRequest,
   ExportAccountRequest,
   HouseholdConfiguration,
   HouseholdInvitationRole,
@@ -16,7 +19,7 @@ import type {
   SupportedLocale,
   VerifyEmailRequest,
 } from '@sharedhouse/contracts';
-import { EXPENSE_CATEGORIES } from '@sharedhouse/contracts';
+import { EXPENSE_CATEGORIES, EXPENSE_TEMPLATE_CADENCES } from '@sharedhouse/contracts';
 
 import { validationProblem, type FieldViolation } from './api-problem.exception.js';
 
@@ -287,10 +290,25 @@ export function parseCalendarDateRange(
 
 export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration {
   const body = readObject(value);
-  assertAllowedKeys(body, ['title', 'category', 'amount', 'dueDate', 'notes']);
+  assertAllowedKeys(body, [
+    'title',
+    'category',
+    'customCategoryName',
+    'amount',
+    'dueDate',
+    'notes',
+  ]);
   const violations: FieldViolation[] = [];
   const title = readString(body.title, 'title', 1, 120, violations, true);
   const category = readExpenseCategory(body.category, violations);
+  const customCategoryName = readOptionalNullableString(
+    body.customCategoryName,
+    'customCategoryName',
+    1,
+    60,
+    violations,
+  );
+  validateCustomCategory(category, customCategoryName, violations);
   const amountBody =
     typeof body.amount === 'object' && body.amount !== null && !Array.isArray(body.amount)
       ? (body.amount as JsonObject)
@@ -327,10 +345,84 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
   return {
     title,
     category,
+    customCategoryName: category === 'custom' ? (customCategoryName ?? null) : null,
     amount: { minorUnits, currency },
     dueDate,
     ...(notes === undefined ? {} : { notes }),
   };
+}
+
+export function parseExpenseTemplateConfiguration(value: unknown): ExpenseTemplateConfiguration {
+  const body = readObject(value);
+  assertAllowedKeys(body, [
+    'title',
+    'category',
+    'customCategoryName',
+    'amount',
+    'cadence',
+    'nextDueDate',
+    'notes',
+  ]);
+  const violations: FieldViolation[] = [];
+  const title = readString(body.title, 'title', 1, 120, violations, true);
+  const category = readExpenseCategory(body.category, violations);
+  const customCategoryName = readOptionalNullableString(
+    body.customCategoryName,
+    'customCategoryName',
+    1,
+    60,
+    violations,
+  );
+  validateCustomCategory(category, customCategoryName, violations);
+  const amountBody =
+    typeof body.amount === 'object' && body.amount !== null && !Array.isArray(body.amount)
+      ? (body.amount as JsonObject)
+      : null;
+  if (amountBody === null)
+    violations.push({ field: 'amount', message: 'Expected a money object.' });
+  else assertAllowedKeys(amountBody, ['minorUnits', 'currency']);
+  const minorUnits = readRequiredInteger(
+    amountBody?.minorUnits,
+    'amount.minorUnits',
+    1,
+    999_999_999_999,
+    violations,
+  );
+  const currency = readString(
+    amountBody?.currency,
+    'amount.currency',
+    3,
+    3,
+    violations,
+    true,
+  ).toUpperCase();
+  if (!isCurrency(currency))
+    violations.push({ field: 'amount.currency', message: 'Use a valid currency code.' });
+  const cadence = readExpenseTemplateCadence(body.cadence, violations);
+  const nextDueDate = readString(body.nextDueDate, 'nextDueDate', 10, 10, violations, true);
+  if (!isIsoDate(nextDueDate)) {
+    violations.push({ field: 'nextDueDate', message: 'Use a valid date in YYYY-MM-DD format.' });
+  }
+  const notes = readOptionalNullableString(body.notes, 'notes', 1, 1000, violations);
+  throwIfViolations(violations);
+  return {
+    title,
+    category,
+    customCategoryName: category === 'custom' ? (customCategoryName ?? null) : null,
+    amount: { minorUnits, currency },
+    cadence,
+    nextDueDate,
+    ...(notes === undefined ? {} : { notes }),
+  };
+}
+
+export function parseArchiveExpenseTemplateRequest(value: unknown): ArchiveExpenseTemplateRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['reason']);
+  const violations: FieldViolation[] = [];
+  const reason = readString(body.reason, 'reason', 3, 500, violations, true);
+  throwIfViolations(violations);
+  return { reason };
 }
 
 export function parseReverseExpenseRequest(value: unknown): ReverseExpenseRequest {
@@ -472,15 +564,42 @@ function readRequiredInteger(
   return value;
 }
 
-function readExpenseCategory(
-  value: unknown,
-  violations: FieldViolation[],
-): ExpenseCategory {
+function readExpenseCategory(value: unknown, violations: FieldViolation[]): ExpenseCategory {
   if (typeof value === 'string' && EXPENSE_CATEGORIES.includes(value as ExpenseCategory)) {
     return value as ExpenseCategory;
   }
   violations.push({ field: 'category', message: 'Choose a supported expense category.' });
   return 'other';
+}
+
+function readExpenseTemplateCadence(
+  value: unknown,
+  violations: FieldViolation[],
+): ExpenseTemplateCadence {
+  if (
+    typeof value === 'string' &&
+    EXPENSE_TEMPLATE_CADENCES.includes(value as ExpenseTemplateCadence)
+  ) {
+    return value as ExpenseTemplateCadence;
+  }
+  violations.push({ field: 'cadence', message: 'Choose weekly, monthly, quarterly, or yearly.' });
+  return 'monthly';
+}
+
+function validateCustomCategory(
+  category: ExpenseCategory,
+  customCategoryName: string | null | undefined,
+  violations: FieldViolation[],
+): void {
+  if (category === 'custom' && (customCategoryName === undefined || customCategoryName === null)) {
+    violations.push({ field: 'customCategoryName', message: 'Name the custom category.' });
+  }
+  if (category !== 'custom' && customCategoryName !== undefined && customCategoryName !== null) {
+    violations.push({
+      field: 'customCategoryName',
+      message: 'Custom category text requires category custom.',
+    });
+  }
 }
 
 function readDateQuery(

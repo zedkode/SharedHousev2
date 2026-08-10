@@ -6,6 +6,8 @@ import type {
   AccountExportSession,
   AccountSummary,
   CalendarEventSummary,
+  ExpenseSummary,
+  ExpenseTemplateSummary,
   HouseholdSummary,
 } from '@sharedhouse/contracts';
 
@@ -249,6 +251,37 @@ export class IdentityRepository {
          ORDER BY c.event_date, c.created_at, c.id`,
         [userId],
       );
+      const expenseRows = await transaction.query<ExportExpenseRow>(
+        `SELECT e.id, e.household_id, creator.user_id AS created_by_user_id, e.title,
+           e.category, e.custom_category_name, e.amount_minor, e.currency, e.due_date, e.notes, e.split_method,
+           e.status, e.version, e.created_at, e.updated_at, a.membership_id,
+           allocated.user_id AS allocation_user_id, profile.display_name,
+           a.amount_minor AS allocation_amount_minor, a.rounding_adjustment_minor
+         FROM expenses e
+         JOIN household_memberships creator ON creator.id = e.created_by_membership_id
+         JOIN expense_allocations a ON a.expense_id = e.id
+         JOIN household_memberships allocated ON allocated.id = a.membership_id
+         JOIN user_profiles profile ON profile.user_id = allocated.user_id
+         WHERE creator.user_id = $1 OR EXISTS (
+           SELECT 1 FROM expense_allocations mine
+           JOIN household_memberships my_membership ON my_membership.id = mine.membership_id
+           WHERE mine.expense_id = e.id AND my_membership.user_id = $1
+         )
+         ORDER BY e.due_date, e.id, a.membership_id`,
+        [userId],
+      );
+      const expenseTemplates = await transaction.query<ExportExpenseTemplateRow>(
+        `SELECT t.id, t.household_id, t.title, t.category, t.custom_category_name,
+           t.amount_minor, t.currency, t.cadence, t.next_due_date, t.notes, t.status,
+           t.version, t.created_at, t.updated_at
+         FROM expense_templates t
+         WHERE EXISTS (
+           SELECT 1 FROM household_memberships m
+           WHERE m.household_id = t.household_id AND m.user_id = $1 AND m.status = 'active'
+         )
+         ORDER BY t.household_id, t.next_due_date, t.id`,
+        [userId],
+      );
       const consents = await transaction.query<ExportConsentRow>(
         `SELECT purpose, policy_version, granted, recorded_at
          FROM consent_records WHERE user_id = $1 ORDER BY recorded_at, id`,
@@ -272,6 +305,8 @@ export class IdentityRepository {
         account: mapAccount(credential),
         households: households.map(mapExportHousehold),
         calendarEvents: events.map(mapExportCalendar),
+        expenses: mapExportExpenses(expenseRows, userId),
+        expenseTemplates: expenseTemplates.map(mapExportExpenseTemplate),
         consentRecords: consents.map(mapExportConsent),
         sessions: sessions.map(mapExportSession),
         invitations: invitations.map(mapExportInvitation),
@@ -286,6 +321,8 @@ export class IdentityRepository {
           JSON.stringify({
             householdCount: households.length,
             calendarEventCount: events.length,
+            expenseCount: new Set(expenseRows.map((row) => row.id)).size,
+            expenseTemplateCount: expenseTemplates.length,
             consentRecordCount: consents.length,
             sessionCount: sessions.length,
             invitationCount: invitations.length,
@@ -721,6 +758,46 @@ interface ExportCalendarRow {
   readonly updated_at: Date | string;
 }
 
+interface ExportExpenseRow {
+  readonly id: string;
+  readonly household_id: string;
+  readonly created_by_user_id: string;
+  readonly title: string;
+  readonly category: ExpenseSummary['category'];
+  readonly custom_category_name: string | null;
+  readonly amount_minor: number | string | bigint;
+  readonly currency: string;
+  readonly due_date: Date | string;
+  readonly notes: string | null;
+  readonly split_method: 'equal';
+  readonly status: ExpenseSummary['status'];
+  readonly version: number;
+  readonly created_at: Date | string;
+  readonly updated_at: Date | string;
+  readonly membership_id: string;
+  readonly allocation_user_id: string;
+  readonly display_name: string;
+  readonly allocation_amount_minor: number | string | bigint;
+  readonly rounding_adjustment_minor: number;
+}
+
+interface ExportExpenseTemplateRow {
+  readonly id: string;
+  readonly household_id: string;
+  readonly title: string;
+  readonly category: ExpenseTemplateSummary['category'];
+  readonly custom_category_name: string | null;
+  readonly amount_minor: number | string | bigint;
+  readonly currency: string;
+  readonly cadence: ExpenseTemplateSummary['cadence'];
+  readonly next_due_date: Date | string;
+  readonly notes: string | null;
+  readonly status: ExpenseTemplateSummary['status'];
+  readonly version: number;
+  readonly created_at: Date | string;
+  readonly updated_at: Date | string;
+}
+
 interface ExportConsentRow {
   readonly purpose: string;
   readonly policy_version: string;
@@ -792,6 +869,74 @@ function mapExportCalendar(row: ExportCalendarRow): CalendarEventSummary {
     createdAt: toInstant(row.created_at),
     updatedAt: toInstant(row.updated_at),
   };
+}
+
+function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): ExpenseSummary[] {
+  const grouped = new Map<string, ExportExpenseRow[]>();
+  for (const row of rows) grouped.set(row.id, [...(grouped.get(row.id) ?? []), row]);
+  return [...grouped.values()].map((group) => {
+    const row = group[0];
+    if (row === undefined) throw new Error('Expense export row group is empty.');
+    const allocations = group.map((allocation) => ({
+      membershipId: allocation.membership_id,
+      displayName: allocation.display_name,
+      amount: {
+        minorUnits: toSafeInteger(allocation.allocation_amount_minor),
+        currency: row.currency,
+      },
+      roundingAdjustmentMinor: allocation.rounding_adjustment_minor,
+      status: 'outstanding' as const,
+      isCurrentUser: allocation.allocation_user_id === userId,
+    }));
+    return {
+      id: row.id,
+      householdId: row.household_id,
+      title: row.title,
+      category: row.category,
+      customCategoryName: row.custom_category_name,
+      amount: { minorUnits: toSafeInteger(row.amount_minor), currency: row.currency },
+      dueDate: toDate(row.due_date),
+      notes: row.notes,
+      splitMethod: row.split_method,
+      status: row.status,
+      allocations,
+      currentUserShare: allocations.find((allocation) => allocation.isCurrentUser)?.amount ?? {
+        minorUnits: 0,
+        currency: row.currency,
+      },
+      createdByUserId: row.created_by_user_id,
+      canApprove: false,
+      canReverse: false,
+      version: row.version,
+      createdAt: toInstant(row.created_at),
+      updatedAt: toInstant(row.updated_at),
+    };
+  });
+}
+
+function mapExportExpenseTemplate(row: ExportExpenseTemplateRow): ExpenseTemplateSummary {
+  return {
+    id: row.id,
+    householdId: row.household_id,
+    title: row.title,
+    category: row.category,
+    customCategoryName: row.custom_category_name,
+    amount: { minorUnits: toSafeInteger(row.amount_minor), currency: row.currency },
+    cadence: row.cadence,
+    nextDueDate: toDate(row.next_due_date),
+    notes: row.notes,
+    status: row.status,
+    canManage: false,
+    version: row.version,
+    createdAt: toInstant(row.created_at),
+    updatedAt: toInstant(row.updated_at),
+  };
+}
+
+function toSafeInteger(value: number | string | bigint): number {
+  const result = Number(value);
+  if (!Number.isSafeInteger(result)) throw new Error('Stored money exceeds export range.');
+  return result;
 }
 
 function mapExportConsent(row: ExportConsentRow): AccountExportConsentRecord {

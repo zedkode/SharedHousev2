@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   API_VERSION,
   CALENDAR_EVENT_TYPES,
+  EXPENSE_CATEGORIES,
+  EXPENSE_TEMPLATE_CADENCES,
   HOUSEHOLD_CYCLE_TYPES,
   SUPPORTED_LOCALES,
   type CalendarEventConfiguration,
@@ -60,5 +62,10 @@ describe('public contracts', () => {
 
     expect(configuration.cycleAnchor).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
     expect(configuration.timezone).toContain('/');
+  });
+
+  it('supports reusable and user-defined household cost vocabulary', () => {
+    expect(EXPENSE_CATEGORIES).toContain('custom');
+    expect(EXPENSE_TEMPLATE_CADENCES).toEqual(['weekly', 'monthly', 'quarterly', 'yearly']);
   });
 });

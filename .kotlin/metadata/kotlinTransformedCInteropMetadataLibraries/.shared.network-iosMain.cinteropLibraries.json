@@ -1,0 +1,77 @@
+[
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "org.jetbrains.kotlinx",
+        "name": "atomicfu"
+      }
+    },
+    "file": "D:\\Projects\\Home-UK\\house-app\\.kotlin\\metadata\\kotlinTransformedCInteropMetadataLibraries\\org.jetbrains.kotlinx-atomicfu-0.23.1-nativeMain-cinterop\\org.jetbrains.kotlinx_atomicfu-cinterop-interop-wFq7cg.klib",
+    "sourceSetName": "nativeMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "io.ktor",
+        "name": "ktor-utils"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "io.ktor",
+        "name": "ktor-utils"
+      }
+    },
+    "file": "D:\\Projects\\Home-UK\\house-app\\.kotlin\\metadata\\kotlinTransformedCInteropMetadataLibraries\\io.ktor-ktor-utils-3.5.1-iosMain-cinterop\\io.ktor_ktor-utils-cinterop-threadUtils-TXWDDA.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "io.ktor",
+        "name": "ktor-io"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "io.ktor",
+        "name": "ktor-io"
+      }
+    },
+    "file": "D:\\Projects\\Home-UK\\house-app\\.kotlin\\metadata\\kotlinTransformedCInteropMetadataLibraries\\io.ktor-ktor-io-3.5.1-iosMain-cinterop\\io.ktor_ktor-io-cinterop-mutex-j26R_A.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "io.ktor",
+        "name": "ktor-network"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "io.ktor",
+        "name": "ktor-network"
+      }
+    },
+    "file": "D:\\Projects\\Home-UK\\house-app\\.kotlin\\metadata\\kotlinTransformedCInteropMetadataLibraries\\io.ktor-ktor-network-3.5.1-iosMain-cinterop\\io.ktor_ktor-network-cinterop-network-YsnyyQ.klib",
+    "sourceSetName": "iosMain"
+  },
+  {
+    "moduleId": {
+      "groupAndName": {
+        "group": "io.ktor",
+        "name": "ktor-network"
+      },
+      "componentId": {
+        "type": "module",
+        "group": "io.ktor",
+        "name": "ktor-network"
+      }
+    },
+    "file": "D:\\Projects\\Home-UK\\house-app\\.kotlin\\metadata\\kotlinTransformedCInteropMetadataLibraries\\io.ktor-ktor-network-3.5.1-iosMain-cinterop\\io.ktor_ktor-network-cinterop-un-YsnyyQ.klib",
+    "sourceSetName": "iosMain"
+  }
+]

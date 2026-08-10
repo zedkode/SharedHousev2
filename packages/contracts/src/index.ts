@@ -30,9 +30,12 @@ export const EXPENSE_CATEGORIES = [
   'household_supplies',
   'maintenance',
   'other',
+  'custom',
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export type ExpenseStatus = 'proposed' | 'approved' | 'reversed';
+export const EXPENSE_TEMPLATE_CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
+export type ExpenseTemplateCadence = (typeof EXPENSE_TEMPLATE_CADENCES)[number];
 
 export interface ServiceHealth {
   readonly status: 'ok';
@@ -112,6 +115,8 @@ export interface AccountExport {
   account: AccountSummary;
   households: HouseholdSummary[];
   calendarEvents: CalendarEventSummary[];
+  expenses: ExpenseSummary[];
+  expenseTemplates: ExpenseTemplateSummary[];
   consentRecords: AccountExportConsentRecord[];
   sessions: AccountExportSession[];
   invitations: AccountExportInvitation[];
@@ -248,6 +253,7 @@ export interface CalendarEventSummary {
 export interface ExpenseConfiguration {
   readonly title: string;
   readonly category: ExpenseCategory;
+  readonly customCategoryName?: string | null;
   readonly amount: Money;
   readonly dueDate: string;
   readonly notes?: string | null;
@@ -281,5 +287,31 @@ export interface ExpenseSummary extends ExpenseConfiguration {
 }
 
 export interface ReverseExpenseRequest {
+  readonly reason: string;
+}
+
+export interface ExpenseTemplateConfiguration {
+  readonly title: string;
+  readonly category: ExpenseCategory;
+  readonly customCategoryName?: string | null;
+  readonly amount: Money;
+  readonly cadence: ExpenseTemplateCadence;
+  readonly nextDueDate: string;
+  readonly notes?: string | null;
+}
+
+export interface ExpenseTemplateSummary extends ExpenseTemplateConfiguration {
+  readonly id: string;
+  readonly householdId: string;
+  readonly customCategoryName: string | null;
+  readonly notes: string | null;
+  readonly status: 'active' | 'archived';
+  readonly canManage: boolean;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ArchiveExpenseTemplateRequest {
   readonly reason: string;
 }

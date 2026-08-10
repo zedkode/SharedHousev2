@@ -5,6 +5,8 @@ import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.ExpenseConfigurationDto
 import com.sharedhouse.network.ExpenseDto
+import com.sharedhouse.network.ExpenseTemplateConfigurationDto
+import com.sharedhouse.network.ExpenseTemplateDto
 import com.sharedhouse.network.AcceptHouseholdInvitationDto
 import com.sharedhouse.network.AccountDeletionResultDto
 import com.sharedhouse.network.AccountExportDto
@@ -131,6 +133,31 @@ interface SharedHouseGateway {
         expectedVersion: Int,
         reason: String,
     ): ApiResult<ExpenseDto>
+
+    suspend fun listExpenseTemplates(accessToken: String, householdId: String): ApiResult<List<ExpenseTemplateDto>>
+
+    suspend fun createExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseTemplateConfigurationDto,
+    ): ApiResult<ExpenseTemplateDto>
+
+    suspend fun updateExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        configuration: ExpenseTemplateConfigurationDto,
+    ): ApiResult<ExpenseTemplateDto>
+
+    suspend fun archiveExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseTemplateDto>
 }
 
 class ApiSharedHouseGateway(
@@ -252,4 +279,30 @@ class ApiSharedHouseGateway(
         expectedVersion: Int,
         reason: String,
     ) = api.reverseExpense(accessToken, householdId, expenseId, expectedVersion, reason)
+
+    override suspend fun listExpenseTemplates(accessToken: String, householdId: String) =
+        api.listExpenseTemplates(accessToken, householdId)
+
+    override suspend fun createExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseTemplateConfigurationDto,
+    ) = api.createExpenseTemplate(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun updateExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        configuration: ExpenseTemplateConfigurationDto,
+    ) = api.updateExpenseTemplate(accessToken, householdId, templateId, expectedVersion, configuration)
+
+    override suspend fun archiveExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = api.archiveExpenseTemplate(accessToken, householdId, templateId, expectedVersion, reason)
 }

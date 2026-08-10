@@ -328,6 +328,54 @@ class SharedHouseApiClientTest {
     }
 
     @Test
+    fun expenseTemplateAdminFlowKeepsIdempotencyAndVersions() = runBlocking {
+        val configuration = ExpenseTemplateConfigurationDto(
+            title = "Garden studio rent",
+            category = "custom",
+            customCategoryName = "Studio rent",
+            amount = MoneyDto(145_000, "GBP"),
+            cadence = "monthly",
+            nextDueDate = "2026-09-01",
+        )
+        var requestCount = 0
+        val engine = MockEngine { request ->
+            requestCount += 1
+            assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+            when (requestCount) {
+                1 -> {
+                    assertEquals("/v1/households/household-1/expense-templates", request.url.encodedPath)
+                    respond("[$ExpenseTemplateResponse]", HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                2 -> {
+                    assertEquals("template-create-0001", request.headers["Idempotency-Key"])
+                    assertEquals(configuration, json.decodeFromString<ExpenseTemplateConfigurationDto>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseTemplateResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                3 -> {
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    respond(ExpenseTemplateResponse.replace("\"version\":1", "\"version\":2"), HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                4 -> {
+                    assertEquals("\"2\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals(ArchiveExpenseTemplatePayload("Lease ended"), json.decodeFromString<ArchiveExpenseTemplatePayload>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseTemplateResponse.replace("\"version\":1", "\"version\":3").replace("\"status\":\"active\"", "\"status\":\"archived\""), HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                else -> error("Unexpected request $requestCount")
+            }
+        }
+        val api = apiClient(engine)
+        try {
+            assertIs<ApiResult.Success<List<ExpenseTemplateDto>>>(api.listExpenseTemplates("access-token", "household-1"))
+            assertIs<ApiResult.Success<ExpenseTemplateDto>>(api.createExpenseTemplate("access-token", "household-1", "template-create-0001", configuration))
+            assertIs<ApiResult.Success<ExpenseTemplateDto>>(api.updateExpenseTemplate("access-token", "household-1", "template-1", 1, configuration))
+            assertIs<ApiResult.Success<ExpenseTemplateDto>>(api.archiveExpenseTemplate("access-token", "household-1", "template-1", 2, "Lease ended"))
+            assertEquals(4, requestCount)
+        } finally {
+            api.close()
+        }
+    }
+
+    @Test
     fun invitationFlowKeepsSecretOnlyInCreateAndPathRequests() = runBlocking {
         val invitationToken = "sh_inv_1234567890123456789012345678901234567890123"
         val invitationResponse = """
@@ -612,6 +660,15 @@ class SharedHouseApiClientTest {
               "currentUserShare":{"minorUnits":1001,"currency":"GBP"},"createdByUserId":"user-1",
               "canApprove":false,"canReverse":true,"version":1,
               "createdAt":"2026-08-01T10:00:00.000Z","updatedAt":"2026-08-01T10:00:00.000Z"
+            }
+        """.trimIndent()
+        val ExpenseTemplateResponse = """
+            {
+              "id":"template-1","householdId":"household-1","title":"Garden studio rent",
+              "category":"custom","customCategoryName":"Studio rent",
+              "amount":{"minorUnits":145000,"currency":"GBP"},"cadence":"monthly",
+              "nextDueDate":"2026-09-01","notes":null,"status":"active","canManage":true,
+              "version":1,"createdAt":"2026-08-09T00:00:00.000Z","updatedAt":"2026-08-09T00:00:00.000Z"
             }
         """.trimIndent()
         val JsonResponseHeaders = headersOf(

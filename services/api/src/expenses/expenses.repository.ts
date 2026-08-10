@@ -29,6 +29,7 @@ interface ExpenseBaseRow {
   readonly created_by_user_id: string;
   readonly title: string;
   readonly category: ExpenseSummary['category'];
+  readonly custom_category_name: string | null;
   readonly amount_minor: number | string | bigint;
   readonly currency: string;
   readonly due_date: Date | string;
@@ -59,17 +60,12 @@ export type ExpenseListResult =
   | { readonly status: 'not_found' };
 
 export type ExpenseGetResult =
-  | { readonly status: 'found'; readonly expense: ExpenseSummary }
-  | { readonly status: 'not_found' };
+  { readonly status: 'found'; readonly expense: ExpenseSummary } | { readonly status: 'not_found' };
 
 export type ExpenseCreateResult =
   | { readonly status: 'created' | 'replayed'; readonly expense: ExpenseSummary }
   | {
-      readonly status:
-        | 'not_found'
-        | 'forbidden'
-        | 'currency_mismatch'
-        | 'idempotency_conflict';
+      readonly status: 'not_found' | 'forbidden' | 'currency_mismatch' | 'idempotency_conflict';
     };
 
 export type ExpenseTransitionResult =
@@ -82,7 +78,10 @@ export type ExpenseTransitionResult =
 export class ExpensesRepository {
   constructor(private readonly database: DatabaseService) {}
 
-  async list(input: { readonly userId: string; readonly householdId: string }): Promise<ExpenseListResult> {
+  async list(input: {
+    readonly userId: string;
+    readonly householdId: string;
+  }): Promise<ExpenseListResult> {
     const membership = await findMembershipContext(this.database, input.userId, input.householdId);
     if (membership === null) return { status: 'not_found' };
     const rows = await selectExpenseRows(this.database, input.householdId);
@@ -144,6 +143,7 @@ export class ExpensesRepository {
         householdId: input.householdId,
         title: input.configuration.title,
         category: input.configuration.category,
+        customCategoryName: input.configuration.customCategoryName ?? null,
         amount: input.configuration.amount,
         dueDate: input.configuration.dueDate,
         notes: input.configuration.notes ?? null,
@@ -168,7 +168,13 @@ export class ExpensesRepository {
          ) VALUES ($1, 'expenses.create', $2, $3, 201, $4::jsonb, $5)
          ON CONFLICT (user_id, operation, idempotency_key) DO NOTHING
          RETURNING idempotency_key`,
-        [input.userId, input.idempotencyKey, input.requestHash, JSON.stringify(expense), input.occurredAt],
+        [
+          input.userId,
+          input.idempotencyKey,
+          input.requestHash,
+          JSON.stringify(expense),
+          input.occurredAt,
+        ],
       );
       if (claimed.length === 0) {
         const existingRows = await transaction.query<IdempotencyRow>(
@@ -183,15 +189,16 @@ export class ExpensesRepository {
 
       await transaction.query(
         `INSERT INTO expenses (
-           id, household_id, created_by_membership_id, title, category, amount_minor, currency,
+           id, household_id, created_by_membership_id, title, category, custom_category_name, amount_minor, currency,
            due_date, notes, split_method, status, version, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'equal', $10, 1, $11, $11)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'equal', $11, 1, $12, $12)`,
         [
           expense.id,
           expense.householdId,
           membership.id,
           expense.title,
           expense.category,
+          expense.customCategoryName,
           expense.amount.minorUnits,
           expense.amount.currency,
           expense.dueDate,
@@ -221,7 +228,13 @@ export class ExpensesRepository {
          ) VALUES ($1, $2, $3, NULL, $4, $5)`,
         [newUuidV7(), expense.id, membership.id, expense.status, input.occurredAt],
       );
-      await writeExpenseEvidence(transaction, input.userId, expense, 'ledger.expense_created.v1', input.occurredAt);
+      await writeExpenseEvidence(
+        transaction,
+        input.userId,
+        expense,
+        'ledger.expense_created.v1',
+        input.occurredAt,
+      );
       return { status: 'created', expense };
     });
   }
@@ -264,7 +277,7 @@ export class ExpensesRepository {
          WHERE id = $1 AND household_id = $2 AND version = $3
          RETURNING id, household_id, created_by_membership_id,
            (SELECT user_id FROM household_memberships WHERE id = created_by_membership_id) AS created_by_user_id,
-           title, category, amount_minor, currency, due_date, notes, split_method, status,
+           title, category, custom_category_name, amount_minor, currency, due_date, notes, split_method, status,
            version, created_at, updated_at`,
         [input.expenseId, input.householdId, input.expectedVersion, nextStatus, input.occurredAt],
       );
@@ -315,7 +328,8 @@ function equalAllocations(
     isCurrentUser: member.user_id === currentUserId,
   }));
   const allocated = allocations.reduce((sum, allocation) => sum + allocation.amount.minorUnits, 0);
-  if (allocated !== totalMinor) throw new Error('Equal split did not reconcile to the expense total.');
+  if (allocated !== totalMinor)
+    throw new Error('Equal split did not reconcile to the expense total.');
   return allocations;
 }
 
@@ -337,7 +351,7 @@ async function findMembershipContext(
 
 function expenseBaseSelect(): string {
   return `SELECT e.id, e.household_id, e.created_by_membership_id,
-    creator.user_id AS created_by_user_id, e.title, e.category, e.amount_minor,
+    creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
     e.currency, e.due_date, e.notes, e.split_method, e.status, e.version,
     e.created_at, e.updated_at
     FROM expenses e
@@ -351,7 +365,7 @@ async function selectExpenseRows(
 ): Promise<readonly ExpenseJoinRow[]> {
   return executor.query<ExpenseJoinRow>(
     `SELECT e.id, e.household_id, e.created_by_membership_id,
-       creator.user_id AS created_by_user_id, e.title, e.category, e.amount_minor,
+       creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
        e.currency, e.due_date, e.notes, e.split_method, e.status, e.version,
        e.created_at, e.updated_at,
        a.membership_id AS allocation_membership_id,
@@ -392,12 +406,14 @@ function mapExpenseRows(
       status: allocation.allocation_status,
       isCurrentUser: allocation.allocation_user_id === currentUserId,
     }));
-    const ownsProposal = row.created_by_membership_id === membership.id && row.status === 'proposed';
+    const ownsProposal =
+      row.created_by_membership_id === membership.id && row.status === 'proposed';
     return {
       id: row.id,
       householdId: row.household_id,
       title: row.title,
       category: row.category,
+      customCategoryName: row.custom_category_name,
       amount: { minorUnits: toSafeNumber(row.amount_minor), currency: row.currency },
       dueDate: toLocalDate(row.due_date),
       notes: row.notes,
@@ -424,7 +440,8 @@ function isManager(role: HouseholdSummary['role']): boolean {
 
 function toSafeNumber(value: number | string | bigint): number {
   const result = Number(value);
-  if (!Number.isSafeInteger(result)) throw new Error('Stored money exceeds the supported JSON range.');
+  if (!Number.isSafeInteger(result))
+    throw new Error('Stored money exceeds the supported JSON range.');
   return result;
 }
 
@@ -458,6 +475,14 @@ async function writeExpenseEvidence(
     `INSERT INTO outbox_events (
        id, event_type, aggregate_type, aggregate_id, household_id, actor_user_id, payload, occurred_at
      ) VALUES ($1, $2, 'expense', $3, $4, $5, $6::jsonb, $7)`,
-    [newUuidV7(), eventType, expense.id, expense.householdId, userId, JSON.stringify(expense), occurredAt],
+    [
+      newUuidV7(),
+      eventType,
+      expense.id,
+      expense.householdId,
+      userId,
+      JSON.stringify(expense),
+      occurredAt,
+    ],
   );
 }

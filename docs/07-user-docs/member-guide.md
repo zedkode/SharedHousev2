@@ -23,13 +23,27 @@ The dashboard shows your outstanding amount for the current cycle, amounts you r
 
 ## Bills and rent
 
-Open **Money** to view rent, electricity, gas, internet and other shared costs. Each item shows total, your share, due date, status and split explanation.
+Open **Money** to view rent, electricity, gas, internet and other shared costs. Each item shows the
+authoritative total, your share, due date, status and split explanation. Use the filters for approved,
+proposed, reversed or all entries. In the current release, a new expense is split equally between
+all active household members; the detail sheet shows the exact allocation before you rely on it.
+
+Members can submit a proposal. An owner or administrator must approve it before it contributes to
+the approved summaries. Read-only members can inspect the ledger but cannot add or change entries.
+
+Active household-cost templates appear under **Planned household costs**. Choose **Use** to prefill
+the configured title, category, price and next due date, then check and save the real expense.
+Templates may use standard categories or an administrator-defined label. A template is a plan, not
+proof that a bill was issued or paid.
 
 ### Marking an amount paid
 
-Tap **Record payment**, confirm amount/date/method and optionally add a reference or evidence. The app records your declaration. Depending on household rules, another member or administrator may need to confirm it. A bank transfer should still be checked in your bank account.
+Payment declarations are planned but are not available in the current Android release. SharedHouse
+does not move money and must not be treated as proof that a bank transfer was made; continue to
+verify transfers in your bank account.
 
-To correct a mistake, choose **Request reversal/correction** and provide a reason. History remains visible so totals stay trustworthy.
+To correct a mistake, an eligible user chooses **Reverse ledger entry** and provides a reason.
+History remains visible so totals stay trustworthy; entries are never silently deleted.
 
 ## Shopping
 

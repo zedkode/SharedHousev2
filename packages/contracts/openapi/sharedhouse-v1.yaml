@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.5.0
+  version: 1.6.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
   - url: https://houseapi.dohotstudio.com
@@ -766,6 +766,138 @@ paths:
           $ref: '#/components/responses/Problem'
         '428':
           $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expense-templates:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listExpenseTemplates
+      summary: List reusable household costs visible to the member
+      description: Owners and administrators also receive archived templates and management capability.
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Reusable household costs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseTemplateSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createExpenseTemplate
+      summary: Create a reusable household cost as owner or administrator
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseTemplateConfiguration'
+      responses:
+        '201':
+          description: Household cost created or idempotently replayed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseTemplateSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expense-templates/{templateId}:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseTemplateId'
+    patch:
+      operationId: updateExpenseTemplate
+      summary: Update an active household cost without rewriting existing expenses
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseTemplateConfiguration'
+      responses:
+        '200':
+          description: Household cost updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseTemplateSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expense-templates/{templateId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseTemplateId'
+    post:
+      operationId: archiveExpenseTemplate
+      summary: Archive a household cost with a reason while retaining history
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveExpenseTemplateRequest'
+      responses:
+        '201':
+          description: Household cost archived.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseTemplateSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     bearerAuth:
@@ -804,6 +936,13 @@ components:
         format: uuid
     ExpenseId:
       name: expenseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExpenseTemplateId:
+      name: templateId
       in: path
       required: true
       schema:
@@ -952,6 +1091,8 @@ components:
           account,
           households,
           calendarEvents,
+          expenses,
+          expenseTemplates,
           consentRecords,
           sessions,
           invitations,
@@ -973,6 +1114,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CalendarEventSummary'
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseSummary'
+        expenseTemplates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseTemplateSummary'
         consentRecords:
           type: array
           items:
@@ -1382,10 +1531,28 @@ components:
         title:
           type: string
           minLength: 1
-          maxLength: 100
+          maxLength: 120
         category:
           type: string
-          enum: [rent, electricity, gas, water, internet, council_tax, groceries, household_supplies, maintenance, other]
+          enum:
+            [
+              rent,
+              electricity,
+              gas,
+              water,
+              internet,
+              council_tax,
+              groceries,
+              household_supplies,
+              maintenance,
+              other,
+              custom,
+            ]
+        customCategoryName:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 60
+          description: Required only when category is custom; otherwise null.
         amount:
           $ref: '#/components/schemas/Money'
         dueDate:
@@ -1394,7 +1561,7 @@ components:
         notes:
           type: [string, 'null']
           minLength: 1
-          maxLength: 500
+          maxLength: 1000
     ExpenseAllocationSummary:
       type: object
       additionalProperties: false
@@ -1423,7 +1590,23 @@ components:
         - $ref: '#/components/schemas/ExpenseConfiguration'
         - type: object
           additionalProperties: false
-          required: [id, householdId, notes, splitMethod, status, allocations, currentUserShare, createdByUserId, canApprove, canReverse, version, createdAt, updatedAt]
+          required:
+            [
+              id,
+              householdId,
+              customCategoryName,
+              notes,
+              splitMethod,
+              status,
+              allocations,
+              currentUserShare,
+              createdByUserId,
+              canApprove,
+              canReverse,
+              version,
+              createdAt,
+              updatedAt,
+            ]
           properties:
             id:
               type: string
@@ -1431,10 +1614,14 @@ components:
             householdId:
               type: string
               format: uuid
+            customCategoryName:
+              type: [string, 'null']
+              minLength: 1
+              maxLength: 60
             notes:
               type: [string, 'null']
               minLength: 1
-              maxLength: 500
+              maxLength: 1000
             splitMethod:
               type: string
               const: equal
@@ -1472,4 +1659,100 @@ components:
         reason:
           type: string
           minLength: 3
-          maxLength: 300
+          maxLength: 500
+    ExpenseTemplateConfiguration:
+      type: object
+      additionalProperties: false
+      required: [title, category, amount, cadence, nextDueDate]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          type: string
+          enum:
+            [
+              rent,
+              electricity,
+              gas,
+              water,
+              internet,
+              council_tax,
+              groceries,
+              household_supplies,
+              maintenance,
+              other,
+              custom,
+            ]
+        customCategoryName:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 60
+          description: Required only when category is custom; otherwise null.
+        amount:
+          $ref: '#/components/schemas/Money'
+        cadence:
+          type: string
+          enum: [weekly, monthly, quarterly, yearly]
+        nextDueDate:
+          type: string
+          format: date
+        notes:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 1000
+    ExpenseTemplateSummary:
+      allOf:
+        - $ref: '#/components/schemas/ExpenseTemplateConfiguration'
+        - type: object
+          required:
+            [
+              id,
+              householdId,
+              customCategoryName,
+              notes,
+              status,
+              canManage,
+              version,
+              createdAt,
+              updatedAt,
+            ]
+          properties:
+            id:
+              type: string
+              format: uuid
+            householdId:
+              type: string
+              format: uuid
+            customCategoryName:
+              type: [string, 'null']
+              minLength: 1
+              maxLength: 60
+            notes:
+              type: [string, 'null']
+              minLength: 1
+              maxLength: 1000
+            status:
+              type: string
+              enum: [active, archived]
+            canManage:
+              type: boolean
+            version:
+              type: integer
+              minimum: 1
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    ArchiveExpenseTemplateRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500

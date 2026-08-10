@@ -32,7 +32,17 @@ not promise that the app emailed the recipient.
 
 ## 4. Configure rent and bills
 
-Create recurring templates for rent, electricity, gas, internet, water and other costs. Choose the included members and split method. Review the preview and rounding explanation before activation.
+Open **Money**, then use the settings action in the top bar to open **Money administration**.
+Owners and administrators can create reusable household costs for rent, electricity, gas, water,
+internet, council tax, groceries, supplies, maintenance, other or a user-defined category. For each
+cost set the title, price in the household currency, weekly/monthly/quarterly/yearly frequency, next
+due date and optional notes.
+
+Select **Use** to prefill a real expense and review it before saving. This deliberate confirmation
+step means a template never claims that a bill or payment exists by itself. Editing a template does
+not rewrite expenses already in the ledger. Archive an obsolete template with a reason; archived
+templates remain in the administrative history. The current release splits generated expenses
+equally across active members. Included-member selection and advanced split methods remain planned.
 
 When an invoice amount changes, revise the occurrence/template with an effective date. Do not overwrite settled historical cycles.
 

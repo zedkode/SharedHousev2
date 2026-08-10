@@ -64,11 +64,21 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-06 Ledger
 
-- Money/currency value objects.
-- Expenses, revisions, allocations and all split methods.
+- [in progress] Money/currency value objects. API and Kotlin use exact minor-unit values and the
+  configured household ISO currency; floating-point arithmetic is not used.
+- [in progress] Expenses, revisions, allocations and all split methods. The first production-shaped
+  vertical supports one-off expenses, deterministic equal allocation, member proposals,
+  owner/admin approval and append-only reasoned reversal. Fixed, percentage, weighted, usage and
+  custom splits remain.
+- [in progress] Recurring cost administration. Owner/admin can create, edit and archive reusable
+  weekly/monthly/quarterly/yearly rent, bill and custom-category templates, then use a template to
+  prefill a confirmed ledger expense. Automatic background occurrence generation remains.
 - Payment declaration/confirmation/dispute/reversal.
-- Dashboard and explanation read models.
-- Integrity checker and reconciliation tools.
+- [in progress] Dashboard and explanation read models. Android shows authoritative personal and
+  household approved totals, filters, exact allocations and rounding explanations in EN/RO.
+- [in progress] Integrity checker and reconciliation tools. The database has a deferred allocation
+  total constraint and API tests cover remainder allocation, role checks and tenant isolation;
+  operational reconciliation commands remain.
 
 ## EPIC-07 Utilities
 

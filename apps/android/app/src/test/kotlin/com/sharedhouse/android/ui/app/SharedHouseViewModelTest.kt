@@ -5,6 +5,7 @@ import com.sharedhouse.android.ui.calendar.CalendarContent
 import com.sharedhouse.android.ui.calendar.CalendarEventDraft
 import com.sharedhouse.android.ui.calendar.CalendarEventType
 import com.sharedhouse.android.ui.calendar.CalendarMutationProblem
+import com.sharedhouse.android.ui.money.MoneyContent
 import com.sharedhouse.android.platform.security.SessionLoadResult
 import com.sharedhouse.android.platform.security.SessionSaveResult
 import com.sharedhouse.android.platform.security.SessionStore
@@ -16,10 +17,13 @@ import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.AcceptHouseholdInvitationDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
+import com.sharedhouse.network.ExpenseAllocationDto
+import com.sharedhouse.network.ExpenseDto
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
 import com.sharedhouse.network.HouseholdInvitationDto
 import com.sharedhouse.network.HouseholdInvitationPreviewDto
+import com.sharedhouse.network.MoneyDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
 import com.sharedhouse.network.ResendVerificationPayload
@@ -359,6 +363,53 @@ class SharedHouseViewModelTest {
     }
 
     @Test
+    fun `money loads authoritative shares and disables writes for read only members`() = runTest {
+        withMainDispatcher {
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "read_only"))) }
+                listExpensesHandler = { _, householdId -> ApiResult.Success(listOf(expense(householdId))) }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value.money
+            val loaded = (state.content as MoneyContent.Ready).expenses.single()
+            assertFalse(state.canCreate)
+            assertFalse(state.canManageTemplates)
+            assertEquals(501, loaded.currentUserShareMinor)
+            assertEquals(1001, loaded.amountMinor)
+            assertEquals(2, loaded.allocations.size)
+            assertFalse(loaded.canApprove)
+            assertFalse(loaded.canReverse)
+        }
+    }
+
+    @Test
+    fun `money owner receives custom household cost administration`() = runTest {
+        withMainDispatcher {
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "owner"))) }
+                listExpenseTemplatesHandler = { _, householdId ->
+                    ApiResult.Success(listOf(expenseTemplate(householdId)))
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value.money
+            assertTrue(state.canManageTemplates)
+            assertEquals("Studio rent", state.templates.single().customCategoryName)
+            assertEquals(145_000, state.templates.single().amountMinor)
+        }
+    }
+
+    @Test
     fun `saved session is rotated before household content is restored`() = runTest {
         withMainDispatcher {
             val stored = session("old-access", "old-refresh")
@@ -635,6 +686,32 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String, String, Int) -> ApiResult<Unit> = { _, _, _, _ ->
             error("Unexpected calendar delete")
         }
+    var listExpensesHandler:
+        suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseDto>> = { _, _ ->
+            ApiResult.Success(emptyList())
+        }
+    var createExpenseHandler:
+        suspend (String, String, String, com.sharedhouse.network.ExpenseConfigurationDto) -> ApiResult<com.sharedhouse.network.ExpenseDto> =
+        { _, _, _, _ -> error("Unexpected expense create") }
+    var approveExpenseHandler:
+        suspend (String, String, String, Int) -> ApiResult<com.sharedhouse.network.ExpenseDto> =
+        { _, _, _, _ -> error("Unexpected expense approval") }
+    var reverseExpenseHandler:
+        suspend (String, String, String, Int, String) -> ApiResult<com.sharedhouse.network.ExpenseDto> =
+        { _, _, _, _, _ -> error("Unexpected expense reversal") }
+    var listExpenseTemplatesHandler:
+        suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseTemplateDto>> = { _, _ ->
+            ApiResult.Success(emptyList())
+        }
+    var createExpenseTemplateHandler:
+        suspend (String, String, String, com.sharedhouse.network.ExpenseTemplateConfigurationDto) -> ApiResult<com.sharedhouse.network.ExpenseTemplateDto> =
+        { _, _, _, _ -> error("Unexpected template create") }
+    var updateExpenseTemplateHandler:
+        suspend (String, String, String, Int, com.sharedhouse.network.ExpenseTemplateConfigurationDto) -> ApiResult<com.sharedhouse.network.ExpenseTemplateDto> =
+        { _, _, _, _, _ -> error("Unexpected template update") }
+    var archiveExpenseTemplateHandler:
+        suspend (String, String, String, Int, String) -> ApiResult<com.sharedhouse.network.ExpenseTemplateDto> =
+        { _, _, _, _, _ -> error("Unexpected template archive") }
 
     override suspend fun register(payload: RegisterPayload) = registerHandler(payload)
     override suspend fun verifyEmail(payload: VerifyEmailPayload) = verifyHandler(payload)
@@ -710,6 +787,57 @@ private class FakeGateway : SharedHouseGateway {
         eventId: String,
         expectedVersion: Int,
     ) = deleteCalendarHandler(accessToken, householdId, eventId, expectedVersion)
+
+    override suspend fun listExpenses(accessToken: String, householdId: String) =
+        listExpensesHandler(accessToken, householdId)
+
+    override suspend fun createExpense(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: com.sharedhouse.network.ExpenseConfigurationDto,
+    ) = createExpenseHandler(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun approveExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+    ) = approveExpenseHandler(accessToken, householdId, expenseId, expectedVersion)
+
+    override suspend fun reverseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = reverseExpenseHandler(accessToken, householdId, expenseId, expectedVersion, reason)
+
+    override suspend fun listExpenseTemplates(accessToken: String, householdId: String) =
+        listExpenseTemplatesHandler(accessToken, householdId)
+
+    override suspend fun createExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: com.sharedhouse.network.ExpenseTemplateConfigurationDto,
+    ) = createExpenseTemplateHandler(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun updateExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        configuration: com.sharedhouse.network.ExpenseTemplateConfigurationDto,
+    ) = updateExpenseTemplateHandler(accessToken, householdId, templateId, expectedVersion, configuration)
+
+    override suspend fun archiveExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = archiveExpenseTemplateHandler(accessToken, householdId, templateId, expectedVersion, reason)
 }
 
 private fun session(accessToken: String, refreshToken: String) = SessionDto(
@@ -766,4 +894,44 @@ private fun calendarEvent(
     version = 1,
     createdAt = "2026-08-08T09:00:00Z",
     updatedAt = "2026-08-08T09:00:00Z",
+)
+
+private fun expense(householdId: String) = ExpenseDto(
+    id = "018f0000-0000-7000-8000-000000000020",
+    householdId = householdId,
+    title = "Internet bill",
+    category = "internet",
+    amount = MoneyDto(1001, "GBP"),
+    dueDate = "2026-08-20",
+    notes = "August broadband",
+    splitMethod = "equal",
+    status = "approved",
+    allocations = listOf(
+        ExpenseAllocationDto("membership-1", "Alex", MoneyDto(501, "GBP"), 1, "outstanding", true),
+        ExpenseAllocationDto("membership-2", "Sam", MoneyDto(500, "GBP"), 0, "outstanding", false),
+    ),
+    currentUserShare = MoneyDto(501, "GBP"),
+    createdByUserId = "018f0000-0000-7000-8000-000000000001",
+    canApprove = false,
+    canReverse = false,
+    version = 1,
+    createdAt = "2026-08-08T09:00:00Z",
+    updatedAt = "2026-08-08T09:00:00Z",
+)
+
+private fun expenseTemplate(householdId: String) = com.sharedhouse.network.ExpenseTemplateDto(
+    id = "018f0000-0000-7000-8000-000000000030",
+    householdId = householdId,
+    title = "Garden studio rent",
+    category = "custom",
+    customCategoryName = "Studio rent",
+    amount = MoneyDto(145_000, "GBP"),
+    cadence = "monthly",
+    nextDueDate = "2026-09-01",
+    notes = null,
+    status = "active",
+    canManage = true,
+    version = 1,
+    createdAt = "2026-08-09T00:00:00Z",
+    updatedAt = "2026-08-09T00:00:00Z",
 )

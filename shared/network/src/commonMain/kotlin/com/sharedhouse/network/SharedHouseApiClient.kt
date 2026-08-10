@@ -309,6 +309,59 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun listExpenseTemplates(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<List<ExpenseTemplateDto>> = execute {
+        client.get("$baseUrl/v1/households/$householdId/expense-templates") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun createExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: ExpenseTemplateConfigurationDto,
+    ): ApiResult<ExpenseTemplateDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expense-templates") {
+            bearerAuth(accessToken)
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(configuration)
+        }
+    }
+
+    suspend fun updateExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        configuration: ExpenseTemplateConfigurationDto,
+    ): ApiResult<ExpenseTemplateDto> = execute {
+        client.patch("$baseUrl/v1/households/$householdId/expense-templates/$templateId") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            contentType(ContentType.Application.Json)
+            setBody(configuration)
+        }
+    }
+
+    suspend fun archiveExpenseTemplate(
+        accessToken: String,
+        householdId: String,
+        templateId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseTemplateDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expense-templates/$templateId/archive") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            contentType(ContentType.Application.Json)
+            setBody(ArchiveExpenseTemplatePayload(reason))
+        }
+    }
+
     suspend fun close() {
         client.close()
     }

@@ -17,8 +17,12 @@ time, sound and vibration. A Material 3 privacy centre exposes opt-in Analytics,
 AdMob controls. Collection starts disabled; ads require UMP permission and are limited to a labelled
 adaptive banner in Guides. Debug variants use Google's test inventory. Six Android notification
 channels and a local test notification exist;
-remote push scheduling does not. Unimplemented Money and Tasks areas remain explicit unavailable
-states and never fabricate household activity.
+remote push scheduling does not. Money now provides a server-backed append-only expense ledger with
+exact equal splitting, personal/household summaries, member proposals, owner/admin approval and
+reasoned reversal. Owners and administrators can also manage reusable rent, bill and custom-cost
+templates with weekly/monthly/quarterly/yearly schedules and use them to prefill a real expense.
+Payment declarations, custom split methods and automatic background generation are not yet exposed;
+Tasks remains an explicit unavailable state and the app never fabricates household activity.
 
 Account privacy actions are real rather than placeholders. **Settings > Trust and transparency** can
 create a password-confirmed JSON export through Android's system document picker or permanently

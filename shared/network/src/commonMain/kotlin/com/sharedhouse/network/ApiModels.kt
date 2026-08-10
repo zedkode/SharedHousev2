@@ -111,6 +111,8 @@ data class AccountExportDto(
     val account: AccountDto,
     val households: List<HouseholdDto>,
     val calendarEvents: List<CalendarEventDto>,
+    val expenses: List<ExpenseDto> = emptyList(),
+    val expenseTemplates: List<ExpenseTemplateDto> = emptyList(),
     val consentRecords: List<AccountExportConsentDto>,
     val sessions: List<AccountExportSessionDto>,
     val invitations: List<AccountExportInvitationDto>,
@@ -215,6 +217,7 @@ data class MoneyDto(
 data class ExpenseConfigurationDto(
     val title: String,
     val category: String,
+    val customCategoryName: String? = null,
     val amount: MoneyDto,
     val dueDate: String,
     val notes: String? = null,
@@ -236,6 +239,7 @@ data class ExpenseDto(
     val householdId: String,
     val title: String,
     val category: String,
+    val customCategoryName: String? = null,
     val amount: MoneyDto,
     val dueDate: String,
     val notes: String? = null,
@@ -255,6 +259,38 @@ data class ExpenseDto(
 data class ReverseExpensePayload(
     val reason: String,
 )
+
+@Serializable
+data class ExpenseTemplateConfigurationDto(
+    val title: String,
+    val category: String,
+    val customCategoryName: String? = null,
+    val amount: MoneyDto,
+    val cadence: String,
+    val nextDueDate: String,
+    val notes: String? = null,
+)
+
+@Serializable
+data class ExpenseTemplateDto(
+    val id: String,
+    val householdId: String,
+    val title: String,
+    val category: String,
+    val customCategoryName: String? = null,
+    val amount: MoneyDto,
+    val cadence: String,
+    val nextDueDate: String,
+    val notes: String? = null,
+    val status: String,
+    val canManage: Boolean,
+    val version: Int,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class ArchiveExpenseTemplatePayload(val reason: String)
 
 @Serializable
 data class FieldViolationDto(
