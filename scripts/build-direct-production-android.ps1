@@ -166,4 +166,5 @@ if ($RequireConnectedDevice) {
 }
 
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $apk
-Write-Output "APK=$ap
+Write-Output "APK=$apk"
+Write-Output "SHA256=$($hash.Hash)"
