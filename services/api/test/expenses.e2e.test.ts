@@ -455,6 +455,143 @@ describe('tenant-scoped household expenses', () => {
       canManage: false,
     });
   });
+
+  it('splits rent by real residents and supports couples with or without a second app account', async () => {
+    const rosterEndpoint = `/v1/households/${householdId}/billing-roster`;
+    const initial = await request(server)
+      .get(rosterEndpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect('ETag', '"1"')
+      .expect(200);
+    const rosterMembers = readArrayProperty(initial.body, 'members');
+    const ownerMembershipId = readStringProperty(
+      rosterMembers.find((member) => readStringProperty(member, 'displayName') === 'Money Owner'),
+      'membershipId',
+    );
+    const memberMembershipId = readStringProperty(
+      rosterMembers.find((member) => readStringProperty(member, 'displayName') === 'Money Member'),
+      'membershipId',
+    );
+    const guestCouple = {
+      couples: [
+        {
+          primaryMembershipId: ownerMembershipId,
+          partnerDisplayName: 'Taylor without app access',
+        },
+      ],
+    };
+
+    await request(server)
+      .put(rosterEndpoint)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-roster-member-denied-01')
+      .send(guestCouple)
+      .expect(403);
+
+    const guestRoster = await request(server)
+      .put(rosterEndpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-roster-guest-couple-01')
+      .send(guestCouple)
+      .expect('ETag', '"2"')
+      .expect(200);
+    expect(guestRoster.body).toMatchObject({
+      residentCount: 3,
+      billingUnitCount: 2,
+      canManage: true,
+      version: 2,
+      couples: [
+        {
+          primaryMembershipId: ownerMembershipId,
+          partnerMembershipId: null,
+          partnerDisplayName: 'Taylor without app access',
+        },
+      ],
+    });
+
+    const replay = await request(server)
+      .put(rosterEndpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-roster-guest-couple-01')
+      .send(guestCouple)
+      .expect(200);
+    expect(replay.body).toEqual(guestRoster.body);
+
+    const guestRent = await request(server)
+      .post(`/v1/households/${householdId}/expenses`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'money-rent-875-guest-couple')
+      .send({
+        title: 'Monthly rent',
+        category: 'rent',
+        amount: { minorUnits: 87_500, currency: 'GBP' },
+        dueDate: '2026-09-01',
+      })
+      .expect(201);
+    const guestAllocations = readAllocations(guestRent.body);
+    expect(guestAllocations).toHaveLength(2);
+    expect(guestAllocations.reduce((sum, item) => sum + item.amount.minorUnits, 0)).toBe(87_500);
+    const guestCoupleAllocation = guestAllocations.find((item) => item.participantCount === 2);
+    expect(guestCoupleAllocation).toMatchObject({
+      billingUnitType: 'couple',
+      participantCount: 2,
+      eligibleMembershipIds: [ownerMembershipId],
+      isCurrentUser: true,
+      canDeclarePayment: true,
+    });
+    expect(guestCoupleAllocation?.displayName).toContain('Taylor without app access');
+    expect(guestCoupleAllocation?.amount.minorUnits).toBeGreaterThanOrEqual(58_332);
+    expect(guestCoupleAllocation?.amount.minorUnits).toBeLessThanOrEqual(58_334);
+
+    const accountCouple = {
+      couples: [
+        {
+          primaryMembershipId: ownerMembershipId,
+          partnerMembershipId: memberMembershipId,
+        },
+      ],
+    };
+    const accountRoster = await request(server)
+      .put(rosterEndpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"2"')
+      .set('Idempotency-Key', 'money-roster-account-couple-1')
+      .send(accountCouple)
+      .expect('ETag', '"3"')
+      .expect(200);
+    expect(accountRoster.body).toMatchObject({ residentCount: 2, billingUnitCount: 1, version: 3 });
+
+    const accountRent = await request(server)
+      .post(`/v1/households/${householdId}/expenses`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'money-rent-875-account-couple')
+      .send({
+        title: 'Monthly rent for couple',
+        category: 'rent',
+        amount: { minorUnits: 87_500, currency: 'GBP' },
+        dueDate: '2026-10-01',
+      })
+      .expect(201);
+    expect(readAllocations(accountRent.body)).toEqual([
+      expect.objectContaining({
+        amount: { minorUnits: 87_500, currency: 'GBP' },
+        billingUnitType: 'couple',
+        participantCount: 2,
+        eligibleMembershipIds: [memberMembershipId, ownerMembershipId].sort(),
+      }),
+    ]);
+    const memberView = await request(server)
+      .get(`/v1/households/${householdId}/expenses/${readStringProperty(accountRent.body, 'id')}`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    expect(readAllocations(memberView.body)[0]).toMatchObject({
+      isCurrentUser: true,
+      canDeclarePayment: true,
+    });
+  });
 });
 
 async function registerAndVerify(
@@ -509,6 +646,10 @@ function expenseBody(minorUnits: number, currency: string): object {
 
 interface AllocationBody {
   membershipId: string;
+  displayName: string;
+  billingUnitType: string;
+  participantCount: number;
+  eligibleMembershipIds: string[];
   amount: { minorUnits: number; currency: string };
   roundingAdjustmentMinor: number;
   status: string;

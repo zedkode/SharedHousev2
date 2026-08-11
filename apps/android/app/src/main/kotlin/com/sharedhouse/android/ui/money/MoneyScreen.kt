@@ -89,6 +89,7 @@ fun MoneyScreen(
     var templateAdminOpen by rememberSaveable { mutableStateOf(false) }
     var templateEditorId by rememberSaveable { mutableStateOf<String?>(null) }
     var archiveTemplateId by rememberSaveable { mutableStateOf<String?>(null) }
+    var billingRosterOpen by rememberSaveable { mutableStateOf(false) }
     val problemText = state.problem?.let { stringResource(it.messageResource) }
     LaunchedEffect(problemText) { problemText?.let { snackbar.showSnackbar(it) } }
 
@@ -179,6 +180,14 @@ fun MoneyScreen(
                         )
                     }
                 }
+                state.billingRoster?.let { roster ->
+                    item {
+                        BillingRosterOverview(
+                            roster = roster,
+                            onManage = { billingRosterOpen = true },
+                        )
+                    }
+                }
                 if (state.templates.any { it.active }) {
                     item {
                         TemplateOverview(
@@ -220,6 +229,7 @@ fun MoneyScreen(
     if (createOpen) {
         ExpenseEditor(
             currency = state.currency,
+            roster = state.billingRoster,
             initialTemplate = templatePrefill,
             busy = state.isMutationInProgress,
             onDismiss = { createOpen = false; templatePrefillId = null },
@@ -271,6 +281,7 @@ fun MoneyScreen(
     if (templateAdminOpen) {
         ExpenseTemplateAdminSheet(
             templates = state.templates,
+            roster = state.billingRoster,
             busy = state.isMutationInProgress,
             onDismiss = { templateAdminOpen = false },
             onAdd = { templateAdminOpen = false; templateEditorId = NEW_TEMPLATE_ID },
@@ -281,12 +292,17 @@ fun MoneyScreen(
                 createOpen = true
             },
             onArchive = { templateAdminOpen = false; archiveTemplateId = it.id },
+            onConfigureRoster = {
+                templateAdminOpen = false
+                billingRosterOpen = true
+            },
         )
     }
     if (templateEditorId != null) {
         val editing = state.templates.firstOrNull { it.id == templateEditorId }
         ExpenseTemplateEditor(
             currency = state.currency,
+            roster = state.billingRoster,
             initial = editing,
             busy = state.isMutationInProgress,
             onDismiss = { templateEditorId = null },
@@ -307,6 +323,53 @@ fun MoneyScreen(
                 archiveTemplateId = null
             },
         )
+    }
+    val roster = state.billingRoster
+    if (billingRosterOpen && roster != null) {
+        BillingRosterSheet(
+            roster = roster,
+            busy = state.isMutationInProgress,
+            onDismiss = { billingRosterOpen = false },
+            onSave = { couples ->
+                onAction(MoneyAction.UpdateBillingRoster(roster.version, couples))
+                billingRosterOpen = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun BillingRosterOverview(roster: BillingRosterUi, onManage: () -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Groups, null)
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.money_split_household_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        stringResource(
+                            R.string.money_split_household_summary,
+                            roster.residentCount,
+                            roster.billingUnitCount,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (roster.canManage) {
+                    TextButton(onClick = onManage) { Text(stringResource(R.string.money_configure)) }
+                }
+            }
+            Text(
+                stringResource(R.string.money_split_household_explanation),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
     }
 }
 
@@ -398,12 +461,14 @@ private fun TemplateOverview(
 @Composable
 private fun ExpenseTemplateAdminSheet(
     templates: List<ExpenseTemplateUi>,
+    roster: BillingRosterUi?,
     busy: Boolean,
     onDismiss: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (ExpenseTemplateUi) -> Unit,
     onUse: (ExpenseTemplateUi) -> Unit,
     onArchive: (ExpenseTemplateUi) -> Unit,
+    onConfigureRoster: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
@@ -418,6 +483,17 @@ private fun ExpenseTemplateAdminSheet(
                     Icon(Icons.Outlined.Add, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.money_add_household_cost))
+                }
+                if (roster?.canManage == true) {
+                    TextButton(
+                        onClick = onConfigureRoster,
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Outlined.Groups, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.money_configure_people_couples))
+                    }
                 }
             }
             if (templates.isEmpty()) {
@@ -454,8 +530,214 @@ private fun ExpenseTemplateAdminSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun BillingRosterSheet(
+    roster: BillingRosterUi,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (List<BillingCoupleDraft>) -> Unit,
+) {
+    var drafts by remember(roster.version) {
+        mutableStateOf(
+            roster.couples.map {
+                BillingCoupleDraft(
+                    primaryMembershipId = it.primaryMembershipId,
+                    partnerMembershipId = it.partnerMembershipId,
+                    partnerDisplayName = if (it.partnerMembershipId == null) it.partnerDisplayName else null,
+                )
+            },
+        )
+    }
+    var editorOpen by rememberSaveable(roster.version) { mutableStateOf(false) }
+    val memberNames = roster.members.associate { it.membershipId to it.displayName }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Text(
+                    stringResource(R.string.money_billing_roster_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    stringResource(R.string.money_billing_roster_description),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(drafts, key = { "${it.primaryMembershipId}:${it.partnerMembershipId}:${it.partnerDisplayName}" }) { draft ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "${memberNames[draft.primaryMembershipId].orEmpty()} & " +
+                                    (draft.partnerMembershipId?.let(memberNames::get)
+                                        ?: draft.partnerDisplayName.orEmpty()),
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                stringResource(
+                                    if (draft.partnerMembershipId == null) {
+                                        R.string.money_partner_without_account
+                                    } else {
+                                        R.string.money_partner_with_account
+                                    },
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        TextButton(onClick = { drafts = drafts - draft }, enabled = !busy) {
+                            Text(stringResource(R.string.money_remove_couple))
+                        }
+                    }
+                }
+            }
+            item {
+                TextButton(
+                    onClick = { editorOpen = true },
+                    enabled = !busy && availableMemberIds(roster, drafts).isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Outlined.Add, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.money_add_couple))
+                }
+                Button(
+                    onClick = { onSave(drafts) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.money_save_roster)) }
+                Text(
+                    stringResource(R.string.money_roster_history_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    if (editorOpen) {
+        CoupleEditorDialog(
+            roster = roster,
+            drafts = drafts,
+            onDismiss = { editorOpen = false },
+            onAdd = {
+                drafts = drafts + it
+                editorOpen = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun CoupleEditorDialog(
+    roster: BillingRosterUi,
+    drafts: List<BillingCoupleDraft>,
+    onDismiss: () -> Unit,
+    onAdd: (BillingCoupleDraft) -> Unit,
+) {
+    val available = availableMemberIds(roster, drafts)
+    var primaryId by remember { mutableStateOf(available.firstOrNull().orEmpty()) }
+    var useExistingMember by rememberSaveable { mutableStateOf(false) }
+    var partnerId by remember { mutableStateOf("") }
+    var partnerName by rememberSaveable { mutableStateOf("") }
+    val partnerCandidates = available.filterNot { it == primaryId }
+    val valid = primaryId.isNotBlank() && if (useExistingMember) {
+        partnerId in partnerCandidates
+    } else {
+        partnerName.trim().isNotEmpty()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.money_add_couple)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.money_choose_responsible_member))
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    roster.members.filter { it.membershipId in available }.forEach { member ->
+                        FilterChip(
+                            selected = member.membershipId == primaryId,
+                            onClick = {
+                                primaryId = member.membershipId
+                                if (partnerId == primaryId) partnerId = ""
+                            },
+                            label = { Text(member.displayName) },
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = !useExistingMember,
+                        onClick = { useExistingMember = false },
+                        label = { Text(stringResource(R.string.money_partner_without_account)) },
+                    )
+                    FilterChip(
+                        selected = useExistingMember,
+                        onClick = { useExistingMember = true },
+                        label = { Text(stringResource(R.string.money_partner_with_account)) },
+                    )
+                }
+                if (useExistingMember) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                        roster.members.filter { it.membershipId in partnerCandidates }.forEach { member ->
+                            FilterChip(
+                                selected = member.membershipId == partnerId,
+                                onClick = { partnerId = member.membershipId },
+                                label = { Text(member.displayName) },
+                                modifier = Modifier.padding(end = 6.dp),
+                            )
+                        }
+                    }
+                    if (partnerCandidates.isEmpty()) {
+                        Text(stringResource(R.string.money_no_partner_member_available))
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = partnerName,
+                        onValueChange = { partnerName = it.take(80) },
+                        label = { Text(stringResource(R.string.money_partner_name)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onAdd(
+                        BillingCoupleDraft(
+                            primaryMembershipId = primaryId,
+                            partnerMembershipId = partnerId.takeIf { useExistingMember },
+                            partnerDisplayName = partnerName.trim().takeIf { !useExistingMember },
+                        ),
+                    )
+                },
+                enabled = valid,
+            ) { Text(stringResource(R.string.money_add_couple)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+private fun availableMemberIds(
+    roster: BillingRosterUi,
+    drafts: List<BillingCoupleDraft>,
+): Set<String> {
+    val used = drafts.flatMap { listOfNotNull(it.primaryMembershipId, it.partnerMembershipId) }.toSet()
+    return roster.members.map(BillingRosterMemberUi::membershipId).filterNot(used::contains).toSet()
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun ExpenseTemplateEditor(
     currency: String,
+    roster: BillingRosterUi?,
     initial: ExpenseTemplateUi?,
     busy: Boolean,
     onDismiss: () -> Unit,
@@ -513,6 +795,9 @@ private fun ExpenseTemplateEditor(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
                     isError = attempted && parsedAmount == null,
                 )
+            }
+            if (parsedAmount != null && parsedAmount > 0 && roster != null) {
+                item { BillingSplitPreview(parsedAmount, currency, roster) }
             }
             item {
                 OutlinedTextField(
@@ -594,6 +879,7 @@ private fun MoneyError(onRetry: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun ExpenseEditor(
     currency: String,
+    roster: BillingRosterUi?,
     initialTemplate: ExpenseTemplateUi? = null,
     busy: Boolean,
     onDismiss: () -> Unit,
@@ -656,6 +942,9 @@ private fun ExpenseEditor(
                     isError = attempted && parsedAmount == null,
                     supportingText = if (attempted && parsedAmount == null) ({ Text(stringResource(R.string.money_amount_invalid)) }) else null,
                 )
+                if (parsedAmount != null && parsedAmount > 0 && roster != null) {
+                    BillingSplitPreview(parsedAmount, currency, roster)
+                }
                 OutlinedTextField(
                     dueDate,
                     {},
@@ -698,6 +987,80 @@ private fun ExpenseEditor(
             },
             dismissButton = { TextButton(onClick = { dateOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
         ) { DatePicker(picker) }
+    }
+}
+
+private data class BillingPreviewLine(
+    val label: String,
+    val participantCount: Int,
+    val amountMinor: Long,
+)
+
+@Composable
+private fun BillingSplitPreview(
+    totalMinor: Long,
+    currency: String,
+    roster: BillingRosterUi,
+) {
+    val lines = remember(totalMinor, roster) { billingPreviewLines(totalMinor, roster) }
+    if (lines.isEmpty()) return
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(
+                stringResource(R.string.money_split_preview_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            lines.forEach { line ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(line.label, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(
+                                if (line.participantCount == 2) {
+                                    R.string.money_split_preview_couple
+                                } else {
+                                    R.string.money_split_preview_person
+                                },
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(formatMoney(line.amountMinor, currency), fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Text(
+                stringResource(R.string.money_split_preview_notice),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun billingPreviewLines(totalMinor: Long, roster: BillingRosterUi): List<BillingPreviewLine> {
+    if (totalMinor <= 0) return emptyList()
+    val members = roster.members.sortedBy(BillingRosterMemberUi::membershipId)
+    val couplesByPrimary = roster.couples.associateBy(BillingCoupleUi::primaryMembershipId)
+    val accountPartners = roster.couples.mapNotNull(BillingCoupleUi::partnerMembershipId).toSet()
+    val units = members.mapNotNull { member ->
+        if (member.membershipId in accountPartners) return@mapNotNull null
+        val couple = couplesByPrimary[member.membershipId]
+        BillingPreviewLine(
+            label = if (couple == null) member.displayName else "${couple.primaryDisplayName} & ${couple.partnerDisplayName}",
+            participantCount = if (couple == null) 1 else 2,
+            amountMinor = 0,
+        )
+    }
+    val residentCount = units.sumOf(BillingPreviewLine::participantCount)
+    if (residentCount == 0) return emptyList()
+    val perResident = totalMinor / residentCount
+    var remainder = totalMinor % residentCount
+    return units.map { unit ->
+        val adjustment = minOf(unit.participantCount.toLong(), remainder)
+        remainder -= adjustment
+        unit.copy(amountMinor = perResident * unit.participantCount + adjustment)
     }
 }
 
@@ -780,6 +1143,13 @@ private fun ExpenseDetails(
                         style = MaterialTheme.typography.labelMedium,
                         color = allocation.status.color(),
                     )
+                    if (allocation.billingUnitType == BillingUnitType.COUPLE) {
+                        Text(
+                            stringResource(R.string.money_couple_combined_share, allocation.participantCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (allocation.canDeclarePayment) {
                         Button(
                             onClick = { declarationOpen = true },
@@ -1194,6 +1564,7 @@ private val MoneyProblem.messageResource: Int @StringRes get() = when (this) {
     MoneyProblem.PAYMENT_CONFIRM_FAILED -> R.string.money_payment_confirm_error
     MoneyProblem.PAYMENT_DISPUTE_FAILED -> R.string.money_payment_dispute_error
     MoneyProblem.PAYMENT_REVERSE_FAILED -> R.string.money_payment_reverse_error
+    MoneyProblem.BILLING_ROSTER_FAILED -> R.string.money_billing_roster_error
     MoneyProblem.VERSION_CONFLICT -> R.string.money_version_conflict
 }
 

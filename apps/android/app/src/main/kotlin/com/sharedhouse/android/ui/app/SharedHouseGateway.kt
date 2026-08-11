@@ -3,6 +3,8 @@ package com.sharedhouse.android.ui.app
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
+import com.sharedhouse.network.BillingCoupleConfigurationDto
+import com.sharedhouse.network.BillingRosterDto
 import com.sharedhouse.network.ExpenseConfigurationDto
 import com.sharedhouse.network.ExpenseDto
 import com.sharedhouse.network.ExpensePaymentDeclarationDto
@@ -151,6 +153,16 @@ interface SharedHouseGateway {
     ): ApiResult<HouseholdTaskDto>
 
     suspend fun listExpenses(accessToken: String, householdId: String): ApiResult<List<ExpenseDto>>
+
+    suspend fun getBillingRoster(accessToken: String, householdId: String): ApiResult<BillingRosterDto>
+
+    suspend fun updateBillingRoster(
+        accessToken: String,
+        householdId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        couples: List<BillingCoupleConfigurationDto>,
+    ): ApiResult<BillingRosterDto>
 
     suspend fun createExpense(
         accessToken: String,
@@ -376,6 +388,23 @@ class ApiSharedHouseGateway(
 
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         api.listExpenses(accessToken, householdId)
+
+    override suspend fun getBillingRoster(accessToken: String, householdId: String) =
+        api.getBillingRoster(accessToken, householdId)
+
+    override suspend fun updateBillingRoster(
+        accessToken: String,
+        householdId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        couples: List<BillingCoupleConfigurationDto>,
+    ) = api.updateBillingRoster(
+        accessToken,
+        householdId,
+        expectedVersion,
+        idempotencyKey,
+        couples,
+    )
 
     override suspend fun createExpense(
         accessToken: String,

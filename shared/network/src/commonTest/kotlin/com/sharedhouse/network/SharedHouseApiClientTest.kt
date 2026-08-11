@@ -410,6 +410,71 @@ class SharedHouseApiClientTest {
     }
 
     @Test
+    fun billingRosterSupportsAccountAndNoAccountPartnersWithConcurrencyMetadata() = runBlocking {
+        val couple = BillingCoupleConfigurationDto(
+            primaryMembershipId = "membership-1",
+            partnerDisplayName = "Taylor",
+        )
+        val response = """
+            {
+              "householdId":"household-1",
+              "members":[{"membershipId":"membership-1","displayName":"Alex","isCurrentUser":true}],
+              "couples":[{
+                "id":"couple-1","primaryMembershipId":"membership-1",
+                "primaryDisplayName":"Alex","partnerMembershipId":null,
+                "partnerDisplayName":"Taylor"
+              }],
+              "residentCount":2,"billingUnitCount":1,"canManage":true,
+              "version":2,"updatedAt":"2026-08-11T12:00:00Z"
+            }
+        """.trimIndent()
+        var count = 0
+        val engine = MockEngine { request ->
+            count += 1
+            assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+            assertEquals("/v1/households/household-1/billing-roster", request.url.encodedPath)
+            when (count) {
+                1 -> {
+                    assertEquals(HttpMethod.Get, request.method)
+                    respond(response, HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                2 -> {
+                    assertEquals(HttpMethod.Put, request.method)
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals("billing-roster-key-0001", request.headers["Idempotency-Key"])
+                    assertEquals(
+                        UpdateBillingRosterDto(listOf(couple)),
+                        json.decodeFromString<UpdateBillingRosterDto>(
+                            request.body.toByteArray().decodeToString(),
+                        ),
+                    )
+                    respond(response, HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                else -> error("Unexpected request")
+            }
+        }
+        val api = apiClient(engine)
+        try {
+            val board = assertIs<ApiResult.Success<BillingRosterDto>>(
+                api.getBillingRoster("access-token", "household-1"),
+            )
+            assertEquals(2, board.value.residentCount)
+            assertIs<ApiResult.Success<BillingRosterDto>>(
+                api.updateBillingRoster(
+                    "access-token",
+                    "household-1",
+                    1,
+                    "billing-roster-key-0001",
+                    listOf(couple),
+                ),
+            )
+            assertEquals(2, count)
+        } finally {
+            api.close()
+        }
+    }
+
+    @Test
     fun invitationFlowKeepsSecretOnlyInCreateAndPathRequests() = runBlocking {
         val invitationToken = "sh_inv_1234567890123456789012345678901234567890123"
         val invitationResponse = """

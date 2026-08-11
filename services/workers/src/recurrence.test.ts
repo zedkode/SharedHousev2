@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { equalAllocationMinorUnits, nextOccurrenceDate } from './recurrence.js';
+import {
+  equalAllocationMinorUnits,
+  nextOccurrenceDate,
+  weightedEqualAllocationMinorUnits,
+} from './recurrence.js';
 
 describe('expense recurrence', () => {
   it('keeps the monthly anchor after a short month', () => {
     expect(nextOccurrenceDate('2027-01-31', 'monthly', 31, 1)).toBe('2027-02-28');
     expect(nextOccurrenceDate('2027-02-28', 'monthly', 31, 1)).toBe('2027-03-31');
+  });
+
+  it('combines two equal person shares into one couple billing unit', () => {
+    expect(weightedEqualAllocationMinorUnits(87_500, [2, 1])).toEqual([
+      { amountMinor: 58_334n, roundingAdjustmentMinor: 2 },
+      { amountMinor: 29_166n, roundingAdjustmentMinor: 0 },
+    ]);
   });
 
   it('handles leap years without drifting the yearly anchor', () => {

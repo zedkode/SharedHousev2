@@ -44,6 +44,31 @@ export function equalAllocationMinorUnits(
   );
 }
 
+export function weightedEqualAllocationMinorUnits(
+  totalMinor: string | number | bigint,
+  participantCounts: readonly number[],
+): readonly { readonly amountMinor: bigint; readonly roundingAdjustmentMinor: number }[] {
+  if (
+    participantCounts.length === 0 ||
+    participantCounts.some((count) => !Number.isSafeInteger(count) || count < 1 || count > 2)
+  ) {
+    throw new Error('participantCounts must contain one or two people per billing unit.');
+  }
+  const total = BigInt(totalMinor);
+  if (total < 1n) throw new Error('totalMinor must be positive.');
+  const residents = participantCounts.reduce((sum, count) => sum + count, 0);
+  const base = total / BigInt(residents);
+  let remaining = Number(total % BigInt(residents));
+  return participantCounts.map((participantCount) => {
+    const roundingAdjustmentMinor = Math.min(participantCount, remaining);
+    remaining -= roundingAdjustmentMinor;
+    return {
+      amountMinor: base * BigInt(participantCount) + BigInt(roundingAdjustmentMinor),
+      roundingAdjustmentMinor,
+    };
+  });
+}
+
 function anchoredDate(year: number, month: number, anchorDay: number): string {
   const finalDay = Math.min(anchorDay, daysInMonth(year, month));
   return formatDate(year, month, finalDay);

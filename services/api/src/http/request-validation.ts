@@ -1,6 +1,7 @@
 import type {
   CalendarEventConfiguration,
   CalendarEventType,
+  UpdateBillingRosterRequest,
   CreateHouseholdInvitationRequest,
   DeleteAccountRequest,
   ExpenseCategory,
@@ -392,6 +393,71 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
     dueDate,
     ...(notes === undefined ? {} : { notes }),
   };
+}
+
+export function parseBillingRosterUpdate(value: unknown): UpdateBillingRosterRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['couples']);
+  const violations: FieldViolation[] = [];
+  const rawCouples = Array.isArray(body.couples) ? body.couples : [];
+  if (!Array.isArray(body.couples)) {
+    violations.push({ field: 'couples', message: 'Expected a list of couples.' });
+    throwIfViolations(violations);
+  }
+  if (rawCouples.length > 50) {
+    violations.push({
+      field: 'couples',
+      message: 'A billing roster can contain at most 50 couples.',
+    });
+  }
+  const couples = rawCouples.slice(0, 50).map((item: unknown, index: number) => {
+    const couple = readObject(item);
+    assertAllowedKeys(couple, ['primaryMembershipId', 'partnerMembershipId', 'partnerDisplayName']);
+    const primaryMembershipId = readString(
+      couple.primaryMembershipId,
+      `couples.${String(index)}.primaryMembershipId`,
+      36,
+      36,
+      violations,
+      true,
+    );
+    const partnerMembershipId = readOptionalNullableString(
+      couple.partnerMembershipId,
+      `couples.${String(index)}.partnerMembershipId`,
+      36,
+      36,
+      violations,
+    );
+    const partnerDisplayName = readOptionalNullableString(
+      couple.partnerDisplayName,
+      `couples.${String(index)}.partnerDisplayName`,
+      1,
+      80,
+      violations,
+    );
+    if (!isUuid(primaryMembershipId))
+      violations.push({
+        field: `couples.${String(index)}.primaryMembershipId`,
+        message: 'Choose an active household member.',
+      });
+    if (partnerMembershipId != null && !isUuid(partnerMembershipId))
+      violations.push({
+        field: `couples.${String(index)}.partnerMembershipId`,
+        message: 'Choose an active household member.',
+      });
+    if ((partnerMembershipId == null) === (partnerDisplayName == null))
+      violations.push({
+        field: `couples.${String(index)}`,
+        message: 'Choose either an existing member or name one partner without app access.',
+      });
+    return {
+      primaryMembershipId,
+      ...(partnerMembershipId === undefined ? {} : { partnerMembershipId }),
+      ...(partnerDisplayName === undefined ? {} : { partnerDisplayName }),
+    };
+  });
+  throwIfViolations(violations);
+  return { couples };
 }
 
 export function parseHouseholdTaskConfiguration(value: unknown): HouseholdTaskConfiguration {

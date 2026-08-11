@@ -10,6 +10,7 @@ import com.sharedhouse.android.ui.money.ExpensePaymentDraft
 import com.sharedhouse.android.ui.money.ExpensePaymentMethod
 import com.sharedhouse.android.ui.money.ExpensePaymentStatus
 import com.sharedhouse.android.ui.money.MoneyAction
+import com.sharedhouse.android.ui.money.BillingCoupleDraft
 import com.sharedhouse.android.platform.security.SessionLoadResult
 import com.sharedhouse.android.platform.security.SessionSaveResult
 import com.sharedhouse.android.platform.security.SessionStore
@@ -483,6 +484,57 @@ class SharedHouseViewModelTest {
     }
 
     @Test
+    fun `money owner can add a partner without an app to the billing roster`() = runTest {
+        withMainDispatcher {
+            var savedCouples: List<com.sharedhouse.network.BillingCoupleConfigurationDto>? = null
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "owner"))) }
+                updateBillingRosterHandler = { _, householdId, version, key, couples ->
+                    assertEquals(1, version)
+                    assertTrue(key.isNotBlank())
+                    savedCouples = couples
+                    ApiResult.Success(
+                        testBillingRoster(householdId).copy(
+                            couples = listOf(
+                                com.sharedhouse.network.BillingCoupleDto(
+                                    id = "couple-1",
+                                    primaryMembershipId = "018f0000-0000-7000-8000-000000000003",
+                                    primaryDisplayName = "Alex",
+                                    partnerDisplayName = "Taylor",
+                                ),
+                            ),
+                            residentCount = 2,
+                            version = 2,
+                        ),
+                    )
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            viewModel.handleMoneyAction(
+                MoneyAction.UpdateBillingRoster(
+                    expectedVersion = 1,
+                    couples = listOf(
+                        BillingCoupleDraft(
+                            primaryMembershipId = "018f0000-0000-7000-8000-000000000003",
+                            partnerDisplayName = "Taylor",
+                        ),
+                    ),
+                ),
+            )
+            advanceUntilIdle()
+
+            assertEquals("Taylor", savedCouples?.single()?.partnerDisplayName)
+            assertEquals(2, viewModel.uiState.value.money.billingRoster?.residentCount)
+            assertEquals(2, viewModel.uiState.value.money.billingRoster?.version)
+        }
+    }
+
+    @Test
     fun `saved session is rotated before household content is restored`() = runTest {
         withMainDispatcher {
             val stored = session("old-access", "old-refresh")
@@ -780,6 +832,13 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseDto>> = { _, _ ->
             ApiResult.Success(emptyList())
         }
+    var getBillingRosterHandler:
+        suspend (String, String) -> ApiResult<com.sharedhouse.network.BillingRosterDto> = { _, householdId ->
+            ApiResult.Success(testBillingRoster(householdId))
+        }
+    var updateBillingRosterHandler:
+        suspend (String, String, Int, String, List<com.sharedhouse.network.BillingCoupleConfigurationDto>) -> ApiResult<com.sharedhouse.network.BillingRosterDto> =
+        { _, householdId, _, _, _ -> ApiResult.Success(testBillingRoster(householdId)) }
     var createExpenseHandler:
         suspend (String, String, String, com.sharedhouse.network.ExpenseConfigurationDto) -> ApiResult<com.sharedhouse.network.ExpenseDto> =
         { _, _, _, _ -> error("Unexpected expense create") }
@@ -931,6 +990,23 @@ private class FakeGateway : SharedHouseGateway {
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         listExpensesHandler(accessToken, householdId)
 
+    override suspend fun getBillingRoster(accessToken: String, householdId: String) =
+        getBillingRosterHandler(accessToken, householdId)
+
+    override suspend fun updateBillingRoster(
+        accessToken: String,
+        householdId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        couples: List<com.sharedhouse.network.BillingCoupleConfigurationDto>,
+    ) = updateBillingRosterHandler(
+        accessToken,
+        householdId,
+        expectedVersion,
+        idempotencyKey,
+        couples,
+    )
+
     override suspend fun createExpense(
         accessToken: String,
         householdId: String,
@@ -1071,6 +1147,23 @@ private fun household(
     status = "active",
     version = version,
     createdAt = "2026-08-01T12:00:00Z",
+    updatedAt = "2026-08-01T12:00:00Z",
+)
+
+private fun testBillingRoster(householdId: String) = com.sharedhouse.network.BillingRosterDto(
+    householdId = householdId,
+    members = listOf(
+        com.sharedhouse.network.BillingRosterMemberDto(
+            membershipId = "018f0000-0000-7000-8000-000000000003",
+            displayName = "Alex",
+            isCurrentUser = true,
+        ),
+    ),
+    couples = emptyList(),
+    residentCount = 1,
+    billingUnitCount = 1,
+    canManage = true,
+    version = 1,
     updatedAt = "2026-08-01T12:00:00Z",
 )
 

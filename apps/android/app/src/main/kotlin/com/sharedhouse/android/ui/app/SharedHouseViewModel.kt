@@ -16,6 +16,11 @@ import com.sharedhouse.android.ui.calendar.CalendarUiReducer
 import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.android.ui.money.ExpenseAllocationUi
 import com.sharedhouse.android.ui.money.ExpenseAllocationStatus
+import com.sharedhouse.android.ui.money.BillingCoupleDraft
+import com.sharedhouse.android.ui.money.BillingCoupleUi
+import com.sharedhouse.android.ui.money.BillingRosterMemberUi
+import com.sharedhouse.android.ui.money.BillingRosterUi
+import com.sharedhouse.android.ui.money.BillingUnitType
 import com.sharedhouse.android.ui.money.ExpenseDraft
 import com.sharedhouse.android.ui.money.ExpensePaymentDraft
 import com.sharedhouse.android.ui.money.ExpensePaymentMethod
@@ -49,6 +54,8 @@ import com.sharedhouse.android.ui.home.HouseholdMembersProblem
 import com.sharedhouse.android.ui.home.HouseholdMembersUiState
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
+import com.sharedhouse.network.BillingCoupleConfigurationDto
+import com.sharedhouse.network.BillingRosterDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.ExpenseConfigurationDto
@@ -114,6 +121,8 @@ class SharedHouseViewModel(
     private var paymentDeclarationDraft: Pair<String, ExpensePaymentDraft>? = null
     private var templateCreationIdempotencyKey: String? = null
     private var templateCreationDraft: ExpenseTemplateDraft? = null
+    private var billingRosterDraft: List<BillingCoupleDraft>? = null
+    private var billingRosterIdempotencyKey: String? = null
     private var taskCreationIdempotencyKey: String? = null
     private var taskCreationDraft: TaskDraft? = null
 
@@ -267,6 +276,7 @@ class SharedHouseViewModel(
             is MoneyAction.CreateTemplate -> createExpenseTemplate(action.draft)
             is MoneyAction.UpdateTemplate -> updateExpenseTemplate(action.templateId, action.expectedVersion, action.draft)
             is MoneyAction.ArchiveTemplate -> archiveExpenseTemplate(action.templateId, action.expectedVersion, action.reason)
+            is MoneyAction.UpdateBillingRoster -> updateBillingRoster(action.expectedVersion, action.couples)
         }
     }
 
@@ -386,16 +396,28 @@ class SharedHouseViewModel(
             val templatesResult = if (expensesResult is ApiResult.Success) {
                 authorized { gateway.listExpenseTemplates(it, household.id) }
             } else null
+            val rosterResult = if (templatesResult is ApiResult.Success) {
+                authorized { gateway.getBillingRoster(it, household.id) }
+            } else null
             if (_uiState.value.selectedHousehold?.id != household.id) return@launch
-            if (expensesResult is ApiResult.Success && templatesResult is ApiResult.Success) {
+            if (
+                expensesResult is ApiResult.Success &&
+                templatesResult is ApiResult.Success &&
+                rosterResult is ApiResult.Success
+            ) {
                 val mapped = runCatching {
-                    expensesResult.value.map { it.toMoneyUi() } to templatesResult.value.map { it.toTemplateUi() }
+                    Triple(
+                        expensesResult.value.map { it.toMoneyUi() },
+                        templatesResult.value.map { it.toTemplateUi() },
+                        rosterResult.value.toBillingRosterUi(),
+                    )
                 }.getOrNull()
                 _uiState.update { state ->
                     state.copy(money = state.money.copy(
                         content = mapped?.first?.let { MoneyContent.Ready(it.sortedBy(ExpenseUi::dueDate)) }
                             ?: MoneyContent.Error,
                         templates = mapped?.second?.sortedBy(ExpenseTemplateUi::nextDueDate).orEmpty(),
+                        billingRoster = mapped?.third,
                         isMutationInProgress = false,
                         problem = if (mapped == null) MoneyProblem.LOAD_FAILED else state.money.problem,
                     ))
@@ -404,6 +426,7 @@ class SharedHouseViewModel(
                 _uiState.update { it.copy(money = it.money.copy(
                     content = MoneyContent.Error,
                     templates = emptyList(),
+                    billingRoster = null,
                     isMutationInProgress = false,
                     problem = MoneyProblem.LOAD_FAILED,
                 )) }
@@ -632,6 +655,48 @@ class SharedHouseViewModel(
         }
     }
 
+    private fun updateBillingRoster(version: Int, couples: List<BillingCoupleDraft>) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val roster = snapshot.money.billingRoster ?: return
+        if (!roster.canManage || roster.version != version || snapshot.money.isMutationInProgress) return
+        val key = (if (billingRosterDraft == couples) billingRosterIdempotencyKey else null)
+            ?: UUID.randomUUID().toString().also {
+                billingRosterDraft = couples
+                billingRosterIdempotencyKey = it
+            }
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized { token ->
+                gateway.updateBillingRoster(
+                    token,
+                    household.id,
+                    version,
+                    key,
+                    couples.map {
+                        BillingCoupleConfigurationDto(
+                            primaryMembershipId = it.primaryMembershipId,
+                            partnerMembershipId = it.partnerMembershipId,
+                            partnerDisplayName = it.partnerDisplayName,
+                        )
+                    },
+                )
+            }) {
+                is ApiResult.Success -> {
+                    billingRosterDraft = null
+                    billingRosterIdempotencyKey = null
+                    val mapped = runCatching { result.value.toBillingRosterUi() }.getOrNull()
+                    _uiState.update { state -> state.copy(money = state.money.copy(
+                        billingRoster = mapped ?: state.money.billingRoster,
+                        isMutationInProgress = false,
+                        problem = if (mapped == null) MoneyProblem.BILLING_ROSTER_FAILED else null,
+                    )) }
+                }
+                is ApiResult.Failure -> finishMoneyMutation(result, MoneyProblem.BILLING_ROSTER_FAILED)
+            }
+        }
+    }
+
     private fun applyExpenseTemplate(dto: ExpenseTemplateDto) {
         val mapped = runCatching { dto.toTemplateUi() }.getOrElse {
             finishMoneyMutation(ApiResult.Failure("INVALID_RESPONSE", "Invalid template response"), MoneyProblem.TEMPLATE_FAILED)
@@ -677,6 +742,7 @@ class SharedHouseViewModel(
         if (_uiState.value.route == AppRoute.SignIn) return
         val conflict = failure.status == 412 || failure.code == "EXPENSE_VERSION_CONFLICT" ||
             failure.code == "EXPENSE_TEMPLATE_VERSION_CONFLICT" ||
+            failure.code == "BILLING_ROSTER_VERSION_CONFLICT" ||
             failure.code == "PAYMENT_VERSION_CONFLICT"
         _uiState.update { it.copy(money = it.money.copy(
             isMutationInProgress = false,
@@ -2221,6 +2287,12 @@ class SharedHouseViewModel(
                 ExpenseAllocationUi(
                     membershipId = allocation.membershipId,
                     displayName = allocation.displayName,
+                    billingUnitType = if (allocation.billingUnitType == "couple") {
+                        BillingUnitType.COUPLE
+                    } else {
+                        BillingUnitType.INDIVIDUAL
+                    },
+                    participantCount = allocation.participantCount,
                     amountMinor = allocation.amount.minorUnits,
                     roundingAdjustmentMinor = allocation.roundingAdjustmentMinor,
                     status = when (allocation.status) {
@@ -2284,6 +2356,29 @@ class SharedHouseViewModel(
         nextDueDate = nextDueDate.toString(),
         notes = notes,
     )
+
+    private fun BillingRosterDto.toBillingRosterUi(): BillingRosterUi {
+        val household = requireNotNull(_uiState.value.selectedHousehold)
+        require(householdId == household.id && residentCount >= members.size && billingUnitCount > 0)
+        return BillingRosterUi(
+            members = members.map {
+                BillingRosterMemberUi(it.membershipId, it.displayName, it.isCurrentUser)
+            },
+            couples = couples.map {
+                BillingCoupleUi(
+                    id = it.id,
+                    primaryMembershipId = it.primaryMembershipId,
+                    primaryDisplayName = it.primaryDisplayName,
+                    partnerMembershipId = it.partnerMembershipId,
+                    partnerDisplayName = it.partnerDisplayName,
+                )
+            },
+            residentCount = residentCount,
+            billingUnitCount = billingUnitCount,
+            canManage = canManage,
+            version = version,
+        )
+    }
 
     private fun ExpenseTemplateDto.toTemplateUi(): ExpenseTemplateUi {
         val household = requireNotNull(_uiState.value.selectedHousehold)

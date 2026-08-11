@@ -330,6 +330,46 @@ data class MoneyDto(
 )
 
 @Serializable
+data class BillingRosterMemberDto(
+    val membershipId: String,
+    val displayName: String,
+    val isCurrentUser: Boolean,
+)
+
+@Serializable
+data class BillingCoupleConfigurationDto(
+    val primaryMembershipId: String,
+    val partnerMembershipId: String? = null,
+    val partnerDisplayName: String? = null,
+)
+
+@Serializable
+data class BillingCoupleDto(
+    val id: String,
+    val primaryMembershipId: String,
+    val primaryDisplayName: String,
+    val partnerMembershipId: String? = null,
+    val partnerDisplayName: String,
+)
+
+@Serializable
+data class BillingRosterDto(
+    val householdId: String,
+    val members: List<BillingRosterMemberDto>,
+    val couples: List<BillingCoupleDto>,
+    val residentCount: Int,
+    val billingUnitCount: Int,
+    val canManage: Boolean,
+    val version: Int,
+    val updatedAt: String,
+)
+
+@Serializable
+data class UpdateBillingRosterDto(
+    val couples: List<BillingCoupleConfigurationDto>,
+)
+
+@Serializable
 data class ExpenseConfigurationDto(
     val title: String,
     val category: String,
@@ -349,6 +389,9 @@ data class ExpenseAllocationDto(
     val isCurrentUser: Boolean,
     val paymentDeclarations: List<ExpensePaymentDto> = emptyList(),
     val canDeclarePayment: Boolean = false,
+    val billingUnitType: String = "individual",
+    val participantCount: Int = 1,
+    val eligibleMembershipIds: List<String> = listOf(membershipId),
 )
 
 @Serializable

@@ -9,6 +9,7 @@ data class MoneyUiState(
     val canCreate: Boolean = false,
     val canManageTemplates: Boolean = false,
     val templates: List<ExpenseTemplateUi> = emptyList(),
+    val billingRoster: BillingRosterUi? = null,
     val isMutationInProgress: Boolean = false,
     val problem: MoneyProblem? = null,
 )
@@ -41,12 +42,45 @@ data class ExpenseUi(
 data class ExpenseAllocationUi(
     val membershipId: String,
     val displayName: String,
+    val billingUnitType: BillingUnitType = BillingUnitType.INDIVIDUAL,
+    val participantCount: Int = 1,
     val amountMinor: Long,
     val roundingAdjustmentMinor: Long,
     val status: ExpenseAllocationStatus,
     val paymentDeclarations: List<ExpensePaymentUi>,
     val canDeclarePayment: Boolean,
     val isCurrentUser: Boolean,
+)
+
+enum class BillingUnitType { INDIVIDUAL, COUPLE }
+
+data class BillingRosterMemberUi(
+    val membershipId: String,
+    val displayName: String,
+    val isCurrentUser: Boolean,
+)
+
+data class BillingCoupleUi(
+    val id: String,
+    val primaryMembershipId: String,
+    val primaryDisplayName: String,
+    val partnerMembershipId: String?,
+    val partnerDisplayName: String,
+)
+
+data class BillingRosterUi(
+    val members: List<BillingRosterMemberUi>,
+    val couples: List<BillingCoupleUi>,
+    val residentCount: Int,
+    val billingUnitCount: Int,
+    val canManage: Boolean,
+    val version: Int,
+)
+
+data class BillingCoupleDraft(
+    val primaryMembershipId: String,
+    val partnerMembershipId: String? = null,
+    val partnerDisplayName: String? = null,
 )
 
 enum class ExpenseAllocationStatus { OUTSTANDING, DECLARED, PAID, DISPUTED }
@@ -124,6 +158,7 @@ enum class MoneyProblem {
     PAYMENT_CONFIRM_FAILED,
     PAYMENT_DISPUTE_FAILED,
     PAYMENT_REVERSE_FAILED,
+    BILLING_ROSTER_FAILED,
     VERSION_CONFLICT,
 }
 
@@ -191,4 +226,8 @@ sealed interface MoneyAction {
     data class CreateTemplate(val draft: ExpenseTemplateDraft) : MoneyAction
     data class UpdateTemplate(val templateId: String, val expectedVersion: Int, val draft: ExpenseTemplateDraft) : MoneyAction
     data class ArchiveTemplate(val templateId: String, val expectedVersion: Int, val reason: String) : MoneyAction
+    data class UpdateBillingRoster(
+        val expectedVersion: Int,
+        val couples: List<BillingCoupleDraft>,
+    ) : MoneyAction
 }

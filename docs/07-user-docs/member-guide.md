@@ -25,14 +25,22 @@ The dashboard shows your outstanding amount for the current cycle, amounts you r
 
 Open **Money** to view rent, electricity, gas, internet and other shared costs. Each item shows the
 authoritative total, your share, due date, status and split explanation. Use the filters for approved,
-proposed, reversed or all entries. In the current release, a new expense is split equally between
-all active household members; the detail sheet shows the exact allocation before you rely on it.
+proposed, reversed or all entries. A new expense is split equally per resident in the current billing
+roster, and the creation form previews the exact penny allocation before it is saved.
+
+App access and financial participation are intentionally separate. Every active account member is
+one resident by default. An owner or administrator can group two account members as a couple, or
+add a named partner without an app account to an existing member. A couple receives two resident
+shares combined into one payment allocation. If both partners have accounts, either can declare the
+combined allocation paid; a named partner without an account is managed through the primary
+member. This means an Android user can represent a partner who does not currently have app access.
+It does not imply that a native iOS client is available in this release.
 
 Members can submit a proposal. An owner or administrator must approve it before it contributes to
 the approved summaries. Read-only members can inspect the ledger but cannot add or change entries.
 
 Active schedules appear under **Planned household costs**. On each due date, SharedHouse creates one
-approved ledger cost and splits it exactly between the members who are active at that time. The item
+approved ledger cost and splits it exactly between the residents in the billing roster at that time. The item
 is labelled **Generated household cost** and the schedule advances automatically without creating a
 duplicate after a worker restart. **Add extra** creates a separate manual expense and should be used
 only for an additional charge. Schedules may use standard categories or an administrator-defined

@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto';
 
 import type { SqlExecutor, WorkerDatabase } from './database.js';
 import {
-  equalAllocationMinorUnits,
   nextOccurrenceDate,
   type ExpenseCadence,
+  weightedEqualAllocationMinorUnits,
 } from './recurrence.js';
 
 interface DueTemplateRow {
@@ -25,6 +25,25 @@ interface DueTemplateRow {
 
 interface ActiveMemberRow {
   readonly id: string;
+  readonly user_id: string;
+  readonly display_name: string;
+}
+
+interface ActiveCoupleRow {
+  readonly id: string;
+  readonly primary_membership_id: string;
+  readonly partner_membership_id: string | null;
+  readonly primary_display_name: string;
+  readonly partner_display_name: string;
+}
+
+interface BillingUnit {
+  readonly membershipId: string;
+  readonly label: string;
+  readonly type: 'individual' | 'couple';
+  readonly participantCount: 1 | 2;
+  readonly billingCoupleId: string | null;
+  readonly eligibleMembershipIds: readonly string[];
 }
 
 export interface OccurrenceRunSummary {
@@ -86,12 +105,29 @@ async function processOneOccurrence(
   if (template === undefined) return 'none_due';
 
   const members = await transaction.query<ActiveMemberRow>(
-    `SELECT id FROM household_memberships
-     WHERE household_id = $1 AND status = 'active'
-     ORDER BY joined_at, id`,
+    `SELECT membership.id, membership.user_id, profile.display_name
+     FROM household_memberships membership
+     JOIN users account ON account.id = membership.user_id AND account.status = 'active'
+     JOIN user_profiles profile ON profile.user_id = membership.user_id
+     WHERE membership.household_id = $1 AND membership.status = 'active'
+     ORDER BY membership.id`,
     [template.household_id],
   );
   if (members.length === 0) throw new Error('Due expense template has no active members.');
+  const couples = await transaction.query<ActiveCoupleRow>(
+    `SELECT couple.id, couple.primary_membership_id, couple.partner_membership_id,
+       primary_profile.display_name AS primary_display_name,
+       COALESCE(partner_profile.display_name, couple.partner_display_name) AS partner_display_name
+     FROM household_billing_couples couple
+     JOIN household_memberships primary_member ON primary_member.id = couple.primary_membership_id
+     JOIN user_profiles primary_profile ON primary_profile.user_id = primary_member.user_id
+     LEFT JOIN household_memberships partner_member ON partner_member.id = couple.partner_membership_id
+     LEFT JOIN user_profiles partner_profile ON partner_profile.user_id = partner_member.user_id
+     WHERE couple.household_id = $1 AND couple.status = 'active'
+     ORDER BY couple.primary_membership_id, couple.id`,
+    [template.household_id],
+  );
+  const billingUnits = buildBillingUnits(members, couples);
 
   const occurrenceDate = toLocalDate(template.next_due_date);
   const expenseId = newUuidV7(checkedAt.getTime());
@@ -122,23 +158,39 @@ async function processOneOccurrence(
   );
 
   if (inserted.length > 0) {
-    const allocations = equalAllocationMinorUnits(template.amount_minor, members.length);
-    for (const [index, member] of members.entries()) {
+    const allocations = weightedEqualAllocationMinorUnits(
+      template.amount_minor,
+      billingUnits.map((unit) => unit.participantCount),
+    );
+    for (const [index, unit] of billingUnits.entries()) {
       const amount = allocations[index];
       if (amount === undefined) throw new Error('Allocation generation failed.');
+      const allocationId = newUuidV7(checkedAt.getTime());
       await transaction.query(
         `INSERT INTO expense_allocations (
-           id, expense_id, membership_id, amount_minor, rounding_adjustment_minor, status, created_at
-         ) VALUES ($1, $2, $3, $4, $5, 'outstanding', $6)`,
+           id, expense_id, membership_id, amount_minor, rounding_adjustment_minor, status,
+           billing_unit_type, billing_unit_label, participant_count, billing_couple_id, created_at
+         ) VALUES ($1, $2, $3, $4, $5, 'outstanding', $6, $7, $8, $9, $10)`,
         [
-          newUuidV7(checkedAt.getTime()),
+          allocationId,
           expenseId,
-          member.id,
-          amount.toString(),
-          amount > BigInt(template.amount_minor) / BigInt(members.length) ? 1 : 0,
+          unit.membershipId,
+          amount.amountMinor.toString(),
+          amount.roundingAdjustmentMinor,
+          unit.type,
+          unit.label,
+          unit.participantCount,
+          unit.billingCoupleId,
           occurredAt,
         ],
       );
+      for (const membershipId of unit.eligibleMembershipIds) {
+        await transaction.query(
+          `INSERT INTO expense_allocation_members (allocation_id, membership_id, created_at)
+           VALUES ($1, $2, $3)`,
+          [allocationId, membershipId, occurredAt],
+        );
+      }
     }
     await writeOccurrenceEvidence(transaction, template, expenseId, occurrenceDate, occurredAt);
   }
@@ -156,6 +208,46 @@ async function processOneOccurrence(
     [template.id, nextDueDate, occurredAt],
   );
   return inserted.length > 0 ? 'generated' : 'already_present';
+}
+
+function buildBillingUnits(
+  members: readonly ActiveMemberRow[],
+  couples: readonly ActiveCoupleRow[],
+): readonly BillingUnit[] {
+  const coupleByPrimary = new Map(couples.map((couple) => [couple.primary_membership_id, couple]));
+  const partnerMemberships = new Set(
+    couples.flatMap((couple) =>
+      couple.partner_membership_id === null ? [] : [couple.partner_membership_id],
+    ),
+  );
+  const units: BillingUnit[] = [];
+  for (const member of members) {
+    if (partnerMemberships.has(member.id)) continue;
+    const couple = coupleByPrimary.get(member.id);
+    if (couple === undefined) {
+      units.push({
+        membershipId: member.id,
+        label: member.display_name,
+        type: 'individual',
+        participantCount: 1,
+        billingCoupleId: null,
+        eligibleMembershipIds: [member.id],
+      });
+      continue;
+    }
+    units.push({
+      membershipId: member.id,
+      label: `${couple.primary_display_name} & ${couple.partner_display_name}`,
+      type: 'couple',
+      participantCount: 2,
+      billingCoupleId: couple.id,
+      eligibleMembershipIds: [
+        member.id,
+        ...(couple.partner_membership_id === null ? [] : [couple.partner_membership_id]),
+      ],
+    });
+  }
+  return units;
 }
 
 async function writeOccurrenceEvidence(

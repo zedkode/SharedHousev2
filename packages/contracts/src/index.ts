@@ -391,6 +391,39 @@ export interface ExpenseConfiguration {
   readonly notes?: string | null;
 }
 
+export interface BillingRosterMemberSummary {
+  readonly membershipId: string;
+  readonly displayName: string;
+  readonly isCurrentUser: boolean;
+}
+
+export interface BillingCoupleConfiguration {
+  readonly primaryMembershipId: string;
+  readonly partnerMembershipId?: string | null;
+  readonly partnerDisplayName?: string | null;
+}
+
+export interface BillingCoupleSummary extends BillingCoupleConfiguration {
+  readonly id: string;
+  readonly primaryDisplayName: string;
+  readonly partnerDisplayName: string;
+}
+
+export interface BillingRosterSummary {
+  readonly householdId: string;
+  readonly members: readonly BillingRosterMemberSummary[];
+  readonly couples: readonly BillingCoupleSummary[];
+  readonly residentCount: number;
+  readonly billingUnitCount: number;
+  readonly canManage: boolean;
+  readonly version: number;
+  readonly updatedAt: string;
+}
+
+export interface UpdateBillingRosterRequest {
+  readonly couples: readonly BillingCoupleConfiguration[];
+}
+
 export type CreateExpenseRequest = ExpenseConfiguration;
 
 export interface ExpensePaymentDeclarationRequest {
@@ -435,6 +468,9 @@ export interface ExpensePaymentSummary {
 export interface ExpenseAllocationSummary {
   readonly membershipId: string;
   readonly displayName: string;
+  readonly billingUnitType: 'individual' | 'couple';
+  readonly participantCount: 1 | 2;
+  readonly eligibleMembershipIds: readonly string[];
   readonly amount: Money;
   readonly roundingAdjustmentMinor: number;
   readonly status: 'outstanding' | 'declared' | 'paid' | 'disputed';

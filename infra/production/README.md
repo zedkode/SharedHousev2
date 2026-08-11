@@ -197,10 +197,13 @@ Only after both health endpoints pass, install a public build and complete this 
    minutes. If it does not arrive, check spam and use **Send a new code** after 60 seconds.
 4. Create the household: choose its name, country, IANA timezone, currency, first day of week and
    billing cycle. The dashboard, interactive calendar, Money and Tasks then become available.
-5. In **Tasks**, add a temporary real validation task assigned to yourself, start it, complete it
+5. In **Money > Money administration > Configure people and couples**, verify the active account
+   roster. If appropriate, pair two account members or add a named partner without app access. Add a
+   real rent schedule and confirm the preview and saved allocations reconcile exactly to its total.
+6. In **Tasks**, add a temporary real validation task assigned to yourself, start it, complete it
    with a note, then verify it remains in **Completed**. If another member is available, validate one
    help/swap/postpone request and owner/admin decision. Do not create fake records in a real tenant.
-6. Sign out and sign in again on the same phone. Confirm the household and task history are restored
+7. Sign out and sign in again on the same phone. Confirm the household and task history are restored
    from PostgreSQL.
 
 If no email arrives, inspect the Resend delivery log and the API log by outbox ID. Never copy a
@@ -226,17 +229,21 @@ delete migration rows or edit an applied migration.
 ## 8. Build the owner-signed public Android release
 
 Create and back up an upload keystore outside the repository. The build reads signing data only from
-the current process environment and refuses a public release without all values.
+the protected per-user release directory and refuses a public release without all values. For a
+direct release, connect exactly one authorized Android device and run the fail-closed release gate:
 
 ```powershell
-$env:SHAREDHOUSE_RELEASE_STORE_FILE = "C:\secure\sharedhouse-upload.jks"
-$env:SHAREDHOUSE_RELEASE_STORE_PASSWORD = "<from-secret-manager>"
-$env:SHAREDHOUSE_RELEASE_KEY_ALIAS = "sharedhouse-upload"
-$env:SHAREDHOUSE_RELEASE_KEY_PASSWORD = "<from-secret-manager>"
-
-.\gradlew.bat :apps:android:app:packagePublicReleaseApk
-.\gradlew.bat :apps:android:app:copyPublicReleaseBundle
+.\scripts\build-direct-production-android.ps1 `
+  -VersionCode <monotonically-increasing-code> `
+  -VersionName <semantic-version> `
+  -RequireConnectedDevice
 ```
+
+The gate runs the domain/network JVM tests, Android public unit tests, public-release lint and the
+optimized R8 build. It verifies the production URL and disabled optional-service flags, verifies the
+release certificate, installs with `adb install -r` so existing app data is retained, performs five
+cold starts, rejects any new process crash and confirms `MainActivity` is resumed in the foreground.
+An APK that fails any stage must not be copied to the release archive.
 
 Expected named outputs:
 

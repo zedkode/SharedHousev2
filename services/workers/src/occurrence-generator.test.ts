@@ -35,11 +35,23 @@ class FakeDatabase implements WorkerDatabase, SqlExecutor {
         },
       ] as unknown as readonly T[]);
     }
-    if (sql.includes('SELECT id FROM household_memberships')) {
+    if (sql.includes('FROM household_memberships membership')) {
       return Promise.resolve([
-        { id: '20000000-0000-7000-8000-000000000001' },
-        { id: '20000000-0000-7000-8000-000000000002' },
-        { id: '20000000-0000-7000-8000-000000000003' },
+        {
+          id: '20000000-0000-7000-8000-000000000001',
+          user_id: '30000000-0000-7000-8000-000000000001',
+          display_name: 'Alex',
+        },
+        {
+          id: '20000000-0000-7000-8000-000000000002',
+          user_id: '30000000-0000-7000-8000-000000000002',
+          display_name: 'Blair',
+        },
+        {
+          id: '20000000-0000-7000-8000-000000000003',
+          user_id: '30000000-0000-7000-8000-000000000003',
+          display_name: 'Casey',
+        },
       ] as unknown as readonly T[]);
     }
     if (sql.includes('INSERT INTO expenses')) {

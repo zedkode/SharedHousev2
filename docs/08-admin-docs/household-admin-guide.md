@@ -58,6 +58,24 @@ internet, council tax, groceries, supplies, maintenance, other or a user-defined
 cost set the title, price in the household currency, weekly/monthly/quarterly/yearly frequency, next
 due date and optional notes.
 
+Before creating rent, open **Configure people and couples** from the same administration sheet:
+
+1. Every active account membership already represents one resident; do not add it a second time.
+2. For a couple with two SharedHouse accounts, select the responsible member, choose **Partner with
+   account**, then select the other member.
+3. For a partner without app access, select the responsible member, choose **Partner without
+   account**, and enter the partner's real display name. The partner does not need an Android phone
+   or an email account in SharedHouse.
+4. Save the roster, review the resident and payment-unit totals, then create or update the rent
+   schedule. The amount editor shows the exact split before saving.
+
+The calculation is equal per resident, not per login or payment unit. For example, GBP 875.00 among
+three residents, where two form a couple, produces one combined couple allocation of GBP 583.34 and
+one individual allocation of GBP 291.66. The one unavoidable remainder penny is assigned in a
+stable order, and every allocation always reconciles exactly to GBP 875.00. Pairing two account
+members lets either partner declare the combined allocation paid. A named partner without an
+account is represented by the selected primary member.
+
 An active schedule creates one approved expense automatically on its local household due date. The
 worker locks the schedule and uses a unique template/date occurrence key, so retries, restarts and
 multiple instances cannot create a second occurrence. It then advances the date in the same
@@ -66,11 +84,13 @@ handle leap years. The generated item is an obligation only; SharedHouse does no
 invoice arrived or that money moved. **Add extra** creates an independent manual expense, so do not
 use it for the same scheduled occurrence.
 
-Editing a schedule changes only future occurrences and does not rewrite existing ledger entries.
+Editing a schedule or changing the billing roster affects only future occurrences and does not
+rewrite existing ledger entries. Expense allocations snapshot the people/unit label and resident
+count used at creation, so later household or relationship changes preserve financial history.
 Archive an obsolete schedule with a reason; archived schedules remain in the administrative
-history and stop generating costs. The current release splits generated expenses equally across
-members active at the occurrence time. Included-member selection and advanced split methods remain
-planned.
+history and stop generating costs. The current release splits generated expenses equally per
+resident in the roster at the occurrence time. Percentage, weighted, usage-based and individually
+excluded-member split methods remain planned.
 
 When an amount changes, update the schedule before its next due date. Do not overwrite settled
 historical cycles; reverse an incorrect generated entry with a reason and record the corrected one.

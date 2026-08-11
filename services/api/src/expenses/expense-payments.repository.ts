@@ -89,7 +89,9 @@ export class ExpensePaymentsRepository {
       const allocations = await transaction.query<AllocationRow>(
         `SELECT a.id AS allocation_id, a.amount_minor, e.currency, e.status AS expense_status
          FROM expenses e
-         JOIN expense_allocations a ON a.expense_id = e.id AND a.membership_id = $3
+         JOIN expense_allocations a ON a.expense_id = e.id
+         JOIN expense_allocation_members eligible
+           ON eligible.allocation_id = a.id AND eligible.membership_id = $3
          WHERE e.id = $1 AND e.household_id = $2
          LIMIT 1 FOR UPDATE`,
         [input.expenseId, input.householdId, membership.id],

@@ -23,6 +23,31 @@ interface ActiveMembershipRow {
   readonly display_name: string;
 }
 
+interface ActiveCoupleRow {
+  readonly id: string;
+  readonly primary_membership_id: string;
+  readonly primary_user_id: string;
+  readonly primary_display_name: string;
+  readonly partner_membership_id: string | null;
+  readonly partner_user_id: string | null;
+  readonly partner_display_name: string;
+}
+
+interface PendingAllocation {
+  readonly response: ExpenseAllocationSummary;
+  readonly billingCoupleId: string | null;
+}
+
+interface BillingUnit {
+  readonly membershipId: string;
+  readonly displayName: string;
+  readonly billingUnitType: 'individual' | 'couple';
+  readonly participantCount: 1 | 2;
+  readonly billingCoupleId: string | null;
+  readonly eligibleMembershipIds: readonly string[];
+  readonly eligibleUserIds: readonly string[];
+}
+
 interface ExpenseBaseRow {
   readonly id: string;
   readonly household_id: string;
@@ -45,9 +70,13 @@ interface ExpenseBaseRow {
 }
 
 interface ExpenseJoinRow extends ExpenseBaseRow {
+  readonly allocation_id: string;
   readonly allocation_membership_id: string;
-  readonly allocation_user_id: string;
   readonly allocation_display_name: string;
+  readonly allocation_billing_unit_type: 'individual' | 'couple';
+  readonly allocation_participant_count: 1 | 2;
+  readonly allocation_eligible_membership_ids: readonly string[];
+  readonly allocation_eligible_user_ids: readonly string[];
   readonly allocation_amount_minor: number | string | bigint;
   readonly rounding_adjustment_minor: number;
   readonly allocation_status: 'outstanding';
@@ -153,15 +182,34 @@ export class ExpensesRepository {
       );
       if (activeMemberships.length === 0) return { status: 'not_found' };
 
+      const activeCouples = await transaction.query<ActiveCoupleRow>(
+        `SELECT couple.id, couple.primary_membership_id,
+           primary_member.user_id AS primary_user_id,
+           primary_profile.display_name AS primary_display_name,
+           couple.partner_membership_id,
+           partner_member.user_id AS partner_user_id,
+           COALESCE(partner_profile.display_name, couple.partner_display_name) AS partner_display_name
+         FROM household_billing_couples couple
+         JOIN household_memberships primary_member ON primary_member.id = couple.primary_membership_id
+         JOIN user_profiles primary_profile ON primary_profile.user_id = primary_member.user_id
+         LEFT JOIN household_memberships partner_member ON partner_member.id = couple.partner_membership_id
+         LEFT JOIN user_profiles partner_profile ON partner_profile.user_id = partner_member.user_id
+         WHERE couple.household_id = $1 AND couple.status = 'active'
+         ORDER BY couple.primary_membership_id, couple.id`,
+        [input.householdId],
+      );
+
       const expenseId = newUuidV7(Date.parse(input.occurredAt));
       const status: ExpenseStatus = membership.role === 'member' ? 'proposed' : 'approved';
-      const allocations = equalAllocations(
+      const pendingAllocations = equalAllocations(
         input.configuration.amount.minorUnits,
         input.configuration.amount.currency,
         activeMemberships,
+        activeCouples,
         input.userId,
         status === 'approved',
       );
+      const allocations = pendingAllocations.map((allocation) => allocation.response);
       const expense: ExpenseSummary = {
         id: expenseId,
         householdId: input.householdId,
@@ -233,20 +281,34 @@ export class ExpensesRepository {
           input.occurredAt,
         ],
       );
-      for (const allocation of allocations) {
+      for (const pending of pendingAllocations) {
+        const allocation = pending.response;
+        const allocationId = newUuidV7();
         await transaction.query(
           `INSERT INTO expense_allocations (
-             id, expense_id, membership_id, amount_minor, rounding_adjustment_minor, status, created_at
-           ) VALUES ($1, $2, $3, $4, $5, 'outstanding', $6)`,
+             id, expense_id, membership_id, amount_minor, rounding_adjustment_minor, status,
+             billing_unit_type, billing_unit_label, participant_count, billing_couple_id, created_at
+           ) VALUES ($1, $2, $3, $4, $5, 'outstanding', $6, $7, $8, $9, $10)`,
           [
-            newUuidV7(),
+            allocationId,
             expense.id,
             allocation.membershipId,
             allocation.amount.minorUnits,
             allocation.roundingAdjustmentMinor,
+            allocation.billingUnitType,
+            allocation.displayName,
+            allocation.participantCount,
+            pending.billingCoupleId,
             input.occurredAt,
           ],
         );
+        for (const eligibleMembershipId of allocation.eligibleMembershipIds) {
+          await transaction.query(
+            `INSERT INTO expense_allocation_members (allocation_id, membership_id, created_at)
+             VALUES ($1, $2, $3)`,
+            [allocationId, eligibleMembershipId, input.occurredAt],
+          );
+        }
       }
       await transaction.query(
         `INSERT INTO expense_status_events (
@@ -349,25 +411,76 @@ function equalAllocations(
   totalMinor: number,
   currency: string,
   members: readonly ActiveMembershipRow[],
+  couples: readonly ActiveCoupleRow[],
   currentUserId: string,
   canDeclareCurrentPayment: boolean,
-): readonly ExpenseAllocationSummary[] {
-  const base = Math.floor(totalMinor / members.length);
-  const remainder = totalMinor % members.length;
-  const allocations = members.map((member, index) => ({
-    membershipId: member.id,
-    displayName: member.display_name,
-    amount: { minorUnits: base + (index < remainder ? 1 : 0), currency },
-    roundingAdjustmentMinor: index < remainder ? 1 : 0,
-    status: 'outstanding' as const,
-    paymentDeclarations: [],
-    canDeclarePayment:
-      canDeclareCurrentPayment &&
-      member.user_id === currentUserId &&
-      base + (index < remainder ? 1 : 0) > 0,
-    isCurrentUser: member.user_id === currentUserId,
-  }));
-  const allocated = allocations.reduce((sum, allocation) => sum + allocation.amount.minorUnits, 0);
+): readonly PendingAllocation[] {
+  const memberById = new Map(members.map((member) => [member.id, member]));
+  const coupleByPrimary = new Map(couples.map((couple) => [couple.primary_membership_id, couple]));
+  const coupledPartners = new Set(
+    couples.flatMap((couple) =>
+      couple.partner_membership_id === null ? [] : [couple.partner_membership_id],
+    ),
+  );
+  const units: BillingUnit[] = [];
+  for (const member of members) {
+    if (coupledPartners.has(member.id)) continue;
+    const couple = coupleByPrimary.get(member.id);
+    if (couple === undefined) {
+      units.push({
+        membershipId: member.id,
+        displayName: member.display_name,
+        billingUnitType: 'individual',
+        participantCount: 1,
+        billingCoupleId: null,
+        eligibleMembershipIds: [member.id],
+        eligibleUserIds: [member.user_id],
+      });
+      continue;
+    }
+    const partner =
+      couple.partner_membership_id === null
+        ? null
+        : (memberById.get(couple.partner_membership_id) ?? null);
+    units.push({
+      membershipId: member.id,
+      displayName: `${couple.primary_display_name} & ${couple.partner_display_name}`,
+      billingUnitType: 'couple',
+      participantCount: 2,
+      billingCoupleId: couple.id,
+      eligibleMembershipIds: [member.id, ...(partner === null ? [] : [partner.id])],
+      eligibleUserIds: [member.user_id, ...(partner === null ? [] : [partner.user_id])],
+    });
+  }
+  const residentCount = units.reduce((sum, unit) => sum + unit.participantCount, 0);
+  const base = Math.floor(totalMinor / residentCount);
+  let remaining = totalMinor % residentCount;
+  const allocations: PendingAllocation[] = units.map((unit) => {
+    const roundingAdjustmentMinor = Math.min(unit.participantCount, remaining);
+    remaining -= roundingAdjustmentMinor;
+    const amountMinor = base * unit.participantCount + roundingAdjustmentMinor;
+    const isCurrentUser = unit.eligibleUserIds.includes(currentUserId);
+    return {
+      billingCoupleId: unit.billingCoupleId,
+      response: {
+        membershipId: unit.membershipId,
+        displayName: unit.displayName,
+        billingUnitType: unit.billingUnitType,
+        participantCount: unit.participantCount,
+        eligibleMembershipIds: unit.eligibleMembershipIds,
+        amount: { minorUnits: amountMinor, currency },
+        roundingAdjustmentMinor,
+        status: 'outstanding' as const,
+        paymentDeclarations: [],
+        canDeclarePayment: canDeclareCurrentPayment && isCurrentUser && amountMinor > 0,
+        isCurrentUser,
+      },
+    };
+  });
+  const allocated = allocations.reduce(
+    (sum, allocation) => sum + allocation.response.amount.minorUnits,
+    0,
+  );
   if (allocated !== totalMinor)
     throw new Error('Equal split did not reconcile to the expense total.');
   return allocations;
@@ -410,9 +523,13 @@ async function selectExpenseRows(
        e.currency, e.due_date, e.notes, e.source_template_id, e.occurrence_date,
        e.split_method, e.status, e.version,
        e.created_at, e.updated_at,
+       a.id AS allocation_id,
        a.membership_id AS allocation_membership_id,
-       allocated.user_id AS allocation_user_id,
-       profile.display_name AS allocation_display_name,
+       a.billing_unit_label AS allocation_display_name,
+       a.billing_unit_type AS allocation_billing_unit_type,
+       a.participant_count AS allocation_participant_count,
+       eligible.membership_ids AS allocation_eligible_membership_ids,
+       eligible.user_ids AS allocation_eligible_user_ids,
        a.amount_minor AS allocation_amount_minor,
        a.rounding_adjustment_minor,
        a.status AS allocation_status,
@@ -428,15 +545,20 @@ async function selectExpenseRows(
      FROM expenses e
      JOIN household_memberships creator ON creator.id = e.created_by_membership_id
      JOIN expense_allocations a ON a.expense_id = e.id
-     JOIN household_memberships allocated ON allocated.id = a.membership_id
-     JOIN user_profiles profile ON profile.user_id = allocated.user_id
+     JOIN LATERAL (
+       SELECT array_agg(allocation_member.membership_id ORDER BY allocation_member.membership_id) AS membership_ids,
+         array_agg(member.user_id ORDER BY allocation_member.membership_id) AS user_ids
+       FROM expense_allocation_members allocation_member
+       JOIN household_memberships member ON member.id = allocation_member.membership_id
+       WHERE allocation_member.allocation_id = a.id
+     ) eligible ON true
      LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
      LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
      LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
      LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
      LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
      WHERE e.household_id = $1 ${expenseId === undefined ? '' : 'AND e.id = $2'}
-     ORDER BY e.due_date, e.created_at DESC, e.id, a.membership_id, p.created_at, p.id`,
+     ORDER BY e.due_date, e.created_at DESC, e.id, a.id, p.created_at, p.id`,
     expenseId === undefined ? [householdId] : [householdId, expenseId],
   );
 }
@@ -453,8 +575,8 @@ function mapExpenseRows(
     if (row === undefined) throw new Error('Expense row group is empty.');
     const allocationGroups = new Map<string, ExpenseJoinRow[]>();
     for (const allocationRow of expenseRows) {
-      allocationGroups.set(allocationRow.allocation_membership_id, [
-        ...(allocationGroups.get(allocationRow.allocation_membership_id) ?? []),
+      allocationGroups.set(allocationRow.allocation_id, [
+        ...(allocationGroups.get(allocationRow.allocation_id) ?? []),
         allocationRow,
       ]);
     }
@@ -469,10 +591,13 @@ function mapExpenseRows(
         const activePayment = [...paymentDeclarations]
           .reverse()
           .find((payment) => payment.status !== 'reversed');
-        const isCurrentUser = allocation.allocation_user_id === currentUserId;
+        const isCurrentUser = allocation.allocation_eligible_user_ids.includes(currentUserId);
         return {
           membershipId: allocation.allocation_membership_id,
           displayName: allocation.allocation_display_name,
+          billingUnitType: allocation.allocation_billing_unit_type,
+          participantCount: allocation.allocation_participant_count,
+          eligibleMembershipIds: allocation.allocation_eligible_membership_ids,
           amount: {
             minorUnits: toSafeNumber(allocation.allocation_amount_minor),
             currency: row.currency,
@@ -542,11 +667,19 @@ function toInstant(value: Date | string): string {
 function readExpenseResponse(value: unknown): ExpenseSummary {
   type StoredExpenseAllocation = Omit<
     ExpenseAllocationSummary,
-    'status' | 'paymentDeclarations' | 'canDeclarePayment'
+    | 'status'
+    | 'paymentDeclarations'
+    | 'canDeclarePayment'
+    | 'billingUnitType'
+    | 'participantCount'
+    | 'eligibleMembershipIds'
   > & {
     readonly status?: ExpenseAllocationSummary['status'];
     readonly paymentDeclarations?: ExpenseAllocationSummary['paymentDeclarations'];
     readonly canDeclarePayment?: boolean;
+    readonly billingUnitType?: ExpenseAllocationSummary['billingUnitType'];
+    readonly participantCount?: ExpenseAllocationSummary['participantCount'];
+    readonly eligibleMembershipIds?: ExpenseAllocationSummary['eligibleMembershipIds'];
   };
   type StoredExpenseResponse = Omit<
     ExpenseSummary,
@@ -562,6 +695,9 @@ function readExpenseResponse(value: unknown): ExpenseSummary {
     allocations: stored.allocations.map((allocation) => ({
       ...allocation,
       status: allocation.status ?? 'outstanding',
+      billingUnitType: allocation.billingUnitType ?? 'individual',
+      participantCount: allocation.participantCount ?? 1,
+      eligibleMembershipIds: allocation.eligibleMembershipIds ?? [allocation.membershipId],
       paymentDeclarations: allocation.paymentDeclarations ?? [],
       canDeclarePayment:
         allocation.canDeclarePayment ??

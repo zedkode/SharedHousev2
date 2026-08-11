@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.10.0
+  version: 1.11.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
   - url: https://houseapi.dohotstudio.com
@@ -683,6 +683,69 @@ paths:
         '403':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/billing-roster:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: getBillingRoster
+      summary: Read the people and couples used for equal household-cost splitting
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Active app members plus configured couples and no-account partners.
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRosterSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    put:
+      operationId: replaceBillingRoster
+      summary: Replace the active couple configuration without deleting its history
+      description: Each active member may appear in at most one couple. A partner may be another account member or a named person without app access.
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBillingRosterRequest'
+      responses:
+        '200':
+          description: Billing roster replaced or the original idempotent result replayed.
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRosterSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
         '412':
           $ref: '#/components/responses/Problem'
@@ -2134,6 +2197,70 @@ components:
           type: [string, 'null']
           minLength: 1
           maxLength: 1000
+    BillingRosterMemberSummary:
+      type: object
+      additionalProperties: false
+      required: [membershipId, displayName, isCurrentUser]
+      properties:
+        membershipId: { type: string, format: uuid }
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        isCurrentUser: { type: boolean }
+    BillingCoupleConfiguration:
+      type: object
+      additionalProperties: false
+      required: [primaryMembershipId]
+      properties:
+        primaryMembershipId: { type: string, format: uuid }
+        partnerMembershipId: { type: [string, 'null'], format: uuid }
+        partnerDisplayName: { type: [string, 'null'], minLength: 1, maxLength: 80 }
+      description: Exactly one partner field is required.
+    BillingCoupleSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [id, primaryMembershipId, primaryDisplayName, partnerMembershipId, partnerDisplayName]
+      properties:
+        id: { type: string, format: uuid }
+        primaryMembershipId: { type: string, format: uuid }
+        primaryDisplayName: { type: string, minLength: 1, maxLength: 80 }
+        partnerMembershipId: { type: [string, 'null'], format: uuid }
+        partnerDisplayName: { type: string, minLength: 1, maxLength: 80 }
+    BillingRosterSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          householdId,
+          members,
+          couples,
+          residentCount,
+          billingUnitCount,
+          canManage,
+          version,
+          updatedAt,
+        ]
+      properties:
+        householdId: { type: string, format: uuid }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/BillingRosterMemberSummary' }
+        couples:
+          type: array
+          items: { $ref: '#/components/schemas/BillingCoupleSummary' }
+        residentCount: { type: integer, minimum: 1 }
+        billingUnitCount: { type: integer, minimum: 1 }
+        canManage: { type: boolean }
+        version: { type: integer, minimum: 1 }
+        updatedAt: { type: string, format: date-time }
+    UpdateBillingRosterRequest:
+      type: object
+      additionalProperties: false
+      required: [couples]
+      properties:
+        couples:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/BillingCoupleConfiguration' }
     ExpenseAllocationSummary:
       type: object
       additionalProperties: false
@@ -2141,6 +2268,9 @@ components:
         [
           membershipId,
           displayName,
+          billingUnitType,
+          participantCount,
+          eligibleMembershipIds,
           amount,
           roundingAdjustmentMinor,
           status,
@@ -2155,13 +2285,26 @@ components:
         displayName:
           type: string
           minLength: 1
-          maxLength: 80
+          maxLength: 180
+        billingUnitType:
+          type: string
+          enum: [individual, couple]
+        participantCount:
+          type: integer
+          minimum: 1
+          maximum: 2
+        eligibleMembershipIds:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items: { type: string, format: uuid }
         amount:
           $ref: '#/components/schemas/Money'
         roundingAdjustmentMinor:
           type: integer
           minimum: 0
-          maximum: 1
+          maximum: 2
         status:
           type: string
           enum: [outstanding, declared, paid, disputed]

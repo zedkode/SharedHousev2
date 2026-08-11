@@ -162,6 +162,21 @@ Clear release variables afterwards. Inspect the AAB with Bundle Explorer, verify
 permissions, then retain hashes, commit SHA, dependencies, lint and tests. Debug-signed binaries are
 internal build by-products and must never be distributed.
 
+For direct production distribution, use the repository release gate instead of invoking packaging
+alone. Keep one authorized physical device connected:
+
+```powershell
+.\scripts\build-direct-production-android.ps1 `
+  -VersionCode <monotonically-increasing-code> `
+  -VersionName <semantic-version> `
+  -RequireConnectedDevice
+```
+
+This additionally verifies the optimized signed APK on the device with five cold starts, no new
+crash-buffer entry, a live app process and the expected foreground activity. It updates the existing
+installation without clearing accounts or preferences. A successful JVM test run without this
+release-device gate is not sufficient evidence that reflection-based startup survived R8.
+
 ## 8. Complete Play declarations from evidence
 
 - **App access:** reviewer credentials, verification instructions, synthetic household and invite.

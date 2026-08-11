@@ -275,9 +275,12 @@ export class IdentityRepository {
         `SELECT e.id, e.household_id, creator.user_id AS created_by_user_id, e.title,
            e.category, e.custom_category_name, e.amount_minor, e.currency, e.due_date, e.notes,
            e.source_template_id, e.occurrence_date, e.split_method,
-           e.status, e.version, e.created_at, e.updated_at, a.membership_id,
-           allocated.user_id AS allocation_user_id, profile.display_name,
-           a.amount_minor AS allocation_amount_minor, a.rounding_adjustment_minor,
+            e.status, e.version, e.created_at, e.updated_at, a.id AS allocation_id,
+            a.membership_id, a.billing_unit_label AS display_name,
+            a.billing_unit_type, a.participant_count,
+            eligible.membership_ids AS allocation_eligible_membership_ids,
+            eligible.user_ids AS allocation_eligible_user_ids,
+            a.amount_minor AS allocation_amount_minor, a.rounding_adjustment_minor,
            p.id AS payment_id, p.amount_minor AS payment_amount_minor, p.method AS payment_method,
            p.payment_reference, p.note AS payment_note, p.paid_at AS payment_paid_at,
            p.status AS payment_status, declared.user_id AS payment_declared_by_user_id,
@@ -290,19 +293,25 @@ export class IdentityRepository {
          FROM expenses e
          JOIN household_memberships creator ON creator.id = e.created_by_membership_id
          JOIN expense_allocations a ON a.expense_id = e.id
-         JOIN household_memberships allocated ON allocated.id = a.membership_id
-         JOIN user_profiles profile ON profile.user_id = allocated.user_id
+          JOIN LATERAL (
+            SELECT array_agg(allocation_member.membership_id ORDER BY allocation_member.membership_id) AS membership_ids,
+              array_agg(member.user_id ORDER BY allocation_member.membership_id) AS user_ids
+            FROM expense_allocation_members allocation_member
+            JOIN household_memberships member ON member.id = allocation_member.membership_id
+            WHERE allocation_member.allocation_id = a.id
+          ) eligible ON true
          LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
          LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
          LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
          LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
          LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
          WHERE creator.user_id = $1 OR EXISTS (
-           SELECT 1 FROM expense_allocations mine
-           JOIN household_memberships my_membership ON my_membership.id = mine.membership_id
-           WHERE mine.expense_id = e.id AND my_membership.user_id = $1
+            SELECT 1 FROM expense_allocations mine
+            JOIN expense_allocation_members mine_link ON mine_link.allocation_id = mine.id
+            JOIN household_memberships my_membership ON my_membership.id = mine_link.membership_id
+            WHERE mine.expense_id = e.id AND my_membership.user_id = $1
          )
-         ORDER BY e.due_date, e.id, a.membership_id, p.created_at, p.id`,
+          ORDER BY e.due_date, e.id, a.id, p.created_at, p.id`,
         [userId],
       );
       const expenseTemplates = await transaction.query<ExportExpenseTemplateRow>(
@@ -878,9 +887,13 @@ interface ExportExpenseRow {
   readonly version: number;
   readonly created_at: Date | string;
   readonly updated_at: Date | string;
+  readonly allocation_id: string;
   readonly membership_id: string;
-  readonly allocation_user_id: string;
   readonly display_name: string;
+  readonly billing_unit_type: 'individual' | 'couple';
+  readonly participant_count: 1 | 2;
+  readonly allocation_eligible_membership_ids: readonly string[];
+  readonly allocation_eligible_user_ids: readonly string[];
   readonly allocation_amount_minor: number | string | bigint;
   readonly rounding_adjustment_minor: number;
   readonly payment_id: string | null;
@@ -1065,8 +1078,8 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
     if (row === undefined) throw new Error('Expense export row group is empty.');
     const allocationGroups = new Map<string, ExportExpenseRow[]>();
     for (const allocationRow of group) {
-      allocationGroups.set(allocationRow.membership_id, [
-        ...(allocationGroups.get(allocationRow.membership_id) ?? []),
+      allocationGroups.set(allocationRow.allocation_id, [
+        ...(allocationGroups.get(allocationRow.allocation_id) ?? []),
         allocationRow,
       ]);
     }
@@ -1083,6 +1096,9 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       return {
         membershipId: allocation.membership_id,
         displayName: allocation.display_name,
+        billingUnitType: allocation.billing_unit_type,
+        participantCount: allocation.participant_count,
+        eligibleMembershipIds: allocation.allocation_eligible_membership_ids,
         amount: {
           minorUnits: toSafeInteger(allocation.allocation_amount_minor),
           currency: row.currency,
@@ -1091,7 +1107,7 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
         status: paymentAllocationStatus(activePayment?.status),
         paymentDeclarations,
         canDeclarePayment: false,
-        isCurrentUser: allocation.allocation_user_id === userId,
+        isCurrentUser: allocation.allocation_eligible_user_ids.includes(userId),
       };
     });
     return {

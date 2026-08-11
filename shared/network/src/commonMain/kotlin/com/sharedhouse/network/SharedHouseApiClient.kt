@@ -14,6 +14,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -291,6 +292,31 @@ class SharedHouseApiClient(
     ): ApiResult<List<ExpenseDto>> = execute {
         client.get("$baseUrl/v1/households/$householdId/expenses") {
             bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun getBillingRoster(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<BillingRosterDto> = execute {
+        client.get("$baseUrl/v1/households/$householdId/billing-roster") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun updateBillingRoster(
+        accessToken: String,
+        householdId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        couples: List<BillingCoupleConfigurationDto>,
+    ): ApiResult<BillingRosterDto> = execute {
+        client.put("$baseUrl/v1/households/$householdId/billing-roster") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(UpdateBillingRosterDto(couples))
         }
     }
 
