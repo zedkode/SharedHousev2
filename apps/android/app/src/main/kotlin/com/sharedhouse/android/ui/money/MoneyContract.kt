@@ -1,6 +1,7 @@
 package com.sharedhouse.android.ui.money
 
 import java.time.LocalDate
+import java.time.Instant
 
 data class MoneyUiState(
     val currency: String = "GBP",
@@ -27,6 +28,8 @@ data class ExpenseUi(
     val currency: String,
     val dueDate: LocalDate,
     val notes: String?,
+    val sourceTemplateId: String? = null,
+    val occurrenceDate: LocalDate? = null,
     val status: ExpenseStatus,
     val allocations: List<ExpenseAllocationUi>,
     val currentUserShareMinor: Long,
@@ -36,10 +39,57 @@ data class ExpenseUi(
 )
 
 data class ExpenseAllocationUi(
+    val membershipId: String,
     val displayName: String,
     val amountMinor: Long,
     val roundingAdjustmentMinor: Long,
+    val status: ExpenseAllocationStatus,
+    val paymentDeclarations: List<ExpensePaymentUi>,
+    val canDeclarePayment: Boolean,
     val isCurrentUser: Boolean,
+)
+
+enum class ExpenseAllocationStatus { OUTSTANDING, DECLARED, PAID, DISPUTED }
+
+enum class ExpensePaymentMethod(val wireValue: String) {
+    BANK_TRANSFER("bank_transfer"),
+    CASH("cash"),
+    CARD("card"),
+    DIRECT_DEBIT("direct_debit"),
+    OTHER("other");
+
+    companion object {
+        fun fromWire(value: String) = entries.firstOrNull { it.wireValue == value } ?: OTHER
+    }
+}
+
+enum class ExpensePaymentStatus { DECLARED, CONFIRMED, DISPUTED, REVERSED }
+
+data class ExpensePaymentUi(
+    val id: String,
+    val payerDisplayName: String,
+    val amountMinor: Long,
+    val currency: String,
+    val method: ExpensePaymentMethod,
+    val reference: String?,
+    val note: String?,
+    val paidAt: Instant,
+    val status: ExpensePaymentStatus,
+    val confirmedAt: Instant?,
+    val disputeReason: String?,
+    val reversedAt: Instant?,
+    val reversalReason: String?,
+    val canConfirm: Boolean,
+    val canDispute: Boolean,
+    val canReverse: Boolean,
+    val version: Int,
+)
+
+data class ExpensePaymentDraft(
+    val method: ExpensePaymentMethod,
+    val paidAt: Instant,
+    val reference: String?,
+    val note: String?,
 )
 
 enum class ExpenseCategory(val wireValue: String) {
@@ -64,7 +114,18 @@ enum class ExpenseStatus { PROPOSED, APPROVED, REVERSED }
 
 enum class MoneyFilter { ACTIVE, PROPOSED, REVERSED, ALL }
 
-enum class MoneyProblem { LOAD_FAILED, CREATE_FAILED, APPROVE_FAILED, REVERSE_FAILED, TEMPLATE_FAILED, VERSION_CONFLICT }
+enum class MoneyProblem {
+    LOAD_FAILED,
+    CREATE_FAILED,
+    APPROVE_FAILED,
+    REVERSE_FAILED,
+    TEMPLATE_FAILED,
+    PAYMENT_DECLARE_FAILED,
+    PAYMENT_CONFIRM_FAILED,
+    PAYMENT_DISPUTE_FAILED,
+    PAYMENT_REVERSE_FAILED,
+    VERSION_CONFLICT,
+}
 
 data class ExpenseDraft(
     val title: String,
@@ -113,6 +174,20 @@ sealed interface MoneyAction {
     data class Create(val draft: ExpenseDraft) : MoneyAction
     data class Approve(val expenseId: String, val expectedVersion: Int) : MoneyAction
     data class Reverse(val expenseId: String, val expectedVersion: Int, val reason: String) : MoneyAction
+    data class DeclarePayment(val expenseId: String, val draft: ExpensePaymentDraft) : MoneyAction
+    data class ConfirmPayment(val expenseId: String, val paymentId: String, val expectedVersion: Int) : MoneyAction
+    data class DisputePayment(
+        val expenseId: String,
+        val paymentId: String,
+        val expectedVersion: Int,
+        val reason: String,
+    ) : MoneyAction
+    data class ReversePayment(
+        val expenseId: String,
+        val paymentId: String,
+        val expectedVersion: Int,
+        val reason: String,
+    ) : MoneyAction
     data class CreateTemplate(val draft: ExpenseTemplateDraft) : MoneyAction
     data class UpdateTemplate(val templateId: String, val expectedVersion: Int, val draft: ExpenseTemplateDraft) : MoneyAction
     data class ArchiveTemplate(val templateId: String, val expectedVersion: Int, val reason: String) : MoneyAction

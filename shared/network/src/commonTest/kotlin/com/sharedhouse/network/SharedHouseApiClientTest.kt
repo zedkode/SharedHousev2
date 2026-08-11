@@ -287,6 +287,11 @@ class SharedHouseApiClientTest {
             dueDate = "2026-08-14",
             notes = "Shared shop",
         )
+        val payment = ExpensePaymentDeclarationDto(
+            method = "bank_transfer",
+            paidAt = "2026-08-14T12:30:00Z",
+            reference = "BANK-2048",
+        )
         var requestCount = 0
         val engine = MockEngine { request ->
             requestCount += 1
@@ -294,6 +299,10 @@ class SharedHouseApiClientTest {
             assertEquals("/v1/households/household-1/expenses" + when (requestCount) {
                 3 -> "/expense-1/approve"
                 4 -> "/expense-1/reverse"
+                5 -> "/expense-1/payments"
+                6 -> "/expense-1/payments/payment-1/confirm"
+                7 -> "/expense-1/payments/payment-1/dispute"
+                8 -> "/expense-1/payments/payment-1/reverse"
                 else -> ""
             }, request.url.encodedPath)
             when (requestCount) {
@@ -312,16 +321,41 @@ class SharedHouseApiClientTest {
                     assertEquals(ReverseExpensePayload("Duplicate receipt"), json.decodeFromString<ReverseExpensePayload>(request.body.toByteArray().decodeToString()))
                     respond(ExpenseResponse.replace("\"version\":1", "\"version\":3").replace("\"status\":\"approved\"", "\"status\":\"reversed\""), HttpStatusCode.Created, JsonResponseHeaders)
                 }
+                5 -> {
+                    assertEquals("payment-declare-0001", request.headers["Idempotency-Key"])
+                    assertEquals(payment, json.decodeFromString<ExpensePaymentDeclarationDto>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                6 -> {
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    respond(ExpenseResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                7 -> {
+                    assertEquals("\"2\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals(ExpensePaymentActionPayload("Reference mismatch"), json.decodeFromString<ExpensePaymentActionPayload>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                8 -> {
+                    assertEquals("\"3\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals(ExpensePaymentActionPayload("Bank returned transfer"), json.decodeFromString<ExpensePaymentActionPayload>(request.body.toByteArray().decodeToString()))
+                    respond(ExpenseResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
                 else -> error("Unexpected request")
             }
         }
         val api = apiClient(engine)
         try {
-            assertIs<ApiResult.Success<List<ExpenseDto>>>(api.listExpenses("access-token", "household-1"))
+            val listed = assertIs<ApiResult.Success<List<ExpenseDto>>>(api.listExpenses("access-token", "household-1"))
+            assertEquals("template-1", listed.value.single().sourceTemplateId)
+            assertEquals("2026-08-14", listed.value.single().occurrenceDate)
             assertIs<ApiResult.Success<ExpenseDto>>(api.createExpense("access-token", "household-1", "expense-create-0001", configuration))
             assertIs<ApiResult.Success<ExpenseDto>>(api.approveExpense("access-token", "household-1", "expense-1", 1))
             assertIs<ApiResult.Success<ExpenseDto>>(api.reverseExpense("access-token", "household-1", "expense-1", 2, "Duplicate receipt"))
-            assertEquals(4, requestCount)
+            assertIs<ApiResult.Success<ExpenseDto>>(api.declareExpensePayment("access-token", "household-1", "expense-1", "payment-declare-0001", payment))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.confirmExpensePayment("access-token", "household-1", "expense-1", "payment-1", 1))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.disputeExpensePayment("access-token", "household-1", "expense-1", "payment-1", 2, "Reference mismatch"))
+            assertIs<ApiResult.Success<ExpenseDto>>(api.reverseExpensePayment("access-token", "household-1", "expense-1", "payment-1", 3, "Bank returned transfer"))
+            assertEquals(8, requestCount)
         } finally {
             api.close()
         }
@@ -481,6 +515,81 @@ class SharedHouseApiClientTest {
         } finally {
             api.close()
         }
+    }
+
+    @Test
+    fun taskBoardCreationAndActionsPreserveVersionAndIdempotencyHeaders() = runBlocking {
+        val configuration = HouseholdTaskConfigurationDto(
+            title = "Clean kitchen", instructions = "Wipe and mop", zone = "Kitchen",
+            priority = "high", dueDate = "2026-08-15", dueTime = "18:30",
+            estimatedMinutes = 35, assigneeMembershipId = "membership-1",
+        )
+        val action = HouseholdTaskActionDto(action = "request_help", note = "The bags are heavy.")
+        var count = 0
+        val engine = MockEngine { request ->
+            count += 1
+            when (count) {
+                1 -> {
+                    assertEquals(HttpMethod.Get, request.method)
+                    assertEquals("/v1/households/household-1/tasks", request.url.encodedPath)
+                    respond("""{"canCreate":true,"members":[],"tasks":[$TaskResponse]}""", HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                2 -> {
+                    assertEquals("task-create-00000001", request.headers["Idempotency-Key"])
+                    assertEquals(configuration, json.decodeFromString<HouseholdTaskConfigurationDto>(request.body.toByteArray().decodeToString()))
+                    respond(TaskResponse, HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                3 -> {
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals("task-action-00000001", request.headers["Idempotency-Key"])
+                    assertEquals(action, json.decodeFromString<HouseholdTaskActionDto>(request.body.toByteArray().decodeToString()))
+                    respond(TaskResponse.replace("\"version\":1", "\"version\":2"), HttpStatusCode.Created, JsonResponseHeaders)
+                }
+                else -> error("Unexpected request")
+            }
+        }
+        val api = apiClient(engine)
+        try {
+            assertIs<ApiResult.Success<HouseholdTaskBoardDto>>(api.listHouseholdTasks("access-token", "household-1"))
+            assertIs<ApiResult.Success<HouseholdTaskDto>>(api.createHouseholdTask("access-token", "household-1", "task-create-00000001", configuration))
+            assertIs<ApiResult.Success<HouseholdTaskDto>>(api.actOnHouseholdTask("access-token", "household-1", "task-1", 1, "task-action-00000001", action))
+            assertEquals(3, count)
+        } finally { api.close() }
+    }
+
+    @Test
+    fun memberBoardAndActionPreserveAuthorizationConcurrencyAndIdempotency() = runBlocking {
+        val action = HouseholdMemberActionDto(action = "change_role", role = "admin")
+        val member = """{"membershipId":"membership-1","userId":"user-1","displayName":"Alex","role":"admin","status":"active","isCurrentUser":false,"canChangeRole":true,"canSuspend":true,"canReactivate":false,"canRemove":true,"canTransferOwnership":true,"assignableRoles":["member","read_only"],"joinedAt":"2026-08-01T00:00:00.000Z","updatedAt":"2026-08-11T00:00:00.000Z","version":2}"""
+        var count = 0
+        val engine = MockEngine { request ->
+            count += 1
+            assertEquals("Bearer access-token", request.headers[HttpHeaders.Authorization])
+            when (count) {
+                1 -> {
+                    assertEquals(HttpMethod.Get, request.method)
+                    assertEquals("/v1/households/household-1/members", request.url.encodedPath)
+                    respond("""{"canInvite":true,"canEditHousehold":true,"members":[$member]}""", HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                2 -> {
+                    assertEquals(HttpMethod.Post, request.method)
+                    assertEquals("/v1/households/household-1/members/membership-1/actions", request.url.encodedPath)
+                    assertEquals("\"1\"", request.headers[HttpHeaders.IfMatch])
+                    assertEquals("member-action-00000001", request.headers["Idempotency-Key"])
+                    assertEquals(action, json.decodeFromString<HouseholdMemberActionDto>(request.body.toByteArray().decodeToString()))
+                    respond(member, HttpStatusCode.OK, JsonResponseHeaders)
+                }
+                else -> error("Unexpected request")
+            }
+        }
+        val api = apiClient(engine)
+        try {
+            assertIs<ApiResult.Success<HouseholdMemberBoardDto>>(api.listHouseholdMembers("access-token", "household-1"))
+            assertIs<ApiResult.Success<HouseholdMemberDto>>(
+                api.actOnHouseholdMember("access-token", "household-1", "membership-1", 1, "member-action-00000001", action),
+            )
+            assertEquals(2, count)
+        } finally { api.close() }
     }
 
     @Test
@@ -655,7 +764,8 @@ class SharedHouseApiClientTest {
             {
               "id":"expense-1","householdId":"household-1","title":"Weekly groceries",
               "category":"groceries","amount":{"minorUnits":1001,"currency":"GBP"},
-              "dueDate":"2026-08-14","notes":"Shared shop","splitMethod":"equal","status":"approved",
+              "dueDate":"2026-08-14","notes":"Shared shop","sourceTemplateId":"template-1",
+              "occurrenceDate":"2026-08-14","splitMethod":"equal","status":"approved",
               "allocations":[{"membershipId":"membership-1","displayName":"Alex","amount":{"minorUnits":1001,"currency":"GBP"},"roundingAdjustmentMinor":0,"status":"outstanding","isCurrentUser":true}],
               "currentUserShare":{"minorUnits":1001,"currency":"GBP"},"createdByUserId":"user-1",
               "canApprove":false,"canReverse":true,"version":1,
@@ -669,6 +779,17 @@ class SharedHouseApiClientTest {
               "amount":{"minorUnits":145000,"currency":"GBP"},"cadence":"monthly",
               "nextDueDate":"2026-09-01","notes":null,"status":"active","canManage":true,
               "version":1,"createdAt":"2026-08-09T00:00:00.000Z","updatedAt":"2026-08-09T00:00:00.000Z"
+            }
+        """.trimIndent()
+        val TaskResponse = """
+            {
+              "id":"task-1","householdId":"household-1","title":"Clean kitchen",
+              "instructions":"Wipe and mop","zone":"Kitchen","priority":"high",
+              "dueDate":"2026-08-15","dueTime":"18:30","estimatedMinutes":35,
+              "assigneeMembershipId":"membership-1","assigneeDisplayName":"Alex","status":"open",
+              "completionNote":null,"completedByUserId":null,"completedAt":null,"requests":[],
+              "canManage":true,"canStart":true,"canComplete":true,"canRequest":true,"version":1,
+              "createdAt":"2026-08-11T10:00:00.000Z","updatedAt":"2026-08-11T10:00:00.000Z"
             }
         """.trimIndent()
         val JsonResponseHeaders = headersOf(

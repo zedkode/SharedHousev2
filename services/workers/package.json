@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@sharedhouse/contracts": "0.1.0"
+    "@sharedhouse/contracts": "0.1.0",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
+    "@types/pg": "^8.20.3",
     "tsx": "^4.20.3",
     "vitest": "^4.1.10"
   }

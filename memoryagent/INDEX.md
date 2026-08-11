@@ -4,7 +4,12 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
-| 2026-08-09 | progress | EPIC-06-02A household Money administration and custom costs | `progress/2026-08-09__EPIC-06-02A__money-admin-custom-costs.md` | completed reusable-template vertical; automatic generation remains |
+| 2026-08-11 | progress | EPIC-04-02A household member administration | `progress/2026-08-11__EPIC-04-02A__household-member-administration.md` | completed; API live and signed Android v0.5.0 built |
+| 2026-08-11 | progress | EPIC-08-01A household task workflow | `progress/2026-08-11__EPIC-08-01A__household-task-workflow.md` | completed; API live and signed Android v0.4.0 built |
+| 2026-08-11 | progress | EPIC-06-03A auditable payment declarations | `progress/2026-08-11__EPIC-06-03A__payment-declarations.md` | completed; API live and signed Android v0.3.0 built |
+| 2026-08-11 | progress | EPIC-01/03-02D direct production Android authentication repair | `progress/2026-08-11__EPIC-01-03-02D__direct-production-android-auth.md` | production APK built; device sign-in confirmation pending |
+| 2026-08-11 | progress | EPIC-05/06-02B recurring expense occurrences | `progress/2026-08-11__EPIC-05-06-02B__recurring-expense-occurrences.md` | completed and live on VPS; production-only distribution policy active |
+| 2026-08-09 | progress | EPIC-06-02A household Money administration and custom costs | `progress/2026-08-09__EPIC-06-02A__money-admin-custom-costs.md` | completed template vertical; generation delivered in EPIC-05/06-02B |
 | 2026-08-08 | progress | EPIC-06-01A Money expense ledger foundation | `progress/2026-08-08__EPIC-06-01A__money-expense-ledger.md` | completed first vertical; advanced splits and payments remain |
 | 2026-08-08 | progress | EPIC-03-14B account export and deletion | `progress/2026-08-08__EPIC-03-14B__account-export-deletion.md` | completed current vertical; live rollout pending |
 | 2026-08-08 | progress | EPIC-13-16A Google Play, Firebase, AdMob and privacy foundation | `progress/2026-08-08__EPIC-13-16A__google-play-firebase-admob-privacy.md` | completed implementation slice; provider rollout pending |

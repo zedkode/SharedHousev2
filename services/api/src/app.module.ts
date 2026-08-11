@@ -11,6 +11,7 @@ import { ProblemDetailsFilter } from './http/problem-details.filter.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { InvitationsModule } from './invitations/invitations.module.js';
 import { HealthModule } from './operations/health.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { HealthModule } from './operations/health.module.js';
     IdentityModule,
     InvitationsModule,
     HouseholdsModule,
+    TasksModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

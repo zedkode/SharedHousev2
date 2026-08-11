@@ -5,6 +5,7 @@ import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.ExpenseConfigurationDto
 import com.sharedhouse.network.ExpenseDto
+import com.sharedhouse.network.ExpensePaymentDeclarationDto
 import com.sharedhouse.network.ExpenseTemplateConfigurationDto
 import com.sharedhouse.network.ExpenseTemplateDto
 import com.sharedhouse.network.AcceptHouseholdInvitationDto
@@ -15,6 +16,13 @@ import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
 import com.sharedhouse.network.HouseholdInvitationDto
 import com.sharedhouse.network.HouseholdInvitationPreviewDto
+import com.sharedhouse.network.HouseholdMemberActionDto
+import com.sharedhouse.network.HouseholdMemberBoardDto
+import com.sharedhouse.network.HouseholdMemberDto
+import com.sharedhouse.network.HouseholdTaskActionDto
+import com.sharedhouse.network.HouseholdTaskBoardDto
+import com.sharedhouse.network.HouseholdTaskConfigurationDto
+import com.sharedhouse.network.HouseholdTaskDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
 import com.sharedhouse.network.ResendVerificationPayload
@@ -54,6 +62,20 @@ interface SharedHouseGateway {
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ): ApiResult<HouseholdDto>
+
+    suspend fun listHouseholdMembers(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<HouseholdMemberBoardDto>
+
+    suspend fun actOnHouseholdMember(
+        accessToken: String,
+        householdId: String,
+        membershipId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdMemberActionDto,
+    ): ApiResult<HouseholdMemberDto>
 
     suspend fun listHouseholdInvitations(
         accessToken: String,
@@ -110,6 +132,24 @@ interface SharedHouseGateway {
         expectedVersion: Int,
     ): ApiResult<Unit>
 
+    suspend fun listHouseholdTasks(accessToken: String, householdId: String): ApiResult<HouseholdTaskBoardDto>
+
+    suspend fun createHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: HouseholdTaskConfigurationDto,
+    ): ApiResult<HouseholdTaskDto>
+
+    suspend fun actOnHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        taskId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdTaskActionDto,
+    ): ApiResult<HouseholdTaskDto>
+
     suspend fun listExpenses(accessToken: String, householdId: String): ApiResult<List<ExpenseDto>>
 
     suspend fun createExpense(
@@ -130,6 +170,40 @@ interface SharedHouseGateway {
         accessToken: String,
         householdId: String,
         expenseId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun declareExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        idempotencyKey: String,
+        configuration: ExpensePaymentDeclarationDto,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun confirmExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun disputeExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun reverseExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
         expectedVersion: Int,
         reason: String,
     ): ApiResult<ExpenseDto>
@@ -197,6 +271,25 @@ class ApiSharedHouseGateway(
         configuration: HouseholdConfigurationDto,
     ) = api.updateHousehold(accessToken, householdId, expectedVersion, configuration)
 
+    override suspend fun listHouseholdMembers(accessToken: String, householdId: String) =
+        api.listHouseholdMembers(accessToken, householdId)
+
+    override suspend fun actOnHouseholdMember(
+        accessToken: String,
+        householdId: String,
+        membershipId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdMemberActionDto,
+    ) = api.actOnHouseholdMember(
+        accessToken,
+        householdId,
+        membershipId,
+        expectedVersion,
+        idempotencyKey,
+        action,
+    )
+
     override suspend fun listHouseholdInvitations(
         accessToken: String,
         householdId: String,
@@ -255,6 +348,32 @@ class ApiSharedHouseGateway(
         expectedVersion: Int,
     ) = api.deleteCalendarEvent(accessToken, householdId, eventId, expectedVersion)
 
+    override suspend fun listHouseholdTasks(accessToken: String, householdId: String) =
+        api.listHouseholdTasks(accessToken, householdId)
+
+    override suspend fun createHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: HouseholdTaskConfigurationDto,
+    ) = api.createHouseholdTask(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun actOnHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        taskId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdTaskActionDto,
+    ) = api.actOnHouseholdTask(
+        accessToken,
+        householdId,
+        taskId,
+        expectedVersion,
+        idempotencyKey,
+        action,
+    )
+
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         api.listExpenses(accessToken, householdId)
 
@@ -279,6 +398,54 @@ class ApiSharedHouseGateway(
         expectedVersion: Int,
         reason: String,
     ) = api.reverseExpense(accessToken, householdId, expenseId, expectedVersion, reason)
+
+    override suspend fun declareExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        idempotencyKey: String,
+        configuration: ExpensePaymentDeclarationDto,
+    ) = api.declareExpensePayment(accessToken, householdId, expenseId, idempotencyKey, configuration)
+
+    override suspend fun confirmExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+    ) = api.confirmExpensePayment(accessToken, householdId, expenseId, paymentId, expectedVersion)
+
+    override suspend fun disputeExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = api.disputeExpensePayment(
+        accessToken,
+        householdId,
+        expenseId,
+        paymentId,
+        expectedVersion,
+        reason,
+    )
+
+    override suspend fun reverseExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = api.reverseExpensePayment(
+        accessToken,
+        householdId,
+        expenseId,
+        paymentId,
+        expectedVersion,
+        reason,
+    )
 
     override suspend fun listExpenseTemplates(accessToken: String, householdId: String) =
         api.listExpenseTemplates(accessToken, householdId)

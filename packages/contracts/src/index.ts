@@ -36,6 +36,22 @@ export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export type ExpenseStatus = 'proposed' | 'approved' | 'reversed';
 export const EXPENSE_TEMPLATE_CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
 export type ExpenseTemplateCadence = (typeof EXPENSE_TEMPLATE_CADENCES)[number];
+export const EXPENSE_PAYMENT_METHODS = [
+  'bank_transfer',
+  'cash',
+  'card',
+  'direct_debit',
+  'other',
+] as const;
+export type ExpensePaymentMethod = (typeof EXPENSE_PAYMENT_METHODS)[number];
+export type ExpensePaymentStatus = 'declared' | 'confirmed' | 'disputed' | 'reversed';
+
+export const HOUSEHOLD_TASK_PRIORITIES = ['low', 'normal', 'high'] as const;
+export type HouseholdTaskPriority = (typeof HOUSEHOLD_TASK_PRIORITIES)[number];
+export type HouseholdTaskStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+export const HOUSEHOLD_TASK_REQUEST_TYPES = ['help', 'swap', 'postpone', 'issue'] as const;
+export type HouseholdTaskRequestType = (typeof HOUSEHOLD_TASK_REQUEST_TYPES)[number];
+export type HouseholdTaskRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 export interface ServiceHealth {
   readonly status: 'ok';
@@ -115,6 +131,7 @@ export interface AccountExport {
   account: AccountSummary;
   households: HouseholdSummary[];
   calendarEvents: CalendarEventSummary[];
+  householdTasks: HouseholdTaskSummary[];
   expenses: ExpenseSummary[];
   expenseTemplates: ExpenseTemplateSummary[];
   consentRecords: AccountExportConsentRecord[];
@@ -188,6 +205,39 @@ export interface HouseholdSummary extends HouseholdConfiguration {
   readonly updatedAt: string;
 }
 
+export type HouseholdMemberRole = HouseholdSummary['role'];
+export type HouseholdMembershipStatus = 'active' | 'suspended' | 'left' | 'removed';
+
+export interface HouseholdMemberSummary {
+  readonly membershipId: string;
+  readonly userId: string;
+  readonly displayName: string;
+  readonly role: HouseholdMemberRole;
+  readonly status: HouseholdMembershipStatus;
+  readonly isCurrentUser: boolean;
+  readonly canChangeRole: boolean;
+  readonly canSuspend: boolean;
+  readonly canReactivate: boolean;
+  readonly canRemove: boolean;
+  readonly canTransferOwnership: boolean;
+  readonly assignableRoles: readonly Exclude<HouseholdMemberRole, 'owner'>[];
+  readonly joinedAt: string;
+  readonly updatedAt: string;
+  readonly version: number;
+}
+
+export interface HouseholdMemberBoard {
+  readonly canInvite: boolean;
+  readonly canEditHousehold: boolean;
+  readonly members: readonly HouseholdMemberSummary[];
+}
+
+export interface HouseholdMemberActionRequest {
+  readonly action: 'change_role' | 'suspend' | 'reactivate' | 'remove' | 'transfer_ownership';
+  readonly role?: Exclude<HouseholdMemberRole, 'owner'> | null;
+  readonly reason?: string | null;
+}
+
 export interface CreateHouseholdInvitationRequest {
   readonly role: HouseholdInvitationRole;
   readonly email?: string | null;
@@ -250,6 +300,88 @@ export interface CalendarEventSummary {
   readonly updatedAt: string;
 }
 
+export interface HouseholdTaskConfiguration {
+  readonly title: string;
+  readonly instructions?: string | null;
+  readonly zone?: string | null;
+  readonly priority: HouseholdTaskPriority;
+  readonly dueDate: string;
+  readonly dueTime?: string | null;
+  readonly estimatedMinutes?: number | null;
+  readonly assigneeMembershipId: string;
+}
+
+export interface HouseholdTaskMemberSummary {
+  readonly membershipId: string;
+  readonly userId: string;
+  readonly displayName: string;
+  readonly role: HouseholdSummary['role'];
+  readonly isCurrentUser: boolean;
+}
+
+export interface HouseholdTaskRequestSummary {
+  readonly id: string;
+  readonly type: HouseholdTaskRequestType;
+  readonly status: HouseholdTaskRequestStatus;
+  readonly reason: string;
+  readonly requestedAssigneeMembershipId: string | null;
+  readonly requestedDueDate: string | null;
+  readonly requestedDueTime: string | null;
+  readonly createdByMembershipId: string;
+  readonly createdByDisplayName: string;
+  readonly resolvedByUserId: string | null;
+  readonly resolutionNote: string | null;
+  readonly resolvedAt: string | null;
+  readonly createdAt: string;
+}
+
+export interface HouseholdTaskSummary extends HouseholdTaskConfiguration {
+  readonly id: string;
+  readonly householdId: string;
+  readonly instructions: string | null;
+  readonly zone: string | null;
+  readonly dueTime: string | null;
+  readonly estimatedMinutes: number | null;
+  readonly assigneeDisplayName: string;
+  readonly status: HouseholdTaskStatus;
+  readonly completionNote: string | null;
+  readonly completedByUserId: string | null;
+  readonly completedAt: string | null;
+  readonly requests: readonly HouseholdTaskRequestSummary[];
+  readonly canManage: boolean;
+  readonly canStart: boolean;
+  readonly canComplete: boolean;
+  readonly canRequest: boolean;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface HouseholdTaskBoard {
+  readonly canCreate: boolean;
+  readonly members: readonly HouseholdTaskMemberSummary[];
+  readonly tasks: readonly HouseholdTaskSummary[];
+}
+
+export interface HouseholdTaskActionRequest {
+  readonly action:
+    | 'start'
+    | 'complete'
+    | 'reopen'
+    | 'cancel'
+    | 'request_help'
+    | 'request_swap'
+    | 'request_postpone'
+    | 'report_issue'
+    | 'approve_request'
+    | 'reject_request';
+  readonly note?: string | null;
+  readonly requestId?: string | null;
+  readonly requestedAssigneeMembershipId?: string | null;
+  readonly requestedDueDate?: string | null;
+  readonly requestedDueTime?: string | null;
+}
+
 export interface ExpenseConfiguration {
   readonly title: string;
   readonly category: ExpenseCategory;
@@ -261,12 +393,53 @@ export interface ExpenseConfiguration {
 
 export type CreateExpenseRequest = ExpenseConfiguration;
 
+export interface ExpensePaymentDeclarationRequest {
+  readonly method: ExpensePaymentMethod;
+  readonly paidAt: string;
+  readonly reference?: string | null;
+  readonly note?: string | null;
+}
+
+export interface ExpensePaymentActionRequest {
+  readonly reason: string;
+}
+
+export interface ExpensePaymentSummary {
+  readonly id: string;
+  readonly expenseId: string;
+  readonly allocationMembershipId: string;
+  readonly payerDisplayName: string;
+  readonly amount: Money;
+  readonly method: ExpensePaymentMethod;
+  readonly reference: string | null;
+  readonly note: string | null;
+  readonly paidAt: string;
+  readonly status: ExpensePaymentStatus;
+  readonly declaredByUserId: string;
+  readonly confirmedByUserId: string | null;
+  readonly confirmedAt: string | null;
+  readonly disputedByUserId: string | null;
+  readonly disputedAt: string | null;
+  readonly disputeReason: string | null;
+  readonly reversedByUserId: string | null;
+  readonly reversedAt: string | null;
+  readonly reversalReason: string | null;
+  readonly canConfirm: boolean;
+  readonly canDispute: boolean;
+  readonly canReverse: boolean;
+  readonly version: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export interface ExpenseAllocationSummary {
   readonly membershipId: string;
   readonly displayName: string;
   readonly amount: Money;
   readonly roundingAdjustmentMinor: number;
-  readonly status: 'outstanding';
+  readonly status: 'outstanding' | 'declared' | 'paid' | 'disputed';
+  readonly paymentDeclarations: readonly ExpensePaymentSummary[];
+  readonly canDeclarePayment: boolean;
   readonly isCurrentUser: boolean;
 }
 
@@ -274,6 +447,8 @@ export interface ExpenseSummary extends ExpenseConfiguration {
   readonly id: string;
   readonly householdId: string;
   readonly notes: string | null;
+  readonly sourceTemplateId: string | null;
+  readonly occurrenceDate: string | null;
   readonly splitMethod: 'equal';
   readonly status: ExpenseStatus;
   readonly allocations: readonly ExpenseAllocationSummary[];

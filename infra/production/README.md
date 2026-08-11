@@ -1,8 +1,15 @@
 # SharedHouse production deployment
 
-This stack runs the current SharedHouse API slice on a Linux VPS with PostgreSQL and publishes only
-the API through an outbound Cloudflare Tunnel. PostgreSQL and the API have no host ports. The public
-Android build is pinned to `https://houseapi.dohotstudio.com`.
+This stack runs the SharedHouse API and background workers on a Linux VPS with PostgreSQL and
+publishes only the API through an outbound Cloudflare Tunnel. PostgreSQL, the API and workers have
+no host ports. The public Android build is pinned to `https://houseapi.dohotstudio.com`.
+
+The workers service checks active household-cost schedules every minute by default. It evaluates
+the due date in each household's IANA timezone, creates an approved ledger occurrence with an exact
+equal allocation, and advances the schedule in the same database transaction. A unique
+template/date key plus row locking prevents duplicate expenses after retries, restarts or multiple
+worker instances. `WORKER_POLL_INTERVAL_MS` and `WORKER_BATCH_SIZE` are bounded settings in
+`production.env`; keep the documented defaults unless load testing justifies a change.
 
 This repository prepares a repeatable production deployment, but it cannot create your Cloudflare
 or Resend accounts, hold their secrets, provision a VPS, or complete Google Play ownership on your
@@ -171,7 +178,7 @@ Useful checks:
 docker compose --env-file infra/production/production.env \
   -p sharedhouse-production -f infra/production/compose.yaml ps
 docker compose --env-file infra/production/production.env \
-  -p sharedhouse-production -f infra/production/compose.yaml logs --tail=200 api cloudflared
+  -p sharedhouse-production -f infra/production/compose.yaml logs --tail=200 api workers cloudflared
 curl --fail --show-error https://houseapi.dohotstudio.com/v1/health
 curl --fail --show-error https://houseapi.dohotstudio.com/v1/health/ready
 ```
@@ -189,8 +196,12 @@ Only after both health endpoints pass, install a public build and complete this 
 3. Open the message sent by `verify@mail.dohotstudio.com` and enter its eight-digit code within 15
    minutes. If it does not arrive, check spam and use **Send a new code** after 60 seconds.
 4. Create the household: choose its name, country, IANA timezone, currency, first day of week and
-   billing cycle. The dashboard and interactive calendar then become available.
-5. Sign out and sign in again on the same phone. Confirm the household is restored from PostgreSQL.
+   billing cycle. The dashboard, interactive calendar, Money and Tasks then become available.
+5. In **Tasks**, add a temporary real validation task assigned to yourself, start it, complete it
+   with a note, then verify it remains in **Completed**. If another member is available, validate one
+   help/swap/postpone request and owner/admin decision. Do not create fake records in a real tenant.
+6. Sign out and sign in again on the same phone. Confirm the household and task history are restored
+   from PostgreSQL.
 
 If no email arrives, inspect the Resend delivery log and the API log by outbox ID. Never copy a
 verification code or recipient address into a support ticket or server log.

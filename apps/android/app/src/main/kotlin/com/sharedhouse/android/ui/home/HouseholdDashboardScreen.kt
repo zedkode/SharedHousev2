@@ -129,6 +129,7 @@ fun HouseholdDashboardScreen(
             }
             item {
                 FeatureReadinessGrid(
+                    tasks = model.tasks,
                     onOpenMoney = onOpenMoney,
                     onOpenTasks = onOpenTasks,
                     onOpenGuides = onOpenGuides,
@@ -540,6 +541,7 @@ private fun eventTypeIcon(type: CalendarEventType): ImageVector = when (type) {
 
 @Composable
 private fun FeatureReadinessGrid(
+    tasks: DashboardTasksContent,
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
     onOpenGuides: () -> Unit,
@@ -549,21 +551,22 @@ private fun FeatureReadinessGrid(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FeatureReadinessCard(
                     title = R.string.dashboard_money_title,
-                    description = R.string.dashboard_money_unavailable,
+                    description = stringResource(R.string.dashboard_money_unavailable),
                     icon = Icons.Outlined.AccountBalanceWallet,
                     onClick = onOpenMoney,
                     modifier = Modifier.weight(1f),
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_tasks_title,
-                    description = R.string.dashboard_tasks_unavailable,
+                    description = dashboardTasksDescription(tasks),
                     icon = Icons.Outlined.Checklist,
                     onClick = onOpenTasks,
+                    connected = tasks is DashboardTasksContent.Ready,
                     modifier = Modifier.weight(1f),
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_requests_title,
-                    description = R.string.dashboard_requests_unavailable,
+                    description = stringResource(R.string.dashboard_requests_unavailable),
                     icon = Icons.Outlined.NotificationsNone,
                     onClick = onOpenGuides,
                     modifier = Modifier.weight(1f),
@@ -573,19 +576,20 @@ private fun FeatureReadinessGrid(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FeatureReadinessCard(
                     title = R.string.dashboard_money_title,
-                    description = R.string.dashboard_money_unavailable,
+                    description = stringResource(R.string.dashboard_money_unavailable),
                     icon = Icons.Outlined.AccountBalanceWallet,
                     onClick = onOpenMoney,
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_tasks_title,
-                    description = R.string.dashboard_tasks_unavailable,
+                    description = dashboardTasksDescription(tasks),
                     icon = Icons.Outlined.Checklist,
                     onClick = onOpenTasks,
+                    connected = tasks is DashboardTasksContent.Ready,
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_requests_title,
-                    description = R.string.dashboard_requests_unavailable,
+                    description = stringResource(R.string.dashboard_requests_unavailable),
                     icon = Icons.Outlined.NotificationsNone,
                     onClick = onOpenGuides,
                 )
@@ -597,10 +601,11 @@ private fun FeatureReadinessGrid(
 @Composable
 private fun FeatureReadinessCard(
     @StringRes title: Int,
-    @StringRes description: Int,
+    description: String,
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    connected: Boolean = false,
 ) {
     GlassCard(
         onClick = onClick,
@@ -618,7 +623,7 @@ private fun FeatureReadinessCard(
                 shape = MaterialTheme.shapes.extraLarge,
             ) {
                 Text(
-                    text = stringResource(R.string.dashboard_not_connected_badge),
+                    text = stringResource(if (connected) R.string.dashboard_connected_badge else R.string.dashboard_not_connected_badge),
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.labelSmall,
                 )
@@ -626,7 +631,7 @@ private fun FeatureReadinessCard(
         }
         Text(text = stringResource(title), style = MaterialTheme.typography.titleMedium)
         Text(
-            text = stringResource(description),
+            text = description,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -636,6 +641,15 @@ private fun FeatureReadinessCard(
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
         )
     }
+}
+
+@Composable
+private fun dashboardTasksDescription(content: DashboardTasksContent): String = when (content) {
+    DashboardTasksContent.Loading -> stringResource(R.string.dashboard_tasks_loading)
+    DashboardTasksContent.Error -> stringResource(R.string.dashboard_tasks_error)
+    is DashboardTasksContent.Ready -> content.nextMineTitle?.let {
+        stringResource(R.string.dashboard_tasks_next, it, content.activeCount, content.pendingRequests)
+    } ?: stringResource(R.string.dashboard_tasks_ready, content.activeCount, content.pendingRequests)
 }
 
 @Composable

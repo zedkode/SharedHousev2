@@ -22,8 +22,7 @@ import kotlinx.coroutines.launch
 
 data class GoogleServicesStatus(
     val firebaseConfigured: Boolean = BuildConfig.FIREBASE_CONFIGURED,
-    val admobConfigured: Boolean = BuildConfig.ADMOB_APP_ID.isNotBlank() &&
-        BuildConfig.ADMOB_BANNER_ID.isNotBlank(),
+    val admobConfigured: Boolean = BuildConfig.ADMOB_CONFIGURED,
     val admobTestMode: Boolean = BuildConfig.ADMOB_TEST_MODE,
     val adsReady: Boolean = false,
     val privacyOptionsRequired: Boolean = false,

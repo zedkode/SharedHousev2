@@ -5,12 +5,19 @@ import type {
   DeleteAccountRequest,
   ExpenseCategory,
   ExpenseConfiguration,
+  ExpensePaymentActionRequest,
+  ExpensePaymentDeclarationRequest,
+  ExpensePaymentMethod,
   ExpenseTemplateCadence,
   ExpenseTemplateConfiguration,
   ArchiveExpenseTemplateRequest,
   ExportAccountRequest,
   HouseholdConfiguration,
+  HouseholdMemberActionRequest,
   HouseholdInvitationRole,
+  HouseholdTaskActionRequest,
+  HouseholdTaskConfiguration,
+  HouseholdTaskPriority,
   RefreshSessionRequest,
   ResendEmailVerificationRequest,
   RegisterRequest,
@@ -19,7 +26,11 @@ import type {
   SupportedLocale,
   VerifyEmailRequest,
 } from '@sharedhouse/contracts';
-import { EXPENSE_CATEGORIES, EXPENSE_TEMPLATE_CADENCES } from '@sharedhouse/contracts';
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_PAYMENT_METHODS,
+  EXPENSE_TEMPLATE_CADENCES,
+} from '@sharedhouse/contracts';
 
 import { validationProblem, type FieldViolation } from './api-problem.exception.js';
 
@@ -204,6 +215,37 @@ export function parseCreateHouseholdInvitation(value: unknown): CreateHouseholdI
   return { role, email };
 }
 
+export function parseHouseholdMemberAction(value: unknown): HouseholdMemberActionRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['action', 'role', 'reason']);
+  const violations: FieldViolation[] = [];
+  const actions = ['change_role', 'suspend', 'reactivate', 'remove', 'transfer_ownership'] as const;
+  const action =
+    typeof body.action === 'string' && actions.includes(body.action as (typeof actions)[number])
+      ? (body.action as (typeof actions)[number])
+      : 'change_role';
+  if (body.action !== action) {
+    violations.push({ field: 'action', message: 'Choose a supported member action.' });
+  }
+  const role =
+    body.role === undefined || body.role === null
+      ? body.role
+      : readInvitationRole(body.role, violations);
+  const reason = readOptionalNullableString(body.reason, 'reason', 3, 240, violations);
+  if (action === 'change_role' && role == null) {
+    violations.push({ field: 'role', message: 'Choose the new member role.' });
+  }
+  if (action !== 'change_role' && role !== undefined && role !== null) {
+    violations.push({ field: 'role', message: 'Role is only valid for change_role.' });
+  }
+  throwIfViolations(violations);
+  return {
+    action,
+    ...(role === undefined ? {} : { role }),
+    ...(reason === undefined ? {} : { reason }),
+  };
+}
+
 export interface CalendarDateRange {
   readonly from: string;
   readonly to: string;
@@ -352,6 +394,162 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
   };
 }
 
+export function parseHouseholdTaskConfiguration(value: unknown): HouseholdTaskConfiguration {
+  const body = readObject(value);
+  assertAllowedKeys(body, [
+    'title',
+    'instructions',
+    'zone',
+    'priority',
+    'dueDate',
+    'dueTime',
+    'estimatedMinutes',
+    'assigneeMembershipId',
+  ]);
+  const violations: FieldViolation[] = [];
+  const title = readString(body.title, 'title', 1, 120, violations, true);
+  const instructions = readOptionalNullableString(
+    body.instructions,
+    'instructions',
+    1,
+    2000,
+    violations,
+  );
+  const zone = readOptionalNullableString(body.zone, 'zone', 1, 80, violations);
+  const priority = readHouseholdTaskPriority(body.priority, violations);
+  const dueDate = readString(body.dueDate, 'dueDate', 10, 10, violations, true);
+  if (!isIsoDate(dueDate))
+    violations.push({ field: 'dueDate', message: 'Use a valid date in YYYY-MM-DD format.' });
+  const dueTime = readOptionalTime(body.dueTime, 'dueTime', violations);
+  const estimatedMinutes = readOptionalInteger(
+    body.estimatedMinutes,
+    'estimatedMinutes',
+    5,
+    1440,
+    violations,
+  );
+  const assigneeMembershipId = readString(
+    body.assigneeMembershipId,
+    'assigneeMembershipId',
+    36,
+    36,
+    violations,
+    true,
+  );
+  if (!isUuid(assigneeMembershipId))
+    violations.push({
+      field: 'assigneeMembershipId',
+      message: 'Use a valid active membership identifier.',
+    });
+  throwIfViolations(violations);
+  return {
+    title,
+    ...(instructions === undefined ? {} : { instructions }),
+    ...(zone === undefined ? {} : { zone }),
+    priority,
+    dueDate,
+    ...(dueTime === undefined ? {} : { dueTime }),
+    ...(estimatedMinutes === undefined ? {} : { estimatedMinutes }),
+    assigneeMembershipId,
+  };
+}
+
+export function parseHouseholdTaskAction(value: unknown): HouseholdTaskActionRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, [
+    'action',
+    'note',
+    'requestId',
+    'requestedAssigneeMembershipId',
+    'requestedDueDate',
+    'requestedDueTime',
+  ]);
+  const violations: FieldViolation[] = [];
+  const allowedActions = [
+    'start',
+    'complete',
+    'reopen',
+    'cancel',
+    'request_help',
+    'request_swap',
+    'request_postpone',
+    'report_issue',
+    'approve_request',
+    'reject_request',
+  ] as const;
+  const action =
+    typeof body.action === 'string' &&
+    allowedActions.includes(body.action as (typeof allowedActions)[number])
+      ? (body.action as (typeof allowedActions)[number])
+      : 'start';
+  if (body.action !== action)
+    violations.push({ field: 'action', message: 'Choose a supported task action.' });
+  const note = readOptionalNullableString(body.note, 'note', 3, 1000, violations);
+  const requestId = readOptionalNullableString(body.requestId, 'requestId', 36, 36, violations);
+  const requestedAssigneeMembershipId = readOptionalNullableString(
+    body.requestedAssigneeMembershipId,
+    'requestedAssigneeMembershipId',
+    36,
+    36,
+    violations,
+  );
+  const requestedDueDate = readOptionalNullableString(
+    body.requestedDueDate,
+    'requestedDueDate',
+    10,
+    10,
+    violations,
+  );
+  const requestedDueTime = readOptionalTime(body.requestedDueTime, 'requestedDueTime', violations);
+  if (requestId != null && !isUuid(requestId))
+    violations.push({ field: 'requestId', message: 'Use a valid request identifier.' });
+  if (requestedAssigneeMembershipId != null && !isUuid(requestedAssigneeMembershipId))
+    violations.push({
+      field: 'requestedAssigneeMembershipId',
+      message: 'Use a valid membership identifier.',
+    });
+  if (requestedDueDate != null && !isIsoDate(requestedDueDate))
+    violations.push({
+      field: 'requestedDueDate',
+      message: 'Use a valid date in YYYY-MM-DD format.',
+    });
+  if (
+    [
+      'complete',
+      'cancel',
+      'request_help',
+      'request_swap',
+      'request_postpone',
+      'report_issue',
+      'reject_request',
+    ].includes(action) &&
+    note == null
+  ) {
+    violations.push({
+      field: 'note',
+      message: 'Explain this task action in at least 3 characters.',
+    });
+  }
+  if ((action === 'approve_request' || action === 'reject_request') && requestId == null)
+    violations.push({ field: 'requestId', message: 'Choose the pending request.' });
+  if (action === 'request_swap' && requestedAssigneeMembershipId == null)
+    violations.push({
+      field: 'requestedAssigneeMembershipId',
+      message: 'Choose the proposed replacement.',
+    });
+  if (action === 'request_postpone' && requestedDueDate == null)
+    violations.push({ field: 'requestedDueDate', message: 'Choose the requested later date.' });
+  throwIfViolations(violations);
+  return {
+    action,
+    ...(note === undefined ? {} : { note }),
+    ...(requestId === undefined ? {} : { requestId }),
+    ...(requestedAssigneeMembershipId === undefined ? {} : { requestedAssigneeMembershipId }),
+    ...(requestedDueDate === undefined ? {} : { requestedDueDate }),
+    ...(requestedDueTime === undefined ? {} : { requestedDueTime }),
+  };
+}
+
 export function parseExpenseTemplateConfiguration(value: unknown): ExpenseTemplateConfiguration {
   const body = readObject(value);
   assertAllowedKeys(body, [
@@ -426,6 +624,40 @@ export function parseArchiveExpenseTemplateRequest(value: unknown): ArchiveExpen
 }
 
 export function parseReverseExpenseRequest(value: unknown): ReverseExpenseRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['reason']);
+  const violations: FieldViolation[] = [];
+  const reason = readString(body.reason, 'reason', 3, 500, violations, true);
+  throwIfViolations(violations);
+  return { reason };
+}
+
+export function parseExpensePaymentDeclarationRequest(
+  value: unknown,
+): ExpensePaymentDeclarationRequest {
+  const body = readObject(value);
+  assertAllowedKeys(body, ['method', 'paidAt', 'reference', 'note']);
+  const violations: FieldViolation[] = [];
+  const method = readExpensePaymentMethod(body.method, violations);
+  const paidAt = readString(body.paidAt, 'paidAt', 20, 35, violations, true);
+  if (!isIsoInstant(paidAt)) {
+    violations.push({
+      field: 'paidAt',
+      message: 'Use an ISO 8601 date-time with a UTC or numeric offset.',
+    });
+  }
+  const reference = readOptionalNullableString(body.reference, 'reference', 1, 120, violations);
+  const note = readOptionalNullableString(body.note, 'note', 1, 500, violations);
+  throwIfViolations(violations);
+  return {
+    method,
+    paidAt,
+    ...(reference === undefined ? {} : { reference }),
+    ...(note === undefined ? {} : { note }),
+  };
+}
+
+export function parseExpensePaymentActionRequest(value: unknown): ExpensePaymentActionRequest {
   const body = readObject(value);
   assertAllowedKeys(body, ['reason']);
   const violations: FieldViolation[] = [];
@@ -572,6 +804,15 @@ function readExpenseCategory(value: unknown, violations: FieldViolation[]): Expe
   return 'other';
 }
 
+function readHouseholdTaskPriority(
+  value: unknown,
+  violations: FieldViolation[],
+): HouseholdTaskPriority {
+  if (value === 'low' || value === 'normal' || value === 'high') return value;
+  violations.push({ field: 'priority', message: 'Choose low, normal, or high priority.' });
+  return 'normal';
+}
+
 function readExpenseTemplateCadence(
   value: unknown,
   violations: FieldViolation[],
@@ -584,6 +825,20 @@ function readExpenseTemplateCadence(
   }
   violations.push({ field: 'cadence', message: 'Choose weekly, monthly, quarterly, or yearly.' });
   return 'monthly';
+}
+
+function readExpensePaymentMethod(
+  value: unknown,
+  violations: FieldViolation[],
+): ExpensePaymentMethod {
+  if (
+    typeof value === 'string' &&
+    EXPENSE_PAYMENT_METHODS.includes(value as ExpensePaymentMethod)
+  ) {
+    return value as ExpensePaymentMethod;
+  }
+  violations.push({ field: 'method', message: 'Choose a supported payment method.' });
+  return 'other';
 }
 
 function validateCustomCategory(
@@ -716,6 +971,17 @@ function isIsoDate(value: string): boolean {
   }
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value);
+}
+
+function isIsoInstant(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/u.test(value)) {
+    return false;
+  }
+  return !Number.isNaN(Date.parse(value));
 }
 
 function throwIfViolations(violations: readonly FieldViolation[]): void {

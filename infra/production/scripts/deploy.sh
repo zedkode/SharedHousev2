@@ -62,7 +62,7 @@ snapshot_unrelated_containers() {
 snapshot_unrelated_containers "$inventory_before"
 
 docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" config --quiet
-docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" build --pull api
+docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" build --pull api workers
 docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" up -d --remove-orphans
 
 snapshot_unrelated_containers "$inventory_after"
@@ -89,6 +89,14 @@ if [ "${status:-missing}" != healthy ]; then
   docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" ps
   docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" logs --tail=100 api
   echo "API did not become healthy." >&2
+  exit 1
+fi
+
+worker_container_id=$(docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" ps -q workers)
+worker_status=$(docker inspect --format '{{.State.Status}}' "$worker_container_id" 2>/dev/null || true)
+if [ "$worker_status" != running ]; then
+  docker compose -p "$compose_project" --env-file "$environment_file" -f "$compose_file" logs --tail=100 workers
+  echo "Workers service is not running." >&2
   exit 1
 fi
 

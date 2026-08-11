@@ -101,6 +101,13 @@ export class ExpensesService {
         title: 'The expense changed. Reload it before continuing.',
       });
     }
+    if (result.status === 'payment_conflict') {
+      throw new ApiProblemException({
+        status: 409,
+        code: 'EXPENSE_ACTIVE_PAYMENT_CONFLICT',
+        title: 'Reverse active payment declarations before reversing this expense.',
+      });
+    }
     throw new ApiProblemException({
       status: 409,
       code: 'EXPENSE_STATUS_CONFLICT',

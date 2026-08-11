@@ -23,8 +23,12 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
   accessibility/notification settings and real authentication and household setup/editing flows;
 - Android session recovery backed by a non-exportable AES-256-GCM Android Keystore key, atomic
   no-backup storage and server-side refresh rotation before household data is shown;
+- an append-only Money ledger with recurring household costs and payment
+  declaration/confirmation/dispute/correction flows that never claim SharedHouse moved money;
 - a tenant-scoped one-off calendar vertical with an interactive Android week/month/quarter/year UI,
   idempotent creation and optimistic edit/delete protection;
+- a tenant-scoped household task board with role-aware creation/assignment, start and completion,
+  append-only history, issue reporting, and committed help/swap/postpone request decisions;
 - secure, expiring household invitation codes with email restriction, role-aware creation and
   revocation, one-time acceptance, and an Android household switcher for multi-home accounts;
 - consent-gated Firebase Analytics/Crashlytics and GMA Next-Gen/UMP foundations, with optional ads
@@ -38,12 +42,13 @@ single-VPS deployment profile now provides PostgreSQL, an outbound Cloudflare Tu
 transactional verification email through Resend, with the Android public profile pinned to
 `https://houseapi.dohotstudio.com`. A guarded interactive Linux wizard prepares secrets, validates
 Docker Compose and can deploy, back up and verify the public endpoint. This is not yet a complete
-production MVP: live provider/VPS validation, session-device management, recent-authentication,
-distributed rate limiting, emailed invitation links/App Links, recurring/generated calendar events,
-ledger, chores, shopping, remote notification delivery, store billing, account deletion/export and
-final privacy/store evidence remain.
+production MVP: independent backup restoration exercises, session-device management, recent-authentication,
+distributed rate limiting, emailed invitation links/App Links, recurring/generated calendar and
+chore occurrences, advanced fairness/exemptions, shopping, remote notification delivery, store
+billing and final privacy/store evidence remain. The implemented identity, ledger, task and privacy
+records use the production VPS/API path and account exports include created or assigned tasks.
 
-## Local development
+## Engineering validation
 
 Requirements: Node.js 22 or newer, npm 10 or newer and JDK 17. Android builds additionally require
 an Android SDK. iOS compilation requires macOS and Xcode.
@@ -54,15 +59,12 @@ npm run check
 npm run smoke:api
 .\gradlew.bat :shared:domain:jvmTest
 .\gradlew.bat :shared:network:jvmTest
-.\gradlew.bat :apps:android:app:lintLocalDebug :apps:android:app:testLocalDebugUnitTest :apps:android:app:packageLocalTestingApk
+.\gradlew.bat :apps:android:app:lintPublicDebug :apps:android:app:testPublicDebugUnitTest
 ```
 
 Android commands require `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) to point to an SDK containing
-platform 36. The named testing artifact is
-`apps/android/app/build/outputs/apk/testing/SharedHouse-v0.1.0-local-testing-signed.apk`. The local
-application ID is `com.sharedhouse.android.local`, allowing it to coexist with the public app. It is
-signed by the Android debug keystore for local installation and testing; it is not a production or
-Play Store release signature.
+platform 36. Debug variants remain internal compiler/test inputs and are never packaged or supplied
+to users. Distribution accepts only the optimized `publicRelease` APK/AAB signed by the owner key.
 
 Run individual development processes with:
 
@@ -79,11 +81,11 @@ verification code only outside production. The Android debug build connects to
 `SHAREDHOUSE_LOCAL_API_BASE_URL` Gradle property when testing against another local host.
 
 The public profile keeps the production application ID `com.sharedhouse.android`, prohibits
-cleartext traffic and is pinned to `https://houseapi.dohotstudio.com`. A public testing APK can be
-built with `packagePublicTestingApk`. A production APK or Play Store AAB additionally requires the
-four `SHAREDHOUSE_RELEASE_*` signing environment variables documented in `apps/android/README.md`;
-release builds fail closed when the endpoint differs or signing material is absent. Follow the
-VPS, Cloudflare, Resend, backup and release procedure in `infra/production/README.md`.
+cleartext traffic and is pinned to `https://houseapi.dohotstudio.com`. Direct distribution can use
+the repository's secret-safe direct-signing scripts with Firebase and AdMob explicitly disabled.
+Google-enabled/Play releases additionally require the provider files, IDs and Play upload key.
+Every release fails closed when its endpoint or required signing material is absent. Follow the VPS,
+Cloudflare, Resend, backup and release procedure in `infra/production/README.md`.
 
 On a prepared Ubuntu/Debian VPS, the production setup can be driven interactively without placing
 secrets in shell history:
@@ -93,12 +95,11 @@ chmod +x infra/production/scripts/install-interactive.sh
 ./infra/production/scripts/install-interactive.sh
 ```
 
-To create the first local account, start the API and install the testing APK. Complete or skip the
-tutorial, choose **Create account**, enter an adult display name, email and a unique password of at
-least 15 characters, accept the required terms, and submit. The development-only verification code
-is displayed on the next screen. Enter it, then create the household by choosing its name, country,
-timezone, currency, week start and billing cycle. These local accounts remain in the development
-database and are not production cloud accounts.
+To create the first production account, install only an owner-signed public release. Complete or
+skip the tutorial, choose **Create account**, enter an adult display name, an inbox you control and a
+unique password of at least 15 characters, accept the required terms, then enter the code delivered
+by Resend. Create the household by choosing its name, country, timezone, currency, week start and
+billing cycle.
 
 To join an existing home instead, choose **Join with invitation**, paste the private code received
 from its owner/admin, review the safe household preview and confirm. Owners and admins manage codes

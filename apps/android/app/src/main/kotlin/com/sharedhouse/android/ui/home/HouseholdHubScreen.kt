@@ -23,6 +23,9 @@ import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.AdminPanelSettings
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.outlined.Language
@@ -33,9 +36,11 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -44,6 +49,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -56,6 +64,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Currency
@@ -74,8 +84,12 @@ fun HouseholdHubScreen(
     onOpenSettings: () -> Unit,
     onOpenGuides: () -> Unit,
     onSignOut: () -> Unit,
+    onRetryMembers: () -> Unit,
+    onMemberAction: (HouseholdMemberCommand) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var roleTarget by remember { mutableStateOf<HouseholdMemberUi?>(null) }
+    var pendingAction by remember { mutableStateOf<PendingMemberAction?>(null) }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -90,6 +104,23 @@ fun HouseholdHubScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item { HouseholdHubHeader(model) }
+            item {
+                HubSectionTitle(
+                    title = stringResource(R.string.house_members_title),
+                    supporting = stringResource(R.string.house_members_supporting),
+                )
+            }
+            item {
+                HouseholdMembersPanel(
+                    state = model.memberState,
+                    onRetry = onRetryMembers,
+                    onChangeRole = { roleTarget = it },
+                    onConfirm = { member, action ->
+                        pendingAction = PendingMemberAction(member, action)
+                    },
+                    onDirectAction = onMemberAction,
+                )
+            }
             if (model.households.size > 1) {
                 item {
                     HubSectionTitle(
@@ -137,6 +168,243 @@ fun HouseholdHubScreen(
                 )
             }
         }
+    }
+    roleTarget?.let { member ->
+        RolePickerDialog(
+            member = member,
+            onDismiss = { roleTarget = null },
+            onRole = { role ->
+                onMemberAction(
+                    HouseholdMemberCommand(member.membershipId, member.version, "change_role", role),
+                )
+                roleTarget = null
+            },
+        )
+    }
+    pendingAction?.let { pending ->
+        MemberConfirmationDialog(
+            pending = pending,
+            onDismiss = { pendingAction = null },
+            onConfirm = {
+                onMemberAction(pending.command)
+                pendingAction = null
+            },
+        )
+    }
+}
+
+private data class PendingMemberAction(
+    val member: HouseholdMemberUi,
+    val command: HouseholdMemberCommand,
+)
+
+@Composable
+private fun HouseholdMembersPanel(
+    state: HouseholdMembersUiState,
+    onRetry: () -> Unit,
+    onChangeRole: (HouseholdMemberUi) -> Unit,
+    onConfirm: (HouseholdMemberUi, HouseholdMemberCommand) -> Unit,
+    onDirectAction: (HouseholdMemberCommand) -> Unit,
+) {
+    when (val content = state.content) {
+        HouseholdMembersContent.Loading -> Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
+            Row(
+                modifier = Modifier.padding(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                Text(stringResource(R.string.house_members_loading))
+            }
+        }
+        HouseholdMembersContent.Error -> Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        ) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    stringResource(R.string.house_members_load_error),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                FilledTonalButton(onClick = onRetry) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Text(stringResource(R.string.house_members_retry), Modifier.padding(start = 8.dp))
+                }
+            }
+        }
+        is HouseholdMembersContent.Ready -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            state.problem?.let { problem ->
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    Text(
+                        stringResource(
+                            if (problem == HouseholdMembersProblem.VERSION_CONFLICT) {
+                                R.string.house_members_version_conflict
+                            } else {
+                                R.string.house_members_action_failed
+                            },
+                        ),
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+            content.members.forEach { member ->
+                MemberCard(
+                    member = member,
+                    busy = state.mutatingMembershipId == member.membershipId,
+                    onChangeRole = { onChangeRole(member) },
+                    onDirectAction = onDirectAction,
+                    onConfirm = { command -> onConfirm(member, command) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemberCard(
+    member: HouseholdMemberUi,
+    busy: Boolean,
+    onChangeRole: () -> Unit,
+    onDirectAction: (HouseholdMemberCommand) -> Unit,
+    onConfirm: (HouseholdMemberCommand) -> Unit,
+) {
+    val roleLabel = localizedRole(member.role)
+    val statusLabel = localizedMembershipStatus(member.status)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (member.isCurrentUser) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surface,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = if (member.role == "owner" || member.role == "admin") MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    Icon(
+                        if (member.role == "owner" || member.role == "admin") Icons.Outlined.AdminPanelSettings else Icons.Outlined.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(member.displayName, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        buildString {
+                            append(roleLabel)
+                            append(" · ")
+                            append(statusLabel)
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(R.string.house_members_joined, localizedMemberDate(member.joinedAt)),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (member.isCurrentUser) HubStatusPill(Icons.Outlined.AccountCircle, stringResource(R.string.house_members_current))
+                if (busy) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+            }
+            if (!busy && (member.canChangeRole || member.canSuspend || member.canReactivate || member.canRemove || member.canTransferOwnership)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (member.canChangeRole) OutlinedButton(onClick = onChangeRole, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.house_members_change_role))
+                    }
+                    if (member.canReactivate) Button(
+                        onClick = { onDirectAction(member.command("reactivate")) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.house_members_reactivate)) }
+                    if (member.canSuspend) TextButton(
+                        onClick = { onConfirm(member.command("suspend")) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.house_members_suspend)) }
+                    if (member.canTransferOwnership) OutlinedButton(
+                        onClick = { onConfirm(member.command("transfer_ownership")) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.house_members_transfer)) }
+                    if (member.canRemove) TextButton(
+                        onClick = { onConfirm(member.command("remove")) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.house_members_remove), color = MaterialTheme.colorScheme.error) }
+                }
+            }
+        }
+    }
+}
+
+private fun HouseholdMemberUi.command(action: String) = HouseholdMemberCommand(membershipId, version, action)
+
+@Composable
+private fun RolePickerDialog(member: HouseholdMemberUi, onDismiss: () -> Unit, onRole: (String) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.house_members_choose_role, member.displayName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if ("admin" in member.assignableRoles) {
+                    RoleOption("admin", R.string.househub_role_admin, R.string.house_members_role_admin_help, onRole)
+                }
+                if ("member" in member.assignableRoles) {
+                    RoleOption("member", R.string.househub_role_member, R.string.house_members_role_member_help, onRole)
+                }
+                if ("read_only" in member.assignableRoles) {
+                    RoleOption("read_only", R.string.househub_role_read_only, R.string.house_members_role_read_only_help, onRole)
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.house_members_cancel)) } },
+    )
+}
+
+@Composable
+private fun RoleOption(role: String, @StringRes title: Int, @StringRes help: Int, onRole: (String) -> Unit) {
+    OutlinedButton(onClick = { onRole(role) }, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(stringResource(title))
+            Text(stringResource(help), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun MemberConfirmationDialog(pending: PendingMemberAction, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val message = when (pending.command.action) {
+        "suspend" -> R.string.house_members_confirm_suspend
+        "remove" -> R.string.house_members_confirm_remove
+        else -> R.string.house_members_confirm_transfer
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.house_members_confirm_title)) },
+        text = { Text(stringResource(message, pending.member.displayName)) },
+        confirmButton = { Button(onClick = onConfirm) { Text(stringResource(R.string.house_members_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.house_members_cancel)) } },
+    )
+}
+
+@Composable
+private fun localizedMemberDate(value: String): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(value, locale) {
+        runCatching {
+            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+                .format(Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate())
+        }.getOrDefault(value)
     }
 }
 

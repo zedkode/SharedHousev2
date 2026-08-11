@@ -7,8 +7,10 @@ import type {
   AccountSummary,
   CalendarEventSummary,
   ExpenseSummary,
+  ExpensePaymentSummary,
   ExpenseTemplateSummary,
   HouseholdSummary,
+  HouseholdTaskSummary,
 } from '@sharedhouse/contracts';
 
 import { newUuidV7 } from '../common/uuid-v7.js';
@@ -251,23 +253,56 @@ export class IdentityRepository {
          ORDER BY c.event_date, c.created_at, c.id`,
         [userId],
       );
+      const taskRows = await transaction.query<ExportTaskRow>(
+        `SELECT t.id,t.household_id,t.assignee_membership_id,assignee_profile.display_name AS assignee_display_name,
+           t.title,t.instructions,t.zone,t.priority,t.due_date,t.due_time,t.estimated_minutes,t.status,
+           t.completion_note,t.completed_by_user_id,t.completed_at,t.version,t.created_at,t.updated_at,
+           r.id AS request_id,r.request_type,r.status AS request_status,r.reason AS request_reason,
+           r.requested_assignee_membership_id,r.requested_due_date,r.requested_due_time,
+           r.created_by_membership_id,requester_profile.display_name AS request_created_by_display_name,
+           r.resolved_by_user_id,r.resolution_note,r.resolved_at,r.created_at AS request_created_at
+         FROM household_tasks t
+         JOIN household_memberships assignee ON assignee.id=t.assignee_membership_id
+         JOIN user_profiles assignee_profile ON assignee_profile.user_id=assignee.user_id
+         LEFT JOIN household_task_requests r ON r.task_id=t.id
+         LEFT JOIN household_memberships requester ON requester.id=r.created_by_membership_id
+         LEFT JOIN user_profiles requester_profile ON requester_profile.user_id=requester.user_id
+         WHERE t.created_by_user_id=$1 OR assignee.user_id=$1
+         ORDER BY t.due_date,t.id,r.created_at,r.id`,
+        [userId],
+      );
       const expenseRows = await transaction.query<ExportExpenseRow>(
         `SELECT e.id, e.household_id, creator.user_id AS created_by_user_id, e.title,
-           e.category, e.custom_category_name, e.amount_minor, e.currency, e.due_date, e.notes, e.split_method,
+           e.category, e.custom_category_name, e.amount_minor, e.currency, e.due_date, e.notes,
+           e.source_template_id, e.occurrence_date, e.split_method,
            e.status, e.version, e.created_at, e.updated_at, a.membership_id,
            allocated.user_id AS allocation_user_id, profile.display_name,
-           a.amount_minor AS allocation_amount_minor, a.rounding_adjustment_minor
+           a.amount_minor AS allocation_amount_minor, a.rounding_adjustment_minor,
+           p.id AS payment_id, p.amount_minor AS payment_amount_minor, p.method AS payment_method,
+           p.payment_reference, p.note AS payment_note, p.paid_at AS payment_paid_at,
+           p.status AS payment_status, declared.user_id AS payment_declared_by_user_id,
+           confirmed.user_id AS payment_confirmed_by_user_id, p.confirmed_at AS payment_confirmed_at,
+           disputed.user_id AS payment_disputed_by_user_id, p.disputed_at AS payment_disputed_at,
+           p.dispute_reason AS payment_dispute_reason,
+           reversed.user_id AS payment_reversed_by_user_id, p.reversed_at AS payment_reversed_at,
+           p.reversal_reason AS payment_reversal_reason, p.version AS payment_version,
+           p.created_at AS payment_created_at, p.updated_at AS payment_updated_at
          FROM expenses e
          JOIN household_memberships creator ON creator.id = e.created_by_membership_id
          JOIN expense_allocations a ON a.expense_id = e.id
          JOIN household_memberships allocated ON allocated.id = a.membership_id
          JOIN user_profiles profile ON profile.user_id = allocated.user_id
+         LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
+         LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
+         LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
+         LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
+         LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
          WHERE creator.user_id = $1 OR EXISTS (
            SELECT 1 FROM expense_allocations mine
            JOIN household_memberships my_membership ON my_membership.id = mine.membership_id
            WHERE mine.expense_id = e.id AND my_membership.user_id = $1
          )
-         ORDER BY e.due_date, e.id, a.membership_id`,
+         ORDER BY e.due_date, e.id, a.membership_id, p.created_at, p.id`,
         [userId],
       );
       const expenseTemplates = await transaction.query<ExportExpenseTemplateRow>(
@@ -305,6 +340,7 @@ export class IdentityRepository {
         account: mapAccount(credential),
         households: households.map(mapExportHousehold),
         calendarEvents: events.map(mapExportCalendar),
+        householdTasks: mapExportTasks(taskRows),
         expenses: mapExportExpenses(expenseRows, userId),
         expenseTemplates: expenseTemplates.map(mapExportExpenseTemplate),
         consentRecords: consents.map(mapExportConsent),
@@ -321,6 +357,7 @@ export class IdentityRepository {
           JSON.stringify({
             householdCount: households.length,
             calendarEventCount: events.length,
+            householdTaskCount: new Set(taskRows.map((row) => row.id)).size,
             expenseCount: new Set(expenseRows.map((row) => row.id)).size,
             expenseTemplateCount: expenseTemplates.length,
             consentRecordCount: consents.length,
@@ -402,6 +439,17 @@ export class IdentityRepository {
       const transferred = owned.filter((row) => row.active_member_count > 1);
       const transferredHouseholdIds = transferred.map((row) => row.id);
       for (const household of transferred) {
+        const previousOwnerRows = await transaction.query<{ readonly id: string }>(
+          `UPDATE household_memberships
+           SET status = 'left', left_at = $3, version = version + 1, updated_at = $3
+           WHERE household_id = $1 AND user_id = $2 AND role = 'owner' AND status = 'active'
+           RETURNING id`,
+          [household.id, userId, occurredAt],
+        );
+        const previousOwner = previousOwnerRows[0];
+        if (previousOwner === undefined) {
+          throw new Error('Active owner membership changed during account deletion.');
+        }
         await transaction.query(
           `INSERT INTO household_membership_role_changes (
              id, membership_id, household_id, user_id, previous_role, next_role, changed_by, occurred_at
@@ -418,9 +466,29 @@ export class IdentityRepository {
         );
         await transaction.query(
           `UPDATE household_memberships
-           SET role = 'owner'
+           SET role = 'owner', version = version + 1, updated_at = $2
            WHERE id = $1 AND status = 'active'`,
-          [household.successor_membership_id],
+          [household.successor_membership_id, occurredAt],
+        );
+        await transaction.query(
+          `INSERT INTO household_membership_history
+           (id, household_id, membership_id, actor_user_id, action, previous_role, new_role,
+            previous_status, new_status, reason, occurred_at)
+           VALUES
+           ($1,$2,$3,$4,'ownership_transferred_from','owner','owner','active','left',
+            'Account deletion',$5),
+           ($6,$2,$7,$4,'ownership_transferred_to',$8,'owner','active','active',
+            'Account deletion',$5)`,
+          [
+            newUuidV7(),
+            household.id,
+            previousOwner.id,
+            userId,
+            occurredAt,
+            newUuidV7(),
+            household.successor_membership_id,
+            household.successor_previous_role,
+          ],
         );
         await transaction.query(
           `INSERT INTO audit_events (
@@ -476,7 +544,7 @@ export class IdentityRepository {
 
       await transaction.query(
         `UPDATE household_memberships
-         SET status = 'left', left_at = $2
+         SET status = 'left', left_at = $2, version = version + 1, updated_at = $2
          WHERE user_id = $1 AND status = 'active'`,
         [userId, occurredAt],
       );
@@ -758,6 +826,40 @@ interface ExportCalendarRow {
   readonly updated_at: Date | string;
 }
 
+interface ExportTaskRow {
+  readonly id: string;
+  readonly household_id: string;
+  readonly assignee_membership_id: string;
+  readonly assignee_display_name: string;
+  readonly title: string;
+  readonly instructions: string | null;
+  readonly zone: string | null;
+  readonly priority: HouseholdTaskSummary['priority'];
+  readonly due_date: Date | string;
+  readonly due_time: string | null;
+  readonly estimated_minutes: number | null;
+  readonly status: HouseholdTaskSummary['status'];
+  readonly completion_note: string | null;
+  readonly completed_by_user_id: string | null;
+  readonly completed_at: Date | string | null;
+  readonly version: number;
+  readonly created_at: Date | string;
+  readonly updated_at: Date | string;
+  readonly request_id: string | null;
+  readonly request_type: HouseholdTaskSummary['requests'][number]['type'] | null;
+  readonly request_status: HouseholdTaskSummary['requests'][number]['status'] | null;
+  readonly request_reason: string | null;
+  readonly requested_assignee_membership_id: string | null;
+  readonly requested_due_date: Date | string | null;
+  readonly requested_due_time: string | null;
+  readonly created_by_membership_id: string | null;
+  readonly request_created_by_display_name: string | null;
+  readonly resolved_by_user_id: string | null;
+  readonly resolution_note: string | null;
+  readonly resolved_at: Date | string | null;
+  readonly request_created_at: Date | string | null;
+}
+
 interface ExportExpenseRow {
   readonly id: string;
   readonly household_id: string;
@@ -769,6 +871,8 @@ interface ExportExpenseRow {
   readonly currency: string;
   readonly due_date: Date | string;
   readonly notes: string | null;
+  readonly source_template_id: string | null;
+  readonly occurrence_date: Date | string | null;
   readonly split_method: 'equal';
   readonly status: ExpenseSummary['status'];
   readonly version: number;
@@ -779,6 +883,25 @@ interface ExportExpenseRow {
   readonly display_name: string;
   readonly allocation_amount_minor: number | string | bigint;
   readonly rounding_adjustment_minor: number;
+  readonly payment_id: string | null;
+  readonly payment_amount_minor: number | string | bigint | null;
+  readonly payment_method: ExpensePaymentSummary['method'] | null;
+  readonly payment_reference: string | null;
+  readonly payment_note: string | null;
+  readonly payment_paid_at: Date | string | null;
+  readonly payment_status: ExpensePaymentSummary['status'] | null;
+  readonly payment_declared_by_user_id: string | null;
+  readonly payment_confirmed_by_user_id: string | null;
+  readonly payment_confirmed_at: Date | string | null;
+  readonly payment_disputed_by_user_id: string | null;
+  readonly payment_disputed_at: Date | string | null;
+  readonly payment_dispute_reason: string | null;
+  readonly payment_reversed_by_user_id: string | null;
+  readonly payment_reversed_at: Date | string | null;
+  readonly payment_reversal_reason: string | null;
+  readonly payment_version: number | null;
+  readonly payment_created_at: Date | string | null;
+  readonly payment_updated_at: Date | string | null;
 }
 
 interface ExportExpenseTemplateRow {
@@ -871,23 +994,106 @@ function mapExportCalendar(row: ExportCalendarRow): CalendarEventSummary {
   };
 }
 
+function mapExportTasks(rows: readonly ExportTaskRow[]): HouseholdTaskSummary[] {
+  const groups = new Map<string, ExportTaskRow[]>();
+  for (const row of rows) groups.set(row.id, [...(groups.get(row.id) ?? []), row]);
+  return [...groups.values()].map((group) => {
+    const row = group[0];
+    if (row === undefined) throw new Error('Task export row group is empty.');
+    return {
+      id: row.id,
+      householdId: row.household_id,
+      title: row.title,
+      instructions: row.instructions,
+      zone: row.zone,
+      priority: row.priority,
+      dueDate: toDate(row.due_date),
+      dueTime: row.due_time?.slice(0, 5) ?? null,
+      estimatedMinutes: row.estimated_minutes,
+      assigneeMembershipId: row.assignee_membership_id,
+      assigneeDisplayName: row.assignee_display_name,
+      status: row.status,
+      completionNote: row.completion_note,
+      completedByUserId: row.completed_by_user_id,
+      completedAt: row.completed_at === null ? null : toInstant(row.completed_at),
+      requests: group.flatMap((request) => {
+        if (
+          request.request_id === null ||
+          request.request_type === null ||
+          request.request_status === null ||
+          request.request_reason === null ||
+          request.created_by_membership_id === null ||
+          request.request_created_by_display_name === null ||
+          request.request_created_at === null
+        )
+          return [];
+        return [
+          {
+            id: request.request_id,
+            type: request.request_type,
+            status: request.request_status,
+            reason: request.request_reason,
+            requestedAssigneeMembershipId: request.requested_assignee_membership_id,
+            requestedDueDate:
+              request.requested_due_date === null ? null : toDate(request.requested_due_date),
+            requestedDueTime: request.requested_due_time?.slice(0, 5) ?? null,
+            createdByMembershipId: request.created_by_membership_id,
+            createdByDisplayName: request.request_created_by_display_name,
+            resolvedByUserId: request.resolved_by_user_id,
+            resolutionNote: request.resolution_note,
+            resolvedAt: request.resolved_at === null ? null : toInstant(request.resolved_at),
+            createdAt: toInstant(request.request_created_at),
+          },
+        ];
+      }),
+      canManage: false,
+      canStart: false,
+      canComplete: false,
+      canRequest: false,
+      version: row.version,
+      createdAt: toInstant(row.created_at),
+      updatedAt: toInstant(row.updated_at),
+    };
+  });
+}
+
 function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): ExpenseSummary[] {
   const grouped = new Map<string, ExportExpenseRow[]>();
   for (const row of rows) grouped.set(row.id, [...(grouped.get(row.id) ?? []), row]);
   return [...grouped.values()].map((group) => {
     const row = group[0];
     if (row === undefined) throw new Error('Expense export row group is empty.');
-    const allocations = group.map((allocation) => ({
-      membershipId: allocation.membership_id,
-      displayName: allocation.display_name,
-      amount: {
-        minorUnits: toSafeInteger(allocation.allocation_amount_minor),
-        currency: row.currency,
-      },
-      roundingAdjustmentMinor: allocation.rounding_adjustment_minor,
-      status: 'outstanding' as const,
-      isCurrentUser: allocation.allocation_user_id === userId,
-    }));
+    const allocationGroups = new Map<string, ExportExpenseRow[]>();
+    for (const allocationRow of group) {
+      allocationGroups.set(allocationRow.membership_id, [
+        ...(allocationGroups.get(allocationRow.membership_id) ?? []),
+        allocationRow,
+      ]);
+    }
+    const allocations = [...allocationGroups.values()].map((allocationRows) => {
+      const allocation = allocationRows[0];
+      if (allocation === undefined) throw new Error('Expense export allocation is empty.');
+      const paymentDeclarations = allocationRows.flatMap((paymentRow) => {
+        const payment = mapExportPayment(paymentRow, row.currency);
+        return payment === null ? [] : [payment];
+      });
+      const activePayment = [...paymentDeclarations]
+        .reverse()
+        .find((payment) => payment.status !== 'reversed');
+      return {
+        membershipId: allocation.membership_id,
+        displayName: allocation.display_name,
+        amount: {
+          minorUnits: toSafeInteger(allocation.allocation_amount_minor),
+          currency: row.currency,
+        },
+        roundingAdjustmentMinor: allocation.rounding_adjustment_minor,
+        status: paymentAllocationStatus(activePayment?.status),
+        paymentDeclarations,
+        canDeclarePayment: false,
+        isCurrentUser: allocation.allocation_user_id === userId,
+      };
+    });
     return {
       id: row.id,
       householdId: row.household_id,
@@ -897,6 +1103,8 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       amount: { minorUnits: toSafeInteger(row.amount_minor), currency: row.currency },
       dueDate: toDate(row.due_date),
       notes: row.notes,
+      sourceTemplateId: row.source_template_id,
+      occurrenceDate: row.occurrence_date === null ? null : toDate(row.occurrence_date),
       splitMethod: row.split_method,
       status: row.status,
       allocations,
@@ -912,6 +1120,66 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       updatedAt: toInstant(row.updated_at),
     };
   });
+}
+
+function mapExportPayment(
+  payment: ExportExpenseRow,
+  currency: string,
+): ExpensePaymentSummary | null {
+  if (
+    payment.payment_id === null ||
+    payment.payment_amount_minor === null ||
+    payment.payment_method === null ||
+    payment.payment_paid_at === null ||
+    payment.payment_status === null ||
+    payment.payment_declared_by_user_id === null ||
+    payment.payment_version === null ||
+    payment.payment_created_at === null ||
+    payment.payment_updated_at === null
+  ) {
+    return null;
+  }
+  return {
+    id: payment.payment_id,
+    expenseId: payment.id,
+    allocationMembershipId: payment.membership_id,
+    payerDisplayName: payment.display_name,
+    amount: {
+      minorUnits: toSafeInteger(payment.payment_amount_minor),
+      currency,
+    },
+    method: payment.payment_method,
+    reference: payment.payment_reference,
+    note: payment.payment_note,
+    paidAt: toInstant(payment.payment_paid_at),
+    status: payment.payment_status,
+    declaredByUserId: payment.payment_declared_by_user_id,
+    confirmedByUserId: payment.payment_confirmed_by_user_id,
+    confirmedAt:
+      payment.payment_confirmed_at === null ? null : toInstant(payment.payment_confirmed_at),
+    disputedByUserId: payment.payment_disputed_by_user_id,
+    disputedAt:
+      payment.payment_disputed_at === null ? null : toInstant(payment.payment_disputed_at),
+    disputeReason: payment.payment_dispute_reason,
+    reversedByUserId: payment.payment_reversed_by_user_id,
+    reversedAt:
+      payment.payment_reversed_at === null ? null : toInstant(payment.payment_reversed_at),
+    reversalReason: payment.payment_reversal_reason,
+    canConfirm: false,
+    canDispute: false,
+    canReverse: false,
+    version: payment.payment_version,
+    createdAt: toInstant(payment.payment_created_at),
+    updatedAt: toInstant(payment.payment_updated_at),
+  };
+}
+
+function paymentAllocationStatus(
+  status: ExpensePaymentSummary['status'] | undefined,
+): 'outstanding' | 'declared' | 'paid' | 'disputed' {
+  if (status === 'confirmed') return 'paid';
+  if (status === 'declared' || status === 'disputed') return status;
+  return 'outstanding';
 }
 
 function mapExportExpenseTemplate(row: ExportExpenseTemplateRow): ExpenseTemplateSummary {

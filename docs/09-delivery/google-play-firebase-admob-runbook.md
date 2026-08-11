@@ -159,8 +159,8 @@ apps/android/app/build/outputs/apk/release/SharedHouse-v0.2.0-public-release-sig
 ```
 
 Clear release variables afterwards. Inspect the AAB with Bundle Explorer, verify package, version and
-permissions, then retain hashes, commit SHA, dependencies, lint and tests. Never promote a
-debug-signed testing APK.
+permissions, then retain hashes, commit SHA, dependencies, lint and tests. Debug-signed binaries are
+internal build by-products and must never be distributed.
 
 ## 8. Complete Play declarations from evidence
 

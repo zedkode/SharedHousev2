@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SharedHouse API
-  version: 1.6.0
+  version: 1.10.0
   description: Versioned public contract for the SharedHouse coordination platform.
 servers:
   - url: https://houseapi.dohotstudio.com
@@ -16,6 +16,7 @@ tags:
   - name: Invitations
   - name: Calendar
   - name: Money
+  - name: Tasks
 paths:
   /v1/health:
     get:
@@ -350,6 +351,76 @@ paths:
         '403':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/members:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listHouseholdMembers
+      summary: List current and historical household memberships with caller-specific capabilities
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Membership board visible to an active household member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdMemberBoard'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/members/{membershipId}/actions:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - name: membershipId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: actOnHouseholdMember
+      summary: Change role, suspend, reactivate, remove or transfer ownership idempotently
+      description: The server enforces owner and administrator delegation boundaries. Ownership transfer atomically demotes the current owner to administrator and promotes one active writable member.
+      tags: [Households]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HouseholdMemberActionRequest'
+      responses:
+        '200':
+          description: Updated target membership or the original idempotent response.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdMemberSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
         '412':
           $ref: '#/components/responses/Problem'
@@ -766,6 +837,170 @@ paths:
           $ref: '#/components/responses/Problem'
         '428':
           $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/payments:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+    post:
+      operationId: declareExpensePayment
+      summary: Declare that the caller paid their approved expense allocation
+      description: This records a member declaration only. SharedHouse does not move money and another authorised member must confirm it.
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpensePaymentDeclarationRequest'
+      responses:
+        '201':
+          description: Payment declaration recorded, or the original idempotent request replayed.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/payments/{paymentId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      operationId: confirmExpensePayment
+      summary: Confirm another member's payment declaration
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '201':
+          description: Payment declaration confirmed without changing the original charge.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/payments/{paymentId}/dispute:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      operationId: disputeExpensePayment
+      summary: Contest another member's payment declaration with a reason
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpensePaymentActionRequest'
+      responses:
+        '201':
+          description: Payment declaration disputed with an append-only event.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/expenses/{expenseId}/payments/{paymentId}/reverse:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      operationId: reverseExpensePayment
+      summary: Correct a payment declaration while retaining its complete history
+      tags: [Money]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpensePaymentActionRequest'
+      responses:
+        '201':
+          description: Payment declaration reversed with an append-only event.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '428':
+          $ref: '#/components/responses/Problem'
   /v1/households/{householdId}/expense-templates:
     parameters:
       - $ref: '#/components/parameters/HouseholdId'
@@ -898,6 +1133,86 @@ paths:
           $ref: '#/components/responses/Problem'
         '428':
           $ref: '#/components/responses/Problem'
+  /v1/households/{householdId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+    get:
+      operationId: listHouseholdTasks
+      summary: Read the role-aware household task board
+      tags: [Tasks]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Active household members and authoritative task state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseholdTaskBoard'
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createHouseholdTask
+      summary: Create and assign a household task
+      tags: [Tasks]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HouseholdTaskConfiguration'
+      responses:
+        '201':
+          description: Task created by an owner or administrator.
+          headers:
+            ETag: { $ref: '#/components/headers/EntityTag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HouseholdTaskSummary' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/households/{householdId}/tasks/{taskId}/actions:
+    parameters:
+      - $ref: '#/components/parameters/HouseholdId'
+      - name: taskId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: actOnHouseholdTask
+      summary: Commit a task transition or request decision
+      description: Completion and request decisions append evidence and never delete prior history.
+      tags: [Tasks]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HouseholdTaskActionRequest' }
+      responses:
+        '201':
+          description: Action committed.
+          headers:
+            ETag: { $ref: '#/components/headers/EntityTag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HouseholdTaskSummary' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '412': { $ref: '#/components/responses/Problem' }
+        '428': { $ref: '#/components/responses/Problem' }
 components:
   securitySchemes:
     bearerAuth:
@@ -936,6 +1251,13 @@ components:
         format: uuid
     ExpenseId:
       name: expenseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentId:
+      name: paymentId
       in: path
       required: true
       schema:
@@ -1091,6 +1413,7 @@ components:
           account,
           households,
           calendarEvents,
+          householdTasks,
           expenses,
           expenseTemplates,
           consentRecords,
@@ -1114,6 +1437,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CalendarEventSummary'
+        householdTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseholdTaskSummary'
         expenses:
           type: array
           items:
@@ -1338,6 +1665,100 @@ components:
             updatedAt:
               type: string
               format: date-time
+    HouseholdMemberSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          membershipId,
+          userId,
+          displayName,
+          role,
+          status,
+          isCurrentUser,
+          canChangeRole,
+          canSuspend,
+          canReactivate,
+          canRemove,
+          canTransferOwnership,
+          assignableRoles,
+          joinedAt,
+          updatedAt,
+          version,
+        ]
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        role:
+          type: string
+          enum: [owner, admin, member, read_only]
+        status:
+          type: string
+          enum: [active, suspended, left, removed]
+        isCurrentUser:
+          type: boolean
+        canChangeRole:
+          type: boolean
+        canSuspend:
+          type: boolean
+        canReactivate:
+          type: boolean
+        canRemove:
+          type: boolean
+        canTransferOwnership:
+          type: boolean
+        assignableRoles:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [admin, member, read_only]
+        joinedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+    HouseholdMemberBoard:
+      type: object
+      additionalProperties: false
+      required: [canInvite, canEditHousehold, members]
+      properties:
+        canInvite:
+          type: boolean
+        canEditHousehold:
+          type: boolean
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseholdMemberSummary'
+    HouseholdMemberActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [change_role, suspend, reactivate, remove, transfer_ownership]
+        role:
+          type: [string, 'null']
+          enum: [admin, member, read_only, null]
+          description: Required only for change_role.
+        reason:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 240
     CreateHouseholdInvitationRequest:
       type: object
       additionalProperties: false
@@ -1523,6 +1944,157 @@ components:
         currency:
           type: string
           pattern: '^[A-Z]{3}$'
+    HouseholdTaskConfiguration:
+      type: object
+      additionalProperties: false
+      required: [title, priority, dueDate, assigneeMembershipId]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        instructions: { type: [string, 'null'], minLength: 1, maxLength: 2000 }
+        zone: { type: [string, 'null'], minLength: 1, maxLength: 80 }
+        priority: { type: string, enum: [low, normal, high] }
+        dueDate:
+          type: string
+          format: date
+          description: Local date in the configured household timezone.
+        dueTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        estimatedMinutes: { type: [integer, 'null'], minimum: 5, maximum: 1440 }
+        assigneeMembershipId: { type: string, format: uuid }
+    HouseholdTaskMemberSummary:
+      type: object
+      additionalProperties: false
+      required: [membershipId, userId, displayName, role, isCurrentUser]
+      properties:
+        membershipId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        role: { type: string, enum: [owner, admin, member, read_only] }
+        isCurrentUser: { type: boolean }
+    HouseholdTaskRequestSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          type,
+          status,
+          reason,
+          requestedAssigneeMembershipId,
+          requestedDueDate,
+          requestedDueTime,
+          createdByMembershipId,
+          createdByDisplayName,
+          resolvedByUserId,
+          resolutionNote,
+          resolvedAt,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [help, swap, postpone, issue] }
+        status: { type: string, enum: [pending, approved, rejected, cancelled] }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+        requestedAssigneeMembershipId: { type: [string, 'null'], format: uuid }
+        requestedDueDate: { type: [string, 'null'], format: date }
+        requestedDueTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        createdByMembershipId: { type: string, format: uuid }
+        createdByDisplayName: { type: string, minLength: 1, maxLength: 80 }
+        resolvedByUserId: { type: [string, 'null'], format: uuid }
+        resolutionNote: { type: [string, 'null'], maxLength: 1000 }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    HouseholdTaskSummary:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/HouseholdTaskConfiguration'
+        - type: object
+          required:
+            [
+              id,
+              householdId,
+              instructions,
+              zone,
+              dueTime,
+              estimatedMinutes,
+              assigneeDisplayName,
+              status,
+              completionNote,
+              completedByUserId,
+              completedAt,
+              requests,
+              canManage,
+              canStart,
+              canComplete,
+              canRequest,
+              version,
+              createdAt,
+              updatedAt,
+            ]
+          properties:
+            id: { type: string, format: uuid }
+            householdId: { type: string, format: uuid }
+            instructions: { type: [string, 'null'], maxLength: 2000 }
+            zone: { type: [string, 'null'], maxLength: 80 }
+            dueTime: { type: [string, 'null'] }
+            estimatedMinutes: { type: [integer, 'null'], minimum: 5, maximum: 1440 }
+            assigneeDisplayName: { type: string, minLength: 1, maxLength: 80 }
+            status: { type: string, enum: [open, in_progress, completed, cancelled] }
+            completionNote: { type: [string, 'null'], maxLength: 1000 }
+            completedByUserId: { type: [string, 'null'], format: uuid }
+            completedAt: { type: [string, 'null'], format: date-time }
+            requests:
+              type: array
+              items: { $ref: '#/components/schemas/HouseholdTaskRequestSummary' }
+            canManage: { type: boolean }
+            canStart: { type: boolean }
+            canComplete: { type: boolean }
+            canRequest: { type: boolean }
+            version: { type: integer, minimum: 1 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    HouseholdTaskBoard:
+      type: object
+      additionalProperties: false
+      required: [canCreate, members, tasks]
+      properties:
+        canCreate: { type: boolean }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/HouseholdTaskMemberSummary' }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/HouseholdTaskSummary' }
+    HouseholdTaskActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            [
+              start,
+              complete,
+              reopen,
+              cancel,
+              request_help,
+              request_swap,
+              request_postpone,
+              report_issue,
+              approve_request,
+              reject_request,
+            ]
+        note: { type: [string, 'null'], minLength: 3, maxLength: 1000 }
+        requestId: { type: [string, 'null'], format: uuid }
+        requestedAssigneeMembershipId: { type: [string, 'null'], format: uuid }
+        requestedDueDate: { type: [string, 'null'], format: date }
+        requestedDueTime:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
     ExpenseConfiguration:
       type: object
       additionalProperties: false
@@ -1565,7 +2137,17 @@ components:
     ExpenseAllocationSummary:
       type: object
       additionalProperties: false
-      required: [membershipId, displayName, amount, roundingAdjustmentMinor, status, isCurrentUser]
+      required:
+        [
+          membershipId,
+          displayName,
+          amount,
+          roundingAdjustmentMinor,
+          status,
+          paymentDeclarations,
+          canDeclarePayment,
+          isCurrentUser,
+        ]
       properties:
         membershipId:
           type: string
@@ -1582,9 +2164,151 @@ components:
           maximum: 1
         status:
           type: string
-          const: outstanding
+          enum: [outstanding, declared, paid, disputed]
+        paymentDeclarations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpensePaymentSummary'
+        canDeclarePayment:
+          type: boolean
         isCurrentUser:
           type: boolean
+    ExpensePaymentDeclarationRequest:
+      type: object
+      additionalProperties: false
+      required: [method, paidAt]
+      properties:
+        method:
+          type: string
+          enum: [bank_transfer, cash, card, direct_debit, other]
+        paidAt:
+          type: string
+          format: date-time
+        reference:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 120
+        note:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 500
+    ExpensePaymentActionRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    ExpensePaymentSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          expenseId,
+          allocationMembershipId,
+          payerDisplayName,
+          amount,
+          method,
+          reference,
+          note,
+          paidAt,
+          status,
+          declaredByUserId,
+          confirmedByUserId,
+          confirmedAt,
+          disputedByUserId,
+          disputedAt,
+          disputeReason,
+          reversedByUserId,
+          reversedAt,
+          reversalReason,
+          canConfirm,
+          canDispute,
+          canReverse,
+          version,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        expenseId:
+          type: string
+          format: uuid
+        allocationMembershipId:
+          type: string
+          format: uuid
+        payerDisplayName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        amount:
+          $ref: '#/components/schemas/Money'
+        method:
+          type: string
+          enum: [bank_transfer, cash, card, direct_debit, other]
+        reference:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 120
+        note:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 500
+        paidAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [declared, confirmed, disputed, reversed]
+        declaredByUserId:
+          type: string
+          format: uuid
+        confirmedByUserId:
+          type: [string, 'null']
+          format: uuid
+        confirmedAt:
+          type: [string, 'null']
+          format: date-time
+        disputedByUserId:
+          type: [string, 'null']
+          format: uuid
+        disputedAt:
+          type: [string, 'null']
+          format: date-time
+        disputeReason:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 500
+        reversedByUserId:
+          type: [string, 'null']
+          format: uuid
+        reversedAt:
+          type: [string, 'null']
+          format: date-time
+        reversalReason:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 500
+        canConfirm:
+          type: boolean
+        canDispute:
+          type: boolean
+        canReverse:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     ExpenseSummary:
       allOf:
         - $ref: '#/components/schemas/ExpenseConfiguration'
@@ -1596,6 +2320,8 @@ components:
               householdId,
               customCategoryName,
               notes,
+              sourceTemplateId,
+              occurrenceDate,
               splitMethod,
               status,
               allocations,
@@ -1622,6 +2348,14 @@ components:
               type: [string, 'null']
               minLength: 1
               maxLength: 1000
+            sourceTemplateId:
+              type: [string, 'null']
+              format: uuid
+              description: Source household-cost template for an automatically generated occurrence.
+            occurrenceDate:
+              type: [string, 'null']
+              format: date
+              description: Deterministic local occurrence date; present together with sourceTemplateId.
             splitMethod:
               type: string
               const: equal

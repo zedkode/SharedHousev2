@@ -6,6 +6,10 @@ import com.sharedhouse.android.ui.calendar.CalendarEventDraft
 import com.sharedhouse.android.ui.calendar.CalendarEventType
 import com.sharedhouse.android.ui.calendar.CalendarMutationProblem
 import com.sharedhouse.android.ui.money.MoneyContent
+import com.sharedhouse.android.ui.money.ExpensePaymentDraft
+import com.sharedhouse.android.ui.money.ExpensePaymentMethod
+import com.sharedhouse.android.ui.money.ExpensePaymentStatus
+import com.sharedhouse.android.ui.money.MoneyAction
 import com.sharedhouse.android.platform.security.SessionLoadResult
 import com.sharedhouse.android.platform.security.SessionSaveResult
 import com.sharedhouse.android.platform.security.SessionStore
@@ -19,6 +23,8 @@ import com.sharedhouse.network.AcceptHouseholdInvitationDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.ExpenseAllocationDto
 import com.sharedhouse.network.ExpenseDto
+import com.sharedhouse.network.ExpensePaymentDeclarationDto
+import com.sharedhouse.network.ExpensePaymentDto
 import com.sharedhouse.network.HouseholdConfigurationDto
 import com.sharedhouse.network.HouseholdDto
 import com.sharedhouse.network.HouseholdInvitationDto
@@ -30,7 +36,9 @@ import com.sharedhouse.network.ResendVerificationPayload
 import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -382,8 +390,73 @@ class SharedHouseViewModelTest {
             assertEquals(501, loaded.currentUserShareMinor)
             assertEquals(1001, loaded.amountMinor)
             assertEquals(2, loaded.allocations.size)
+            assertEquals("template-1", loaded.sourceTemplateId)
+            assertEquals(LocalDate.parse("2026-08-20"), loaded.occurrenceDate)
             assertFalse(loaded.canApprove)
             assertFalse(loaded.canReverse)
+        }
+    }
+
+    @Test
+    fun `money declares and corrects payment with authoritative server state`() = runTest {
+        withMainDispatcher {
+            var declarationKey: String? = null
+            var declaredConfiguration: ExpensePaymentDeclarationDto? = null
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "member"))) }
+                listExpensesHandler = { _, householdId ->
+                    ApiResult.Success(listOf(expenseWithCurrentPayment(householdId, null)))
+                }
+                declareExpensePaymentHandler = { _, householdId, _, key, configuration ->
+                    declarationKey = key
+                    declaredConfiguration = configuration
+                    ApiResult.Success(expenseWithCurrentPayment(householdId, "declared"))
+                }
+                reverseExpensePaymentHandler = { _, householdId, _, paymentId, version, reason ->
+                    assertEquals("payment-1", paymentId)
+                    assertEquals(1, version)
+                    assertEquals("Transfer returned", reason)
+                    ApiResult.Success(expenseWithCurrentPayment(householdId, "reversed"))
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+            val draft = ExpensePaymentDraft(
+                method = ExpensePaymentMethod.BANK_TRANSFER,
+                paidAt = Instant.parse("2026-08-11T10:00:00Z"),
+                reference = "BANK-2048",
+                note = "Rent share",
+            )
+
+            viewModel.handleMoneyAction(
+                MoneyAction.DeclarePayment("018f0000-0000-7000-8000-000000000020", draft),
+            )
+            advanceUntilIdle()
+
+            assertTrue(requireNotNull(declarationKey).isNotBlank())
+            assertEquals("bank_transfer", declaredConfiguration?.method)
+            val declared = (viewModel.uiState.value.money.content as MoneyContent.Ready)
+                .expenses.single().allocations.first { it.isCurrentUser }
+            assertEquals(ExpensePaymentStatus.DECLARED, declared.paymentDeclarations.single().status)
+            assertFalse(declared.canDeclarePayment)
+
+            viewModel.handleMoneyAction(
+                MoneyAction.ReversePayment(
+                    expenseId = "018f0000-0000-7000-8000-000000000020",
+                    paymentId = "payment-1",
+                    expectedVersion = 1,
+                    reason = "Transfer returned",
+                ),
+            )
+            advanceUntilIdle()
+
+            val corrected = (viewModel.uiState.value.money.content as MoneyContent.Ready)
+                .expenses.single().allocations.first { it.isCurrentUser }
+            assertEquals(ExpensePaymentStatus.REVERSED, corrected.paymentDeclarations.single().status)
+            assertTrue(corrected.canDeclarePayment)
         }
     }
 
@@ -654,6 +727,13 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String, Int, HouseholdConfigurationDto) -> ApiResult<HouseholdDto> = { _, _, _, _ ->
             error("Unexpected update")
         }
+    var listMembersHandler:
+        suspend (String, String) -> ApiResult<com.sharedhouse.network.HouseholdMemberBoardDto> = { _, _ ->
+            ApiResult.Success(com.sharedhouse.network.HouseholdMemberBoardDto(false, false, emptyList()))
+        }
+    var memberActionHandler:
+        suspend (String, String, String, Int, String, com.sharedhouse.network.HouseholdMemberActionDto) -> ApiResult<com.sharedhouse.network.HouseholdMemberDto> =
+        { _, _, _, _, _, _ -> error("Unexpected member action") }
     var listInvitationsHandler:
         suspend (String, String) -> ApiResult<List<HouseholdInvitationDto>> = { _, _ ->
             ApiResult.Success(emptyList())
@@ -686,6 +766,16 @@ private class FakeGateway : SharedHouseGateway {
         suspend (String, String, String, Int) -> ApiResult<Unit> = { _, _, _, _ ->
             error("Unexpected calendar delete")
         }
+    var listTasksHandler:
+        suspend (String, String) -> ApiResult<com.sharedhouse.network.HouseholdTaskBoardDto> = { _, _ ->
+            ApiResult.Success(com.sharedhouse.network.HouseholdTaskBoardDto(false, emptyList(), emptyList()))
+        }
+    var createTaskHandler:
+        suspend (String, String, String, com.sharedhouse.network.HouseholdTaskConfigurationDto) -> ApiResult<com.sharedhouse.network.HouseholdTaskDto> =
+        { _, _, _, _ -> error("Unexpected task create") }
+    var taskActionHandler:
+        suspend (String, String, String, Int, String, com.sharedhouse.network.HouseholdTaskActionDto) -> ApiResult<com.sharedhouse.network.HouseholdTaskDto> =
+        { _, _, _, _, _, _ -> error("Unexpected task action") }
     var listExpensesHandler:
         suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseDto>> = { _, _ ->
             ApiResult.Success(emptyList())
@@ -699,6 +789,18 @@ private class FakeGateway : SharedHouseGateway {
     var reverseExpenseHandler:
         suspend (String, String, String, Int, String) -> ApiResult<com.sharedhouse.network.ExpenseDto> =
         { _, _, _, _, _ -> error("Unexpected expense reversal") }
+    var declareExpensePaymentHandler:
+        suspend (String, String, String, String, ExpensePaymentDeclarationDto) -> ApiResult<ExpenseDto> =
+        { _, _, _, _, _ -> error("Unexpected payment declaration") }
+    var confirmExpensePaymentHandler:
+        suspend (String, String, String, String, Int) -> ApiResult<ExpenseDto> =
+        { _, _, _, _, _ -> error("Unexpected payment confirmation") }
+    var disputeExpensePaymentHandler:
+        suspend (String, String, String, String, Int, String) -> ApiResult<ExpenseDto> =
+        { _, _, _, _, _, _ -> error("Unexpected payment dispute") }
+    var reverseExpensePaymentHandler:
+        suspend (String, String, String, String, Int, String) -> ApiResult<ExpenseDto> =
+        { _, _, _, _, _, _ -> error("Unexpected payment reversal") }
     var listExpenseTemplatesHandler:
         suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseTemplateDto>> = { _, _ ->
             ApiResult.Success(emptyList())
@@ -737,6 +839,25 @@ private class FakeGateway : SharedHouseGateway {
         expectedVersion: Int,
         configuration: HouseholdConfigurationDto,
     ) = updateHandler(accessToken, householdId, expectedVersion, configuration)
+
+    override suspend fun listHouseholdMembers(accessToken: String, householdId: String) =
+        listMembersHandler(accessToken, householdId)
+
+    override suspend fun actOnHouseholdMember(
+        accessToken: String,
+        householdId: String,
+        membershipId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: com.sharedhouse.network.HouseholdMemberActionDto,
+    ) = memberActionHandler(
+        accessToken,
+        householdId,
+        membershipId,
+        expectedVersion,
+        idempotencyKey,
+        action,
+    )
 
     override suspend fun listHouseholdInvitations(accessToken: String, householdId: String) =
         listInvitationsHandler(accessToken, householdId)
@@ -788,6 +909,25 @@ private class FakeGateway : SharedHouseGateway {
         expectedVersion: Int,
     ) = deleteCalendarHandler(accessToken, householdId, eventId, expectedVersion)
 
+    override suspend fun listHouseholdTasks(accessToken: String, householdId: String) =
+        listTasksHandler(accessToken, householdId)
+
+    override suspend fun createHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: com.sharedhouse.network.HouseholdTaskConfigurationDto,
+    ) = createTaskHandler(accessToken, householdId, idempotencyKey, configuration)
+
+    override suspend fun actOnHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        taskId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: com.sharedhouse.network.HouseholdTaskActionDto,
+    ) = taskActionHandler(accessToken, householdId, taskId, expectedVersion, idempotencyKey, action)
+
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         listExpensesHandler(accessToken, householdId)
 
@@ -812,6 +952,66 @@ private class FakeGateway : SharedHouseGateway {
         expectedVersion: Int,
         reason: String,
     ) = reverseExpenseHandler(accessToken, householdId, expenseId, expectedVersion, reason)
+
+    override suspend fun declareExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        idempotencyKey: String,
+        configuration: ExpensePaymentDeclarationDto,
+    ) = declareExpensePaymentHandler(
+        accessToken,
+        householdId,
+        expenseId,
+        idempotencyKey,
+        configuration,
+    )
+
+    override suspend fun confirmExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+    ) = confirmExpensePaymentHandler(
+        accessToken,
+        householdId,
+        expenseId,
+        paymentId,
+        expectedVersion,
+    )
+
+    override suspend fun disputeExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = disputeExpensePaymentHandler(
+        accessToken,
+        householdId,
+        expenseId,
+        paymentId,
+        expectedVersion,
+        reason,
+    )
+
+    override suspend fun reverseExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ) = reverseExpensePaymentHandler(
+        accessToken,
+        householdId,
+        expenseId,
+        paymentId,
+        expectedVersion,
+        reason,
+    )
 
     override suspend fun listExpenseTemplates(accessToken: String, householdId: String) =
         listExpenseTemplatesHandler(accessToken, householdId)
@@ -904,6 +1104,8 @@ private fun expense(householdId: String) = ExpenseDto(
     amount = MoneyDto(1001, "GBP"),
     dueDate = "2026-08-20",
     notes = "August broadband",
+    sourceTemplateId = "template-1",
+    occurrenceDate = "2026-08-20",
     splitMethod = "equal",
     status = "approved",
     allocations = listOf(
@@ -918,6 +1120,46 @@ private fun expense(householdId: String) = ExpenseDto(
     createdAt = "2026-08-08T09:00:00Z",
     updatedAt = "2026-08-08T09:00:00Z",
 )
+
+private fun expenseWithCurrentPayment(householdId: String, status: String?): ExpenseDto {
+    val base = expense(householdId)
+    val payment = status?.let {
+        ExpensePaymentDto(
+            id = "payment-1",
+            expenseId = base.id,
+            allocationMembershipId = "membership-1",
+            payerDisplayName = "Alex",
+            amount = MoneyDto(501, "GBP"),
+            method = "bank_transfer",
+            reference = "BANK-2048",
+            note = "Rent share",
+            paidAt = "2026-08-11T10:00:00Z",
+            status = it,
+            declaredByUserId = "018f0000-0000-7000-8000-000000000001",
+            reversalReason = if (it == "reversed") "Transfer returned" else null,
+            reversedAt = if (it == "reversed") "2026-08-11T10:05:00Z" else null,
+            canConfirm = false,
+            canDispute = false,
+            canReverse = it == "declared",
+            version = if (it == "reversed") 2 else 1,
+            createdAt = "2026-08-11T10:00:00Z",
+            updatedAt = "2026-08-11T10:05:00Z",
+        )
+    }
+    val allocations = base.allocations.map { allocation ->
+        if (!allocation.isCurrentUser) allocation else allocation.copy(
+            status = when (status) {
+                "declared" -> "declared"
+                "confirmed" -> "paid"
+                "disputed" -> "disputed"
+                else -> "outstanding"
+            },
+            paymentDeclarations = listOfNotNull(payment),
+            canDeclarePayment = status == null || status == "reversed",
+        )
+    }
+    return base.copy(allocations = allocations)
+}
 
 private fun expenseTemplate(householdId: String) = com.sharedhouse.network.ExpenseTemplateDto(
     id = "018f0000-0000-7000-8000-000000000030",

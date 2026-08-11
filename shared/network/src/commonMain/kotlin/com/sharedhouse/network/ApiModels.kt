@@ -111,6 +111,7 @@ data class AccountExportDto(
     val account: AccountDto,
     val households: List<HouseholdDto>,
     val calendarEvents: List<CalendarEventDto>,
+    val householdTasks: List<HouseholdTaskDto> = emptyList(),
     val expenses: List<ExpenseDto> = emptyList(),
     val expenseTemplates: List<ExpenseTemplateDto> = emptyList(),
     val consentRecords: List<AccountExportConsentDto>,
@@ -144,6 +145,39 @@ data class HouseholdDto(
     val version: Int,
     val createdAt: String,
     val updatedAt: String,
+)
+
+@Serializable
+data class HouseholdMemberDto(
+    val membershipId: String,
+    val userId: String,
+    val displayName: String,
+    val role: String,
+    val status: String,
+    val isCurrentUser: Boolean,
+    val canChangeRole: Boolean,
+    val canSuspend: Boolean,
+    val canReactivate: Boolean,
+    val canRemove: Boolean,
+    val canTransferOwnership: Boolean,
+    val assignableRoles: List<String>,
+    val joinedAt: String,
+    val updatedAt: String,
+    val version: Int,
+)
+
+@Serializable
+data class HouseholdMemberBoardDto(
+    val canInvite: Boolean,
+    val canEditHousehold: Boolean,
+    val members: List<HouseholdMemberDto>,
+)
+
+@Serializable
+data class HouseholdMemberActionDto(
+    val action: String,
+    val role: String? = null,
+    val reason: String? = null,
 )
 
 @Serializable
@@ -208,6 +242,88 @@ data class CalendarEventDto(
 )
 
 @Serializable
+data class HouseholdTaskConfigurationDto(
+    val title: String,
+    val instructions: String? = null,
+    val zone: String? = null,
+    val priority: String,
+    val dueDate: String,
+    val dueTime: String? = null,
+    val estimatedMinutes: Int? = null,
+    val assigneeMembershipId: String,
+)
+
+@Serializable
+data class HouseholdTaskMemberDto(
+    val membershipId: String,
+    val userId: String,
+    val displayName: String,
+    val role: String,
+    val isCurrentUser: Boolean,
+)
+
+@Serializable
+data class HouseholdTaskRequestDto(
+    val id: String,
+    val type: String,
+    val status: String,
+    val reason: String,
+    val requestedAssigneeMembershipId: String? = null,
+    val requestedDueDate: String? = null,
+    val requestedDueTime: String? = null,
+    val createdByMembershipId: String,
+    val createdByDisplayName: String,
+    val resolvedByUserId: String? = null,
+    val resolutionNote: String? = null,
+    val resolvedAt: String? = null,
+    val createdAt: String,
+)
+
+@Serializable
+data class HouseholdTaskDto(
+    val id: String,
+    val householdId: String,
+    val title: String,
+    val instructions: String? = null,
+    val zone: String? = null,
+    val priority: String,
+    val dueDate: String,
+    val dueTime: String? = null,
+    val estimatedMinutes: Int? = null,
+    val assigneeMembershipId: String,
+    val assigneeDisplayName: String,
+    val status: String,
+    val completionNote: String? = null,
+    val completedByUserId: String? = null,
+    val completedAt: String? = null,
+    val requests: List<HouseholdTaskRequestDto> = emptyList(),
+    val canManage: Boolean,
+    val canStart: Boolean,
+    val canComplete: Boolean,
+    val canRequest: Boolean,
+    val version: Int,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class HouseholdTaskBoardDto(
+    val canCreate: Boolean,
+    val members: List<HouseholdTaskMemberDto>,
+    val tasks: List<HouseholdTaskDto>,
+)
+
+@Serializable
+data class HouseholdTaskActionDto(
+    val action: String,
+    val note: String? = null,
+    val requestId: String? = null,
+    val requestedAssigneeMembershipId: String? = null,
+    val requestedDueDate: String? = null,
+    val requestedDueTime: String? = null,
+)
+
+@Serializable
 data class MoneyDto(
     val minorUnits: Long,
     val currency: String,
@@ -231,6 +347,50 @@ data class ExpenseAllocationDto(
     val roundingAdjustmentMinor: Long,
     val status: String,
     val isCurrentUser: Boolean,
+    val paymentDeclarations: List<ExpensePaymentDto> = emptyList(),
+    val canDeclarePayment: Boolean = false,
+)
+
+@Serializable
+data class ExpensePaymentDto(
+    val id: String,
+    val expenseId: String,
+    val allocationMembershipId: String,
+    val payerDisplayName: String,
+    val amount: MoneyDto,
+    val method: String,
+    val reference: String? = null,
+    val note: String? = null,
+    val paidAt: String,
+    val status: String,
+    val declaredByUserId: String,
+    val confirmedByUserId: String? = null,
+    val confirmedAt: String? = null,
+    val disputedByUserId: String? = null,
+    val disputedAt: String? = null,
+    val disputeReason: String? = null,
+    val reversedByUserId: String? = null,
+    val reversedAt: String? = null,
+    val reversalReason: String? = null,
+    val canConfirm: Boolean,
+    val canDispute: Boolean,
+    val canReverse: Boolean,
+    val version: Int,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class ExpensePaymentDeclarationDto(
+    val method: String,
+    val paidAt: String,
+    val reference: String? = null,
+    val note: String? = null,
+)
+
+@Serializable
+data class ExpensePaymentActionPayload(
+    val reason: String,
 )
 
 @Serializable
@@ -243,6 +403,8 @@ data class ExpenseDto(
     val amount: MoneyDto,
     val dueDate: String,
     val notes: String? = null,
+    val sourceTemplateId: String? = null,
+    val occurrenceDate: String? = null,
     val splitMethod: String,
     val status: String,
     val allocations: List<ExpenseAllocationDto>,

@@ -36,8 +36,16 @@ val publicFirebaseConfig = listOf(
     file("src/public/google-services.json"),
     file("google-services.json"),
 ).firstOrNull { it.isFile }
+val googleServicesEnabled = providers.gradleProperty("SHAREDHOUSE_ENABLE_GOOGLE_SERVICES")
+    .orElse(providers.environmentVariable("SHAREDHOUSE_ENABLE_GOOGLE_SERVICES"))
+    .getOrElse("false")
+    .toBooleanStrictOrNull()
+    ?: error("SHAREDHOUSE_ENABLE_GOOGLE_SERVICES must be true or false.")
+val productionAdMobConfigured = googleServicesEnabled &&
+    publicAdMobAppId != sampleAdMobAppId &&
+    publicAdMobBannerId != sampleAdMobBannerId
 
-if (publicFirebaseConfig != null) {
+if (googleServicesEnabled && publicFirebaseConfig != null) {
     pluginManager.apply("com.google.gms.google-services")
     pluginManager.apply("com.google.firebase.crashlytics")
 }
@@ -73,20 +81,22 @@ if (requestsPublicRelease) {
             "SHAREDHOUSE_RELEASE_STORE_PASSWORD, SHAREDHOUSE_RELEASE_KEY_ALIAS and " +
             "SHAREDHOUSE_RELEASE_KEY_PASSWORD environment variables."
     }
-    require(publicFirebaseConfig != null) {
-        "Public release builds require apps/android/app/src/public/google-services.json."
-    }
-    require(
-        publicAdMobAppId.matches(Regex("^ca-app-pub-[0-9]{16}~[0-9]{10}$")) &&
-            publicAdMobAppId != sampleAdMobAppId,
-    ) {
-        "Public release builds require a real SHAREDHOUSE_ADMOB_APP_ID, not Google's test ID."
-    }
-    require(
-        publicAdMobBannerId.matches(Regex("^ca-app-pub-[0-9]{16}/[0-9]{10}$")) &&
-            publicAdMobBannerId != sampleAdMobBannerId,
-    ) {
-        "Public release builds require a real SHAREDHOUSE_ADMOB_BANNER_ID, not Google's test ID."
+    if (googleServicesEnabled) {
+        require(publicFirebaseConfig != null) {
+            "Google-enabled public releases require apps/android/app/src/public/google-services.json."
+        }
+        require(
+            publicAdMobAppId.matches(Regex("^ca-app-pub-[0-9]{16}~[0-9]{10}$")) &&
+                publicAdMobAppId != sampleAdMobAppId,
+        ) {
+            "Google-enabled releases require a real SHAREDHOUSE_ADMOB_APP_ID."
+        }
+        require(
+            publicAdMobBannerId.matches(Regex("^ca-app-pub-[0-9]{16}/[0-9]{10}$")) &&
+                publicAdMobBannerId != sampleAdMobBannerId,
+        ) {
+            "Google-enabled releases require a real SHAREDHOUSE_ADMOB_BANNER_ID."
+        }
     }
 }
 
@@ -148,6 +158,7 @@ android {
             buildConfigField("String", "ADMOB_APP_ID", "\"$sampleAdMobAppId\"")
             buildConfigField("String", "ADMOB_BANNER_ID", "\"$sampleAdMobBannerId\"")
             buildConfigField("boolean", "ADMOB_TEST_MODE", "true")
+            buildConfigField("boolean", "ADMOB_CONFIGURED", "false")
             buildConfigField("boolean", "FIREBASE_CONFIGURED", "false")
             resValue("string", "app_name", "SharedHouse Local")
         }
@@ -163,7 +174,12 @@ android {
                 "ADMOB_TEST_MODE",
                 (publicAdMobAppId == sampleAdMobAppId || publicAdMobBannerId == sampleAdMobBannerId).toString(),
             )
-            buildConfigField("boolean", "FIREBASE_CONFIGURED", (publicFirebaseConfig != null).toString())
+            buildConfigField("boolean", "ADMOB_CONFIGURED", productionAdMobConfigured.toString())
+            buildConfigField(
+                "boolean",
+                "FIREBASE_CONFIGURED",
+                (googleServicesEnabled && publicFirebaseConfig != null).toString(),
+            )
             resValue("string", "app_name", "SharedHouse")
         }
     }
@@ -213,6 +229,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    // Mobile Ads 1.3.0 still requests WorkManager 2.7.0. Pin the current stable AndroidX runtime:
+    // 2.7.0 loses the generated WorkDatabase constructor in optimized AGP 9/R8 builds and crashes
+    // before MainActivity. Keep this direct dependency until the ads SDK raises its minimum.
+    implementation(libs.androidx.work.runtime)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
@@ -235,32 +255,6 @@ dependencies {
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-}
-
-tasks.register<Copy>("packageSignedTestingApk") {
-    group = "build"
-    description = "Compatibility alias for the named local testing APK."
-    dependsOn("packageLocalTestingApk")
-}
-
-tasks.register<Copy>("packageLocalTestingApk") {
-    group = "build"
-    description = "Builds the debug-signed local SharedHouse APK."
-    dependsOn("assembleLocalDebug")
-
-    from(layout.buildDirectory.file("outputs/apk/local/debug/app-local-debug.apk"))
-    into(layout.buildDirectory.dir("outputs/apk/testing"))
-    rename("app-local-debug.apk", "SharedHouse-v$appVersionName-local-testing-signed.apk")
-}
-
-tasks.register<Copy>("packagePublicTestingApk") {
-    group = "build"
-    description = "Builds the debug-signed SharedHouse APK against the configured public HTTPS API."
-    dependsOn("assemblePublicDebug")
-
-    from(layout.buildDirectory.file("outputs/apk/public/debug/app-public-debug.apk"))
-    into(layout.buildDirectory.dir("outputs/apk/testing"))
-    rename("app-public-debug.apk", "SharedHouse-v$appVersionName-public-testing-signed.apk")
 }
 
 tasks.register<Copy>("packagePublicReleaseApk") {

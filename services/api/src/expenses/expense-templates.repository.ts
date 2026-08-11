@@ -126,8 +126,10 @@ export class ExpenseTemplatesRepository {
       await transaction.query(
         `INSERT INTO expense_templates (
            id, household_id, created_by_membership_id, title, category, custom_category_name,
-           amount_minor, currency, cadence, next_due_date, notes, status, version, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', 1, $12, $12)`,
+           amount_minor, currency, cadence, next_due_date, schedule_anchor_day,
+           schedule_anchor_month, notes, status, version, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+           EXTRACT(DAY FROM $10::date), EXTRACT(MONTH FROM $10::date), $11, 'active', 1, $12, $12)`,
         [
           template.id,
           template.householdId,
@@ -187,6 +189,14 @@ export class ExpenseTemplatesRepository {
       await transaction.query(
         `UPDATE expense_templates SET title = $4, category = $5, custom_category_name = $6,
            amount_minor = $7, currency = $8, cadence = $9, next_due_date = $10, notes = $11,
+           schedule_anchor_day = CASE
+             WHEN cadence = $9::varchar AND next_due_date = $10::date THEN schedule_anchor_day
+             ELSE EXTRACT(DAY FROM $10::date)::smallint
+           END,
+           schedule_anchor_month = CASE
+             WHEN cadence = $9::varchar AND next_due_date = $10::date THEN schedule_anchor_month
+             ELSE EXTRACT(MONTH FROM $10::date)::smallint
+           END,
            version = version + 1, updated_at = $12
          WHERE id = $1 AND household_id = $2 AND version = $3`,
         [

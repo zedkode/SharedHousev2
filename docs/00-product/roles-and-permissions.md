@@ -15,6 +15,10 @@ SharedHouse uses two independent role systems.
 
 The owner can grant multiple capabilities to a member. The implementation should use capabilities rather than hard-coded role checks so future roles can be introduced safely.
 
+The current production membership store exposes `owner`, `admin`, `member` and `read_only` roles.
+Finance Manager and Chore Manager remain planned capability bundles; the app must not display them
+as assignable until the database and API support them.
+
 ### Platform roles
 
 - **Super Administrator** — restricted break-glass role for platform configuration and role management.
@@ -62,6 +66,14 @@ Every backend operation must verify:
 ## Membership lifecycle
 
 Member states are `invited`, `active`, `suspended`, `left`, and `removed`. Historical expense splits and completed chore assignments remain linked to a stable member record after departure. A removed user loses future access immediately; their historical display name may be retained where needed for ledger integrity, with privacy-minimised representation after account deletion.
+
+The owner may change any non-owner role and may suspend, reactivate or remove a non-owner. An admin
+may manage only members and read-only members, cannot create another admin and cannot act on an
+owner or admin. Nobody can suspend/remove themselves through member administration. Ownership can
+move only from the current owner to another active admin/member; the transaction first demotes the
+old owner to admin and then promotes exactly one new owner. Every mutation requires `If-Match`, an
+idempotency key and an append-only history/audit/outbox record. Ordinary members see active people;
+owner/admin views may also show suspended and removed history.
 
 ## Platform access rules
 

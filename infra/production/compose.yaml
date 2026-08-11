@@ -77,6 +77,35 @@ services:
       start_period: 30s
     logging: *bounded-logging
 
+  workers:
+    build:
+      context: ../..
+      dockerfile: infra/production/Dockerfile.workers
+    image: sharedhouse-workers:${SHAREDHOUSE_IMAGE_TAG:-0.1.0}
+    restart: unless-stopped
+    env_file:
+      - production.env
+    environment:
+      DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    group_add:
+      - '0'
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - backend
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *bounded-logging
+
   cloudflared:
     image: cloudflare/cloudflared:2026.7.2
     restart: unless-stopped

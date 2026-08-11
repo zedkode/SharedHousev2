@@ -67,6 +67,8 @@ describe('tenant-scoped household expenses', () => {
       splitMethod: 'equal',
       amount: { minorUnits: 1001, currency: 'GBP' },
       currentUserShare: { currency: 'GBP' },
+      sourceTemplateId: null,
+      occurrenceDate: null,
       version: 1,
     });
     const expenseId = readStringProperty(created.body, 'id');
@@ -166,6 +168,176 @@ describe('tenant-scoped household expenses', () => {
       .send({ ...expenseBody(0, 'GBP'), splitMethod: 'fixed' })
       .expect(400);
     await request(server).get(endpoint).set('Authorization', `Bearer ${outsiderToken}`).expect(404);
+  });
+
+  it('declares, confirms, disputes and reverses payments without pretending to move money', async () => {
+    const endpoint = `/v1/households/${householdId}/expenses`;
+    const created = await request(server)
+      .post(endpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'money-payment-expense-0001')
+      .send({ ...expenseBody(2400, 'GBP'), title: 'Shared electricity' })
+      .expect(201);
+    const expenseId = readStringProperty(created.body, 'id');
+
+    const memberView = await request(server)
+      .get(`${endpoint}/${expenseId}`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    const memberAllocation = readAllocations(memberView.body).find(
+      (allocation) => allocation.isCurrentUser,
+    );
+    expect(memberAllocation).toMatchObject({
+      amount: { minorUnits: 1200, currency: 'GBP' },
+      status: 'outstanding',
+      canDeclarePayment: true,
+      paymentDeclarations: [],
+    });
+
+    const declarationBody = {
+      method: 'bank_transfer',
+      paidAt: new Date(Date.now() - 60_000).toISOString(),
+      reference: 'BANK-REF-2048',
+      note: 'Sent from personal bank account',
+    };
+    const declared = await request(server)
+      .post(`${endpoint}/${expenseId}/payments`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('Idempotency-Key', 'money-payment-declare-0001')
+      .send(declarationBody)
+      .expect('ETag', '"1"')
+      .expect(201);
+    const declaration = readCurrentPayment(declared.body);
+    expect(declaration).toMatchObject({
+      method: 'bank_transfer',
+      reference: 'BANK-REF-2048',
+      status: 'declared',
+      version: 1,
+      canConfirm: false,
+      canDispute: false,
+      canReverse: true,
+    });
+    const paymentId = readStringProperty(declaration, 'id');
+
+    const replay = await request(server)
+      .post(`${endpoint}/${expenseId}/payments`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('Idempotency-Key', 'money-payment-declare-0001')
+      .send(declarationBody)
+      .expect(201);
+    expect(readCurrentPayment(replay.body)).toEqual(declaration);
+
+    await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${paymentId}/confirm`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('If-Match', '"1"')
+      .expect(403);
+    await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${paymentId}/confirm`)
+      .set('Authorization', `Bearer ${outsiderToken}`)
+      .set('If-Match', '"1"')
+      .expect(404);
+
+    const confirmed = await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${paymentId}/confirm`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .expect('ETag', '"2"')
+      .expect(201);
+    expect(readPaymentById(confirmed.body, paymentId)).toMatchObject({
+      status: 'confirmed',
+      version: 2,
+      canConfirm: false,
+      canDispute: true,
+    });
+    expect(readAllocationWithPayment(confirmed.body, paymentId)).toMatchObject({ status: 'paid' });
+
+    const disputed = await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${paymentId}/dispute`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"2"')
+      .send({ reason: 'Reference does not match the bank statement' })
+      .expect('ETag', '"3"')
+      .expect(201);
+    expect(readPaymentById(disputed.body, paymentId)).toMatchObject({
+      status: 'disputed',
+      disputeReason: 'Reference does not match the bank statement',
+      version: 3,
+    });
+    expect(readAllocationWithPayment(disputed.body, paymentId)).toMatchObject({
+      status: 'disputed',
+    });
+
+    await request(server)
+      .post(`${endpoint}/${expenseId}/reverse`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .send({ reason: 'Invoice cancelled' })
+      .expect(409)
+      .expect((response) =>
+        expect(response.body).toMatchObject({ code: 'EXPENSE_ACTIVE_PAYMENT_CONFLICT' }),
+      );
+
+    const corrected = await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${paymentId}/reverse`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('If-Match', '"3"')
+      .send({ reason: 'Transfer was returned by the bank' })
+      .expect('ETag', '"4"')
+      .expect(201);
+    expect(readPaymentById(corrected.body, paymentId)).toMatchObject({
+      status: 'reversed',
+      reversalReason: 'Transfer was returned by the bank',
+      version: 4,
+      canReverse: false,
+    });
+    expect(readAllocationWithPayment(corrected.body, paymentId)).toMatchObject({
+      status: 'outstanding',
+      canDeclarePayment: true,
+    });
+
+    const ownerDeclared = await request(server)
+      .post(`${endpoint}/${expenseId}/payments`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'money-payment-owner-000001')
+      .send({ ...declarationBody, reference: 'OWNER-BANK-4096' })
+      .expect(201);
+    const ownerPaymentId = readStringProperty(readCurrentPayment(ownerDeclared.body), 'id');
+    const memberCanReview = await request(server)
+      .get(`${endpoint}/${expenseId}`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .expect(200);
+    expect(readPaymentById(memberCanReview.body, ownerPaymentId)).toMatchObject({
+      canConfirm: true,
+      canDispute: true,
+    });
+    await request(server)
+      .post(`${endpoint}/${expenseId}/payments/${ownerPaymentId}/confirm`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('If-Match', '"1"')
+      .expect(201)
+      .expect((response) =>
+        expect(readPaymentById(response.body, ownerPaymentId)).toMatchObject({
+          status: 'confirmed',
+          version: 2,
+        }),
+      );
+
+    const exported = await request(server)
+      .post('/v1/account/export')
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({ password: VALID_PASSWORD })
+      .expect(200);
+    const exportedExpense = readArrayProperty(exported.body, 'expenses').find(
+      (expense) => readStringProperty(expense, 'id') === expenseId,
+    );
+    expect(exportedExpense).toBeDefined();
+    expect(readPaymentById(exportedExpense, paymentId)).toMatchObject({
+      status: 'reversed',
+      canConfirm: false,
+      canDispute: false,
+      canReverse: false,
+    });
   });
 
   it('lets owners manage reusable standard and custom household costs', async () => {
@@ -339,6 +511,17 @@ interface AllocationBody {
   membershipId: string;
   amount: { minorUnits: number; currency: string };
   roundingAdjustmentMinor: number;
+  status: string;
+  canDeclarePayment: boolean;
+  isCurrentUser: boolean;
+  paymentDeclarations: PaymentBody[];
+}
+
+interface PaymentBody {
+  id: string;
+  status: string;
+  version: number;
+  [key: string]: unknown;
 }
 
 function readAllocations(body: unknown): AllocationBody[] {
@@ -350,6 +533,29 @@ function readAllocations(body: unknown): AllocationBody[] {
     throw new Error('Expected expense allocations.');
   }
   return (body as { allocations: AllocationBody[] }).allocations;
+}
+
+function readCurrentPayment(body: unknown): PaymentBody {
+  const allocation = readAllocations(body).find((item) => item.isCurrentUser);
+  const payment = allocation?.paymentDeclarations.find((item) => item.status !== 'reversed');
+  if (payment === undefined) throw new Error('Expected a current payment declaration.');
+  return payment;
+}
+
+function readPaymentById(body: unknown, paymentId: string): PaymentBody {
+  for (const allocation of readAllocations(body)) {
+    const payment = allocation.paymentDeclarations.find((item) => item.id === paymentId);
+    if (payment !== undefined) return payment;
+  }
+  throw new Error('Expected payment declaration in expense response.');
+}
+
+function readAllocationWithPayment(body: unknown, paymentId: string): AllocationBody {
+  const allocation = readAllocations(body).find((item) =>
+    item.paymentDeclarations.some((payment) => payment.id === paymentId),
+  );
+  if (allocation === undefined) throw new Error('Expected allocation for payment declaration.');
+  return allocation;
 }
 
 function readArrayProperty(body: unknown, property: string): unknown[] {

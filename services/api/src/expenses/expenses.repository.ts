@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   ExpenseAllocationSummary,
   ExpenseConfiguration,
+  ExpensePaymentSummary,
   ExpenseStatus,
   ExpenseSummary,
   HouseholdSummary,
@@ -34,6 +35,8 @@ interface ExpenseBaseRow {
   readonly currency: string;
   readonly due_date: Date | string;
   readonly notes: string | null;
+  readonly source_template_id: string | null;
+  readonly occurrence_date: Date | string | null;
   readonly split_method: 'equal';
   readonly status: ExpenseStatus;
   readonly version: number;
@@ -48,6 +51,25 @@ interface ExpenseJoinRow extends ExpenseBaseRow {
   readonly allocation_amount_minor: number | string | bigint;
   readonly rounding_adjustment_minor: number;
   readonly allocation_status: 'outstanding';
+  readonly payment_id: string | null;
+  readonly payment_amount_minor: number | string | bigint | null;
+  readonly payment_method: ExpensePaymentSummary['method'] | null;
+  readonly payment_reference: string | null;
+  readonly payment_note: string | null;
+  readonly payment_paid_at: Date | string | null;
+  readonly payment_status: ExpensePaymentSummary['status'] | null;
+  readonly payment_declared_by_user_id: string | null;
+  readonly payment_confirmed_by_user_id: string | null;
+  readonly payment_confirmed_at: Date | string | null;
+  readonly payment_disputed_by_user_id: string | null;
+  readonly payment_disputed_at: Date | string | null;
+  readonly payment_dispute_reason: string | null;
+  readonly payment_reversed_by_user_id: string | null;
+  readonly payment_reversed_at: Date | string | null;
+  readonly payment_reversal_reason: string | null;
+  readonly payment_version: number | null;
+  readonly payment_created_at: Date | string | null;
+  readonly payment_updated_at: Date | string | null;
 }
 
 interface IdempotencyRow {
@@ -71,7 +93,8 @@ export type ExpenseCreateResult =
 export type ExpenseTransitionResult =
   | { readonly status: 'updated'; readonly expense: ExpenseSummary }
   | {
-      readonly status: 'not_found' | 'forbidden' | 'version_conflict' | 'status_conflict';
+      readonly status:
+        'not_found' | 'forbidden' | 'version_conflict' | 'status_conflict' | 'payment_conflict';
     };
 
 @Injectable()
@@ -137,6 +160,7 @@ export class ExpensesRepository {
         input.configuration.amount.currency,
         activeMemberships,
         input.userId,
+        status === 'approved',
       );
       const expense: ExpenseSummary = {
         id: expenseId,
@@ -147,6 +171,8 @@ export class ExpensesRepository {
         amount: input.configuration.amount,
         dueDate: input.configuration.dueDate,
         notes: input.configuration.notes ?? null,
+        sourceTemplateId: null,
+        occurrenceDate: null,
         splitMethod: 'equal',
         status,
         allocations,
@@ -269,6 +295,14 @@ export class ExpensesRepository {
       } else {
         if (!isManager(membership.role) && !ownsProposal) return { status: 'forbidden' };
         if (current.status === 'reversed') return { status: 'status_conflict' };
+        const activePayments = await transaction.query<{ readonly id: string }>(
+          `SELECT p.id
+           FROM expense_payment_declarations p
+           WHERE p.expense_id = $1 AND p.household_id = $2 AND p.status <> 'reversed'
+           LIMIT 1`,
+          [input.expenseId, input.householdId],
+        );
+        if (activePayments.length > 0) return { status: 'payment_conflict' };
       }
 
       const nextStatus: ExpenseStatus = input.action === 'approve' ? 'approved' : 'reversed';
@@ -316,6 +350,7 @@ function equalAllocations(
   currency: string,
   members: readonly ActiveMembershipRow[],
   currentUserId: string,
+  canDeclareCurrentPayment: boolean,
 ): readonly ExpenseAllocationSummary[] {
   const base = Math.floor(totalMinor / members.length);
   const remainder = totalMinor % members.length;
@@ -325,6 +360,11 @@ function equalAllocations(
     amount: { minorUnits: base + (index < remainder ? 1 : 0), currency },
     roundingAdjustmentMinor: index < remainder ? 1 : 0,
     status: 'outstanding' as const,
+    paymentDeclarations: [],
+    canDeclarePayment:
+      canDeclareCurrentPayment &&
+      member.user_id === currentUserId &&
+      base + (index < remainder ? 1 : 0) > 0,
     isCurrentUser: member.user_id === currentUserId,
   }));
   const allocated = allocations.reduce((sum, allocation) => sum + allocation.amount.minorUnits, 0);
@@ -352,7 +392,8 @@ async function findMembershipContext(
 function expenseBaseSelect(): string {
   return `SELECT e.id, e.household_id, e.created_by_membership_id,
     creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
-    e.currency, e.due_date, e.notes, e.split_method, e.status, e.version,
+    e.currency, e.due_date, e.notes, e.source_template_id, e.occurrence_date,
+    e.split_method, e.status, e.version,
     e.created_at, e.updated_at
     FROM expenses e
     JOIN household_memberships creator ON creator.id = e.created_by_membership_id`;
@@ -366,21 +407,36 @@ async function selectExpenseRows(
   return executor.query<ExpenseJoinRow>(
     `SELECT e.id, e.household_id, e.created_by_membership_id,
        creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
-       e.currency, e.due_date, e.notes, e.split_method, e.status, e.version,
+       e.currency, e.due_date, e.notes, e.source_template_id, e.occurrence_date,
+       e.split_method, e.status, e.version,
        e.created_at, e.updated_at,
        a.membership_id AS allocation_membership_id,
        allocated.user_id AS allocation_user_id,
        profile.display_name AS allocation_display_name,
        a.amount_minor AS allocation_amount_minor,
        a.rounding_adjustment_minor,
-       a.status AS allocation_status
+       a.status AS allocation_status,
+       p.id AS payment_id, p.amount_minor AS payment_amount_minor, p.method AS payment_method,
+       p.payment_reference, p.note AS payment_note, p.paid_at AS payment_paid_at,
+       p.status AS payment_status, declared.user_id AS payment_declared_by_user_id,
+       confirmed.user_id AS payment_confirmed_by_user_id, p.confirmed_at AS payment_confirmed_at,
+       disputed.user_id AS payment_disputed_by_user_id, p.disputed_at AS payment_disputed_at,
+       p.dispute_reason AS payment_dispute_reason,
+       reversed.user_id AS payment_reversed_by_user_id, p.reversed_at AS payment_reversed_at,
+       p.reversal_reason AS payment_reversal_reason, p.version AS payment_version,
+       p.created_at AS payment_created_at, p.updated_at AS payment_updated_at
      FROM expenses e
      JOIN household_memberships creator ON creator.id = e.created_by_membership_id
      JOIN expense_allocations a ON a.expense_id = e.id
      JOIN household_memberships allocated ON allocated.id = a.membership_id
      JOIN user_profiles profile ON profile.user_id = allocated.user_id
+     LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
+     LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
+     LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
+     LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
+     LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
      WHERE e.household_id = $1 ${expenseId === undefined ? '' : 'AND e.id = $2'}
-     ORDER BY e.due_date, e.created_at DESC, e.id, a.membership_id`,
+     ORDER BY e.due_date, e.created_at DESC, e.id, a.membership_id, p.created_at, p.id`,
     expenseId === undefined ? [householdId] : [householdId, expenseId],
   );
 }
@@ -395,17 +451,45 @@ function mapExpenseRows(
   return [...grouped.values()].map((expenseRows) => {
     const row = expenseRows[0];
     if (row === undefined) throw new Error('Expense row group is empty.');
-    const allocations = expenseRows.map((allocation): ExpenseAllocationSummary => ({
-      membershipId: allocation.allocation_membership_id,
-      displayName: allocation.allocation_display_name,
-      amount: {
-        minorUnits: toSafeNumber(allocation.allocation_amount_minor),
-        currency: row.currency,
+    const allocationGroups = new Map<string, ExpenseJoinRow[]>();
+    for (const allocationRow of expenseRows) {
+      allocationGroups.set(allocationRow.allocation_membership_id, [
+        ...(allocationGroups.get(allocationRow.allocation_membership_id) ?? []),
+        allocationRow,
+      ]);
+    }
+    const allocations = [...allocationGroups.values()].map(
+      (allocationRows): ExpenseAllocationSummary => {
+        const allocation = allocationRows[0];
+        if (allocation === undefined) throw new Error('Expense allocation row group is empty.');
+        const paymentDeclarations = allocationRows.flatMap((paymentRow) => {
+          const payment = mapPaymentRow(paymentRow, row, membership, currentUserId);
+          return payment === null ? [] : [payment];
+        });
+        const activePayment = [...paymentDeclarations]
+          .reverse()
+          .find((payment) => payment.status !== 'reversed');
+        const isCurrentUser = allocation.allocation_user_id === currentUserId;
+        return {
+          membershipId: allocation.allocation_membership_id,
+          displayName: allocation.allocation_display_name,
+          amount: {
+            minorUnits: toSafeNumber(allocation.allocation_amount_minor),
+            currency: row.currency,
+          },
+          roundingAdjustmentMinor: allocation.rounding_adjustment_minor,
+          status: paymentAllocationStatus(activePayment?.status),
+          paymentDeclarations,
+          canDeclarePayment:
+            row.status === 'approved' &&
+            membership.role !== 'read_only' &&
+            isCurrentUser &&
+            toSafeNumber(allocation.allocation_amount_minor) > 0 &&
+            activePayment === undefined,
+          isCurrentUser,
+        };
       },
-      roundingAdjustmentMinor: allocation.rounding_adjustment_minor,
-      status: allocation.allocation_status,
-      isCurrentUser: allocation.allocation_user_id === currentUserId,
-    }));
+    );
     const ownsProposal =
       row.created_by_membership_id === membership.id && row.status === 'proposed';
     return {
@@ -417,6 +501,8 @@ function mapExpenseRows(
       amount: { minorUnits: toSafeNumber(row.amount_minor), currency: row.currency },
       dueDate: toLocalDate(row.due_date),
       notes: row.notes,
+      sourceTemplateId: row.source_template_id,
+      occurrenceDate: row.occurrence_date === null ? null : toLocalDate(row.occurrence_date),
       splitMethod: row.split_method,
       status: row.status,
       allocations,
@@ -454,7 +540,106 @@ function toInstant(value: Date | string): string {
 }
 
 function readExpenseResponse(value: unknown): ExpenseSummary {
-  return (typeof value === 'string' ? JSON.parse(value) : value) as ExpenseSummary;
+  type StoredExpenseAllocation = Omit<
+    ExpenseAllocationSummary,
+    'status' | 'paymentDeclarations' | 'canDeclarePayment'
+  > & {
+    readonly status?: ExpenseAllocationSummary['status'];
+    readonly paymentDeclarations?: ExpenseAllocationSummary['paymentDeclarations'];
+    readonly canDeclarePayment?: boolean;
+  };
+  type StoredExpenseResponse = Omit<
+    ExpenseSummary,
+    'sourceTemplateId' | 'occurrenceDate' | 'allocations'
+  > & {
+    readonly sourceTemplateId?: string | null;
+    readonly occurrenceDate?: string | null;
+    readonly allocations: readonly StoredExpenseAllocation[];
+  };
+  const stored = (typeof value === 'string' ? JSON.parse(value) : value) as StoredExpenseResponse;
+  return {
+    ...stored,
+    allocations: stored.allocations.map((allocation) => ({
+      ...allocation,
+      status: allocation.status ?? 'outstanding',
+      paymentDeclarations: allocation.paymentDeclarations ?? [],
+      canDeclarePayment:
+        allocation.canDeclarePayment ??
+        (stored.status === 'approved' &&
+          allocation.isCurrentUser &&
+          allocation.amount.minorUnits > 0),
+    })),
+    sourceTemplateId: stored.sourceTemplateId ?? null,
+    occurrenceDate: stored.occurrenceDate ?? null,
+  };
+}
+
+function mapPaymentRow(
+  payment: ExpenseJoinRow,
+  expense: ExpenseBaseRow,
+  membership: MembershipContextRow,
+  currentUserId: string,
+): ExpensePaymentSummary | null {
+  if (
+    payment.payment_id === null ||
+    payment.payment_amount_minor === null ||
+    payment.payment_method === null ||
+    payment.payment_paid_at === null ||
+    payment.payment_status === null ||
+    payment.payment_declared_by_user_id === null ||
+    payment.payment_version === null ||
+    payment.payment_created_at === null ||
+    payment.payment_updated_at === null
+  ) {
+    return null;
+  }
+  const isDeclarer = payment.payment_declared_by_user_id === currentUserId;
+  const canReview = !isDeclarer && membership.role !== 'read_only';
+  const canReverse =
+    payment.payment_status !== 'reversed' &&
+    (isDeclarer ||
+      isManager(membership.role) ||
+      expense.created_by_membership_id === membership.id);
+  return {
+    id: payment.payment_id,
+    expenseId: expense.id,
+    allocationMembershipId: payment.allocation_membership_id,
+    payerDisplayName: payment.allocation_display_name,
+    amount: { minorUnits: toSafeNumber(payment.payment_amount_minor), currency: expense.currency },
+    method: payment.payment_method,
+    reference: payment.payment_reference,
+    note: payment.payment_note,
+    paidAt: toInstant(payment.payment_paid_at),
+    status: payment.payment_status,
+    declaredByUserId: payment.payment_declared_by_user_id,
+    confirmedByUserId: payment.payment_confirmed_by_user_id,
+    confirmedAt:
+      payment.payment_confirmed_at === null ? null : toInstant(payment.payment_confirmed_at),
+    disputedByUserId: payment.payment_disputed_by_user_id,
+    disputedAt:
+      payment.payment_disputed_at === null ? null : toInstant(payment.payment_disputed_at),
+    disputeReason: payment.payment_dispute_reason,
+    reversedByUserId: payment.payment_reversed_by_user_id,
+    reversedAt:
+      payment.payment_reversed_at === null ? null : toInstant(payment.payment_reversed_at),
+    reversalReason: payment.payment_reversal_reason,
+    canConfirm: payment.payment_status === 'declared' && canReview,
+    canDispute:
+      (payment.payment_status === 'declared' || payment.payment_status === 'confirmed') &&
+      canReview,
+    canReverse,
+    version: payment.payment_version,
+    createdAt: toInstant(payment.payment_created_at),
+    updatedAt: toInstant(payment.payment_updated_at),
+  };
+}
+
+function paymentAllocationStatus(
+  status: ExpensePaymentSummary['status'] | undefined,
+): ExpenseAllocationSummary['status'] {
+  if (status === 'confirmed') return 'paid';
+  if (status === 'declared' || status === 'disputed') return status;
+  return 'outstanding';
 }
 
 async function writeExpenseEvidence(

@@ -31,19 +31,33 @@ all active household members; the detail sheet shows the exact allocation before
 Members can submit a proposal. An owner or administrator must approve it before it contributes to
 the approved summaries. Read-only members can inspect the ledger but cannot add or change entries.
 
-Active household-cost templates appear under **Planned household costs**. Choose **Use** to prefill
-the configured title, category, price and next due date, then check and save the real expense.
-Templates may use standard categories or an administrator-defined label. A template is a plan, not
-proof that a bill was issued or paid.
+Active schedules appear under **Planned household costs**. On each due date, SharedHouse creates one
+approved ledger cost and splits it exactly between the members who are active at that time. The item
+is labelled **Generated household cost** and the schedule advances automatically without creating a
+duplicate after a worker restart. **Add extra** creates a separate manual expense and should be used
+only for an additional charge. Schedules may use standard categories or an administrator-defined
+label. A generated item records the household obligation; it is not proof that a supplier invoice
+was issued or that anyone paid it.
 
 ### Marking an amount paid
 
-Payment declarations are planned but are not available in the current Android release. SharedHouse
-does not move money and must not be treated as proof that a bank transfer was made; continue to
-verify transfers in your bank account.
+Open an approved expense and find your allocation. Choose **Declare paid**, select bank transfer,
+cash, card, direct debit or another method, and optionally add a reference and household note. The
+app records the exact allocated amount and current time; it never changes the original charge.
 
-To correct a mistake, an eligible user chooses **Reverse ledger entry** and provides a reason.
-History remains visible so totals stay trustworthy; entries are never silently deleted.
+Your declaration remains **Awaiting confirmation** until another active member with write access
+independently checks it. That member can confirm it or dispute it with a reason. You cannot confirm
+your own declaration. A confirmed allocation no longer contributes to your outstanding summary;
+declared or disputed amounts remain outstanding until resolved.
+
+If the transfer was returned or the declaration was wrong, choose **Correct declaration** and give a
+reason. The allocation becomes outstanding again, while the original declaration, review and
+correction stay in payment history. SharedHouse does not move money and must not be treated as sole
+proof that a bank transfer occurred; continue to verify transfers in your bank account.
+
+**Reverse ledger entry** is for an incorrect charge, not an incorrect payment declaration. Active
+payment declarations must be corrected first. History remains visible so totals stay trustworthy;
+entries are never silently deleted.
 
 ## Shopping
 
@@ -51,15 +65,25 @@ Use the shared list to add quantity, expected price and notes. Claim an item whe
 
 ## Chores
 
-Your assignments appear on Home, Tasks and Calendar with your avatar. Open a task for instructions, time window and completion requirements.
+Open **Tasks** from the bottom navigation. The summary shows your active assignments, overdue work
+and all pending household requests. Use **My tasks**, **Active**, **Requests**, **Completed** and
+**All** to keep the board focused. Tap a card for its responsible member, room/zone, deadline,
+estimated duration, instructions, completion evidence and request history. Home shows the next real
+assignment returned by the API; it never invents a zero count while the service is unavailable.
 
-- **Complete:** finish and add a note/photo only if required.
+- **Start:** marks the assignment in progress for everyone.
+- **Complete:** finish it and add a useful completion note. The completion remains in history.
 - **Request help:** keep responsibility but ask another member to assist.
-- **Request swap:** ask an eligible member to take responsibility.
-- **Postpone:** choose an allowed later time and state a reason.
+- **Request swap:** choose an eligible member and state why. Responsibility does not change until
+  an owner/admin approves.
+- **Postpone:** choose a later date/time and state a reason. The current deadline remains in force
+  until approval.
 - **Report issue:** flag missing supplies, unsafe condition or wrong assignment.
 
-A request is pending until accepted or resolved.
+A request is pending until an owner/admin approves or rejects it. If another device changed the
+task first, SharedHouse loads the latest version instead of overwriting it. Current limitations:
+photo evidence, reusable templates, recurrence, automatic round-robin/balancing, calendar-generated
+chore events and remote task notifications remain planned.
 
 ## Calendar
 

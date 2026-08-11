@@ -159,6 +159,32 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun listHouseholdMembers(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<HouseholdMemberBoardDto> = execute {
+        client.get("$baseUrl/v1/households/$householdId/members") {
+            bearerAuth(accessToken)
+        }
+    }
+
+    suspend fun actOnHouseholdMember(
+        accessToken: String,
+        householdId: String,
+        membershipId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdMemberActionDto,
+    ): ApiResult<HouseholdMemberDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/members/$membershipId/actions") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(action)
+        }
+    }
+
     suspend fun listHouseholdInvitations(
         accessToken: String,
         householdId: String,
@@ -268,6 +294,44 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun listHouseholdTasks(
+        accessToken: String,
+        householdId: String,
+    ): ApiResult<HouseholdTaskBoardDto> = execute {
+        client.get("$baseUrl/v1/households/$householdId/tasks") { bearerAuth(accessToken) }
+    }
+
+    suspend fun createHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        configuration: HouseholdTaskConfigurationDto,
+    ): ApiResult<HouseholdTaskDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/tasks") {
+            bearerAuth(accessToken)
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(configuration)
+        }
+    }
+
+    suspend fun actOnHouseholdTask(
+        accessToken: String,
+        householdId: String,
+        taskId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        action: HouseholdTaskActionDto,
+    ): ApiResult<HouseholdTaskDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/tasks/$taskId/actions") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(action)
+        }
+    }
+
     suspend fun createExpense(
         accessToken: String,
         householdId: String,
@@ -306,6 +370,66 @@ class SharedHouseApiClient(
             header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
             contentType(ContentType.Application.Json)
             setBody(ReverseExpensePayload(reason))
+        }
+    }
+
+    suspend fun declareExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        idempotencyKey: String,
+        configuration: ExpensePaymentDeclarationDto,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/payments") {
+            bearerAuth(accessToken)
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(configuration)
+        }
+    }
+
+    suspend fun confirmExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/payments/$paymentId/confirm") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+        }
+    }
+
+    suspend fun disputeExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/payments/$paymentId/dispute") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            contentType(ContentType.Application.Json)
+            setBody(ExpensePaymentActionPayload(reason))
+        }
+    }
+
+    suspend fun reverseExpensePayment(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        paymentId: String,
+        expectedVersion: Int,
+        reason: String,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/payments/$paymentId/reverse") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            contentType(ContentType.Application.Json)
+            setBody(ExpensePaymentActionPayload(reason))
         }
     }
 

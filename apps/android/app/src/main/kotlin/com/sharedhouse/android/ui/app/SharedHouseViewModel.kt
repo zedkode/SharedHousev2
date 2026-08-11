@@ -15,7 +15,12 @@ import com.sharedhouse.android.ui.calendar.CalendarPeriodCalculator
 import com.sharedhouse.android.ui.calendar.CalendarUiReducer
 import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.android.ui.money.ExpenseAllocationUi
+import com.sharedhouse.android.ui.money.ExpenseAllocationStatus
 import com.sharedhouse.android.ui.money.ExpenseDraft
+import com.sharedhouse.android.ui.money.ExpensePaymentDraft
+import com.sharedhouse.android.ui.money.ExpensePaymentMethod
+import com.sharedhouse.android.ui.money.ExpensePaymentStatus
+import com.sharedhouse.android.ui.money.ExpensePaymentUi
 import com.sharedhouse.android.ui.money.ExpenseStatus
 import com.sharedhouse.android.ui.money.ExpenseTemplateDraft
 import com.sharedhouse.android.ui.money.ExpenseTemplateUi
@@ -24,16 +29,41 @@ import com.sharedhouse.android.ui.money.MoneyAction
 import com.sharedhouse.android.ui.money.MoneyContent
 import com.sharedhouse.android.ui.money.MoneyProblem
 import com.sharedhouse.android.ui.money.MoneyUiState
+import com.sharedhouse.android.ui.tasks.HouseholdTaskUi
+import com.sharedhouse.android.ui.tasks.TaskCommandDraft
+import com.sharedhouse.android.ui.tasks.TaskDraft
+import com.sharedhouse.android.ui.tasks.TaskMemberUi
+import com.sharedhouse.android.ui.tasks.TaskPriority
+import com.sharedhouse.android.ui.tasks.TaskRequestStatus
+import com.sharedhouse.android.ui.tasks.TaskRequestType
+import com.sharedhouse.android.ui.tasks.TaskRequestUi
+import com.sharedhouse.android.ui.tasks.TaskStatus
+import com.sharedhouse.android.ui.tasks.TasksAction
+import com.sharedhouse.android.ui.tasks.TasksContent
+import com.sharedhouse.android.ui.tasks.TasksProblem
+import com.sharedhouse.android.ui.tasks.TasksUiState
+import com.sharedhouse.android.ui.home.HouseholdMemberCommand
+import com.sharedhouse.android.ui.home.HouseholdMemberUi
+import com.sharedhouse.android.ui.home.HouseholdMembersContent
+import com.sharedhouse.android.ui.home.HouseholdMembersProblem
+import com.sharedhouse.android.ui.home.HouseholdMembersUiState
 import com.sharedhouse.network.ApiResult
 import com.sharedhouse.network.CalendarEventConfigurationDto
 import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.CreateHouseholdInvitationPayload
 import com.sharedhouse.network.ExpenseConfigurationDto
 import com.sharedhouse.network.ExpenseDto
+import com.sharedhouse.network.ExpensePaymentDeclarationDto
 import com.sharedhouse.network.ExpenseTemplateConfigurationDto
 import com.sharedhouse.network.ExpenseTemplateDto
 import com.sharedhouse.network.FieldViolationDto
 import com.sharedhouse.network.HouseholdConfigurationDto
+import com.sharedhouse.network.HouseholdMemberActionDto
+import com.sharedhouse.network.HouseholdMemberDto
+import com.sharedhouse.network.HouseholdTaskActionDto
+import com.sharedhouse.network.HouseholdTaskConfigurationDto
+import com.sharedhouse.network.HouseholdTaskDto
+import com.sharedhouse.network.HouseholdTaskMemberDto
 import com.sharedhouse.network.MoneyDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.ResendVerificationPayload
@@ -41,6 +71,7 @@ import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -75,10 +106,16 @@ class SharedHouseViewModel(
     private var calendarCreationIdempotencyKey: String? = null
     private var calendarCreationDraft: CalendarEventDraft? = null
     private var moneyLoadJob: Job? = null
+    private var tasksLoadJob: Job? = null
+    private var householdMembersLoadJob: Job? = null
     private var expenseCreationIdempotencyKey: String? = null
     private var expenseCreationDraft: ExpenseDraft? = null
+    private var paymentDeclarationIdempotencyKey: String? = null
+    private var paymentDeclarationDraft: Pair<String, ExpensePaymentDraft>? = null
     private var templateCreationIdempotencyKey: String? = null
     private var templateCreationDraft: ExpenseTemplateDraft? = null
+    private var taskCreationIdempotencyKey: String? = null
+    private var taskCreationDraft: TaskDraft? = null
 
     init {
         retrySessionRestore()
@@ -205,6 +242,28 @@ class SharedHouseViewModel(
             is MoneyAction.Create -> createExpense(action.draft)
             is MoneyAction.Approve -> transitionExpense(action.expenseId, action.expectedVersion, true, null)
             is MoneyAction.Reverse -> transitionExpense(action.expenseId, action.expectedVersion, false, action.reason)
+            is MoneyAction.DeclarePayment -> declareExpensePayment(action.expenseId, action.draft)
+            is MoneyAction.ConfirmPayment -> transitionExpensePayment(
+                action.expenseId,
+                action.paymentId,
+                action.expectedVersion,
+                PaymentTransition.CONFIRM,
+                null,
+            )
+            is MoneyAction.DisputePayment -> transitionExpensePayment(
+                action.expenseId,
+                action.paymentId,
+                action.expectedVersion,
+                PaymentTransition.DISPUTE,
+                action.reason,
+            )
+            is MoneyAction.ReversePayment -> transitionExpensePayment(
+                action.expenseId,
+                action.paymentId,
+                action.expectedVersion,
+                PaymentTransition.REVERSE,
+                action.reason,
+            )
             is MoneyAction.CreateTemplate -> createExpenseTemplate(action.draft)
             is MoneyAction.UpdateTemplate -> updateExpenseTemplate(action.templateId, action.expectedVersion, action.draft)
             is MoneyAction.ArchiveTemplate -> archiveExpenseTemplate(action.templateId, action.expectedVersion, action.reason)
@@ -212,6 +271,106 @@ class SharedHouseViewModel(
     }
 
     fun refreshMoney() = loadMoney()
+
+    fun handleTasksAction(action: TasksAction) {
+        if (_uiState.value.route != AppRoute.Home || _uiState.value.selectedHousehold == null) return
+        when (action) {
+            TasksAction.Retry -> loadTasks()
+            is TasksAction.Create -> createHouseholdTask(action.draft)
+            is TasksAction.Execute -> executeTaskAction(action.taskId, action.expectedVersion, action.draft)
+        }
+    }
+
+    private fun loadTasks(preserveProblem: Boolean = false) {
+        val household = _uiState.value.selectedHousehold ?: return
+        tasksLoadJob?.cancel()
+        householdMembersLoadJob?.cancel()
+        _uiState.update { state -> state.copy(tasks = state.tasks.copy(
+            content = TasksContent.Loading,
+            problem = if (preserveProblem) state.tasks.problem else null,
+        )) }
+        tasksLoadJob = viewModelScope.launch {
+            when (val result = authorized { gateway.listHouseholdTasks(it, household.id) }) {
+                is ApiResult.Success -> if (_uiState.value.selectedHousehold?.id == household.id) {
+                    val mapped = runCatching { result.value.tasks.map { it.toTaskUi(result.value.members) } }.getOrNull()
+                    _uiState.update { state -> state.copy(tasks = state.tasks.copy(
+                        content = mapped?.let { TasksContent.Ready(it.sortedWith(compareBy<HouseholdTaskUi> { task -> task.status.ordinal }.thenBy { task -> task.dueDate })) } ?: TasksContent.Error,
+                        canCreate = result.value.canCreate,
+                        members = result.value.members.map { TaskMemberUi(it.membershipId, it.displayName, it.isCurrentUser) },
+                        isMutationInProgress = false,
+                        problem = if (mapped == null) TasksProblem.LOAD_FAILED else state.tasks.problem,
+                    )) }
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    _uiState.update { it.copy(tasks = it.tasks.copy(content = TasksContent.Error, isMutationInProgress = false, problem = TasksProblem.LOAD_FAILED)) }
+                }
+            }
+        }
+    }
+
+    private fun createHouseholdTask(draft: TaskDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        if (!snapshot.tasks.canCreate || snapshot.tasks.isMutationInProgress) return
+        val key = (if (taskCreationDraft == draft) taskCreationIdempotencyKey else null) ?: UUID.randomUUID().toString().also {
+            taskCreationDraft = draft; taskCreationIdempotencyKey = it
+        }
+        beginTaskMutation()
+        viewModelScope.launch {
+            when (val result = authorized { gateway.createHouseholdTask(it, household.id, key, HouseholdTaskConfigurationDto(
+                title = draft.title, instructions = draft.instructions, zone = draft.zone,
+                priority = draft.priority.wireValue, dueDate = draft.dueDate.toString(), dueTime = draft.dueTime,
+                estimatedMinutes = draft.estimatedMinutes, assigneeMembershipId = draft.assigneeMembershipId,
+            )) }) {
+                is ApiResult.Success -> { taskCreationDraft = null; taskCreationIdempotencyKey = null; applyTask(result.value) }
+                is ApiResult.Failure -> finishTaskMutation(result, TasksProblem.CREATE_FAILED)
+            }
+        }
+    }
+
+    private fun executeTaskAction(taskId: String, version: Int, draft: TaskCommandDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val task = (snapshot.tasks.content as? TasksContent.Ready)?.tasks?.firstOrNull { it.id == taskId } ?: return
+        if (snapshot.tasks.isMutationInProgress || task.version != version) return
+        beginTaskMutation()
+        viewModelScope.launch {
+            when (val result = authorized { gateway.actOnHouseholdTask(
+                it, household.id, taskId, version, UUID.randomUUID().toString(), HouseholdTaskActionDto(
+                    action = draft.command.wireValue, note = draft.note, requestId = draft.requestId,
+                    requestedAssigneeMembershipId = draft.requestedAssigneeMembershipId,
+                    requestedDueDate = draft.requestedDueDate?.toString(), requestedDueTime = draft.requestedDueTime,
+                ),
+            ) }) {
+                is ApiResult.Success -> applyTask(result.value)
+                is ApiResult.Failure -> finishTaskMutation(result, TasksProblem.ACTION_FAILED)
+            }
+        }
+    }
+
+    private fun beginTaskMutation() = _uiState.update { it.copy(tasks = it.tasks.copy(isMutationInProgress = true, problem = null)) }
+
+    private fun applyTask(dto: HouseholdTaskDto) {
+        val mapped = runCatching { dto.toTaskUi(emptyList()) }.getOrElse {
+            loadTasks(); return
+        }
+        _uiState.update { state ->
+            val current = (state.tasks.content as? TasksContent.Ready)?.tasks.orEmpty().filterNot { it.id == mapped.id }.plus(mapped)
+            state.copy(tasks = state.tasks.copy(content = TasksContent.Ready(current.sortedBy(HouseholdTaskUi::dueDate)), isMutationInProgress = false, problem = null))
+        }
+    }
+
+    private fun finishTaskMutation(failure: ApiResult.Failure, fallback: TasksProblem) {
+        if (_uiState.value.route == AppRoute.SignIn) return
+        val problem = when (failure.code) {
+            "HOUSEHOLD_TASK_VERSION_CONFLICT" -> TasksProblem.VERSION_CONFLICT
+            "HOUSEHOLD_TASK_REQUEST_CONFLICT" -> TasksProblem.REQUEST_CONFLICT
+            "HOUSEHOLD_TASK_INVALID_TRANSITION" -> TasksProblem.INVALID_TRANSITION
+            else -> fallback
+        }
+        _uiState.update { it.copy(tasks = it.tasks.copy(isMutationInProgress = false, problem = problem)) }
+        if (problem != fallback) loadTasks(true)
+    }
 
     private fun loadMoney(preserveProblem: Boolean = false) {
         val household = _uiState.value.selectedHousehold ?: return
@@ -305,6 +464,113 @@ class SharedHouseViewModel(
                 is ApiResult.Failure -> finishMoneyMutation(
                     result,
                     if (approve) MoneyProblem.APPROVE_FAILED else MoneyProblem.REVERSE_FAILED,
+                )
+            }
+        }
+    }
+
+    private fun declareExpensePayment(expenseId: String, draft: ExpensePaymentDraft) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val expense = (snapshot.money.content as? MoneyContent.Ready)?.expenses
+            ?.firstOrNull { it.id == expenseId } ?: return
+        if (
+            snapshot.money.isMutationInProgress ||
+            expense.allocations.none { it.isCurrentUser && it.canDeclarePayment }
+        ) return
+        val declaration = expenseId to draft
+        val key = (if (paymentDeclarationDraft == declaration) paymentDeclarationIdempotencyKey else null)
+            ?: UUID.randomUUID().toString().also {
+                paymentDeclarationDraft = declaration
+                paymentDeclarationIdempotencyKey = it
+            }
+        beginMoneyMutation()
+        viewModelScope.launch {
+            when (val result = authorized { token ->
+                gateway.declareExpensePayment(
+                    token,
+                    household.id,
+                    expenseId,
+                    key,
+                    ExpensePaymentDeclarationDto(
+                        method = draft.method.wireValue,
+                        paidAt = draft.paidAt.toString(),
+                        reference = draft.reference,
+                        note = draft.note,
+                    ),
+                )
+            }) {
+                is ApiResult.Success -> {
+                    paymentDeclarationDraft = null
+                    paymentDeclarationIdempotencyKey = null
+                    applyExpense(result.value)
+                }
+                is ApiResult.Failure -> finishMoneyMutation(
+                    result,
+                    MoneyProblem.PAYMENT_DECLARE_FAILED,
+                )
+            }
+        }
+    }
+
+    private fun transitionExpensePayment(
+        expenseId: String,
+        paymentId: String,
+        version: Int,
+        transition: PaymentTransition,
+        reason: String?,
+    ) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val payment = (snapshot.money.content as? MoneyContent.Ready)?.expenses
+            ?.firstOrNull { it.id == expenseId }
+            ?.allocations
+            ?.flatMap(ExpenseAllocationUi::paymentDeclarations)
+            ?.firstOrNull { it.id == paymentId } ?: return
+        val permitted = when (transition) {
+            PaymentTransition.CONFIRM -> payment.canConfirm
+            PaymentTransition.DISPUTE -> payment.canDispute
+            PaymentTransition.REVERSE -> payment.canReverse
+        }
+        if (snapshot.money.isMutationInProgress || !permitted) return
+        beginMoneyMutation()
+        viewModelScope.launch {
+            val result = authorized { token ->
+                when (transition) {
+                    PaymentTransition.CONFIRM -> gateway.confirmExpensePayment(
+                        token,
+                        household.id,
+                        expenseId,
+                        paymentId,
+                        version,
+                    )
+                    PaymentTransition.DISPUTE -> gateway.disputeExpensePayment(
+                        token,
+                        household.id,
+                        expenseId,
+                        paymentId,
+                        version,
+                        requireNotNull(reason),
+                    )
+                    PaymentTransition.REVERSE -> gateway.reverseExpensePayment(
+                        token,
+                        household.id,
+                        expenseId,
+                        paymentId,
+                        version,
+                        requireNotNull(reason),
+                    )
+                }
+            }
+            when (result) {
+                is ApiResult.Success -> applyExpense(result.value)
+                is ApiResult.Failure -> finishMoneyMutation(
+                    result,
+                    when (transition) {
+                        PaymentTransition.CONFIRM -> MoneyProblem.PAYMENT_CONFIRM_FAILED
+                        PaymentTransition.DISPUTE -> MoneyProblem.PAYMENT_DISPUTE_FAILED
+                        PaymentTransition.REVERSE -> MoneyProblem.PAYMENT_REVERSE_FAILED
+                    },
                 )
             }
         }
@@ -410,12 +676,18 @@ class SharedHouseViewModel(
     private fun finishMoneyMutation(failure: ApiResult.Failure, fallback: MoneyProblem) {
         if (_uiState.value.route == AppRoute.SignIn) return
         val conflict = failure.status == 412 || failure.code == "EXPENSE_VERSION_CONFLICT" ||
-            failure.code == "EXPENSE_TEMPLATE_VERSION_CONFLICT"
+            failure.code == "EXPENSE_TEMPLATE_VERSION_CONFLICT" ||
+            failure.code == "PAYMENT_VERSION_CONFLICT"
         _uiState.update { it.copy(money = it.money.copy(
             isMutationInProgress = false,
             problem = if (conflict) MoneyProblem.VERSION_CONFLICT else fallback,
         )) }
-        if (conflict || failure.code == "EXPENSE_NOT_FOUND" || failure.code == "EXPENSE_TEMPLATE_NOT_FOUND") loadMoney(true)
+        if (
+            conflict ||
+            failure.code == "EXPENSE_NOT_FOUND" ||
+            failure.code == "EXPENSE_TEMPLATE_NOT_FOUND" ||
+            failure.code == "PAYMENT_NOT_FOUND"
+        ) loadMoney(true)
     }
 
     private fun loadCalendar(preserveMutationProblem: Boolean = false) {
@@ -893,10 +1165,12 @@ class SharedHouseViewModel(
                             householdEditorMode = HouseholdEditorMode.Edit,
                             calendar = it.calendar.forHousehold(result.value),
                             money = it.money.forHousehold(result.value),
+                            tasks = it.tasks.forHousehold(result.value),
                         )
                     }
                     loadCalendar()
                     loadMoney()
+                    loadTasks()
                 }
 
                 is ApiResult.Failure -> {
@@ -1035,10 +1309,12 @@ class SharedHouseViewModel(
                             correlationId = null,
                             calendar = it.calendar.forHousehold(accepted),
                             money = it.money.forHousehold(accepted),
+                            tasks = it.tasks.forHousehold(accepted),
                         )
                     }
                     loadCalendar()
                     loadMoney()
+                    loadTasks()
                 }
 
                 is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
@@ -1088,6 +1364,7 @@ class SharedHouseViewModel(
         val selected = snapshot.households.firstOrNull { it.id == householdId } ?: return
         calendarLoadJob?.cancel()
         moneyLoadJob?.cancel()
+        tasksLoadJob?.cancel()
         _uiState.update {
             it.copy(
                 route = AppRoute.Home,
@@ -1101,10 +1378,116 @@ class SharedHouseViewModel(
                 correlationId = null,
                 calendar = it.calendar.forHousehold(selected),
                 money = it.money.forHousehold(selected),
+                tasks = it.tasks.forHousehold(selected),
+                householdMembers = HouseholdMembersUiState(),
             )
         }
         loadCalendar()
         loadMoney()
+        loadTasks()
+        loadHouseholdMembers()
+    }
+
+    fun retryHouseholdMembers() = loadHouseholdMembers()
+
+    fun actOnHouseholdMember(command: HouseholdMemberCommand) {
+        val snapshot = _uiState.value
+        val household = snapshot.selectedHousehold ?: return
+        val ready = snapshot.householdMembers.content as? HouseholdMembersContent.Ready ?: return
+        val target = ready.members.firstOrNull { it.membershipId == command.membershipId } ?: return
+        if (snapshot.householdMembers.mutatingMembershipId != null || target.version != command.expectedVersion) return
+        val allowed = when (command.action) {
+            "change_role" -> target.canChangeRole && command.role in target.assignableRoles
+            "suspend" -> target.canSuspend
+            "reactivate" -> target.canReactivate
+            "remove" -> target.canRemove
+            "transfer_ownership" -> target.canTransferOwnership
+            else -> false
+        }
+        if (!allowed) return
+        _uiState.update {
+            it.copy(householdMembers = it.householdMembers.copy(
+                mutatingMembershipId = target.membershipId,
+                problem = null,
+            ))
+        }
+        viewModelScope.launch {
+            val result = authorized { token ->
+                gateway.actOnHouseholdMember(
+                    accessToken = token,
+                    householdId = household.id,
+                    membershipId = target.membershipId,
+                    expectedVersion = target.version,
+                    idempotencyKey = UUID.randomUUID().toString(),
+                    action = HouseholdMemberActionDto(command.action, command.role),
+                )
+            }
+            when (result) {
+                is ApiResult.Success -> {
+                    if (command.action == "transfer_ownership") {
+                        _uiState.update { state ->
+                            val selected = state.selectedHousehold?.copy(role = "admin")
+                            state.copy(
+                                selectedHousehold = selected,
+                                households = state.households.map { option ->
+                                    if (option.id == household.id) option.copy(role = "admin") else option
+                                },
+                            )
+                        }
+                    }
+                    loadHouseholdMembers()
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn) {
+                    if (result.code == "HOUSEHOLD_MEMBER_VERSION_CONFLICT") {
+                        loadHouseholdMembers(HouseholdMembersProblem.VERSION_CONFLICT)
+                    } else {
+                        _uiState.update {
+                            it.copy(householdMembers = it.householdMembers.copy(
+                                mutatingMembershipId = null,
+                                problem = HouseholdMembersProblem.ACTION_FAILED,
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadHouseholdMembers(problemAfterLoad: HouseholdMembersProblem? = null) {
+        val household = _uiState.value.selectedHousehold ?: return
+        householdMembersLoadJob?.cancel()
+        _uiState.update {
+            it.copy(householdMembers = it.householdMembers.copy(
+                content = HouseholdMembersContent.Loading,
+                mutatingMembershipId = null,
+                problem = problemAfterLoad,
+            ))
+        }
+        householdMembersLoadJob = viewModelScope.launch {
+            when (val result = authorized { token -> gateway.listHouseholdMembers(token, household.id) }) {
+                is ApiResult.Success -> if (_uiState.value.selectedHousehold?.id == household.id) {
+                    _uiState.update {
+                        it.copy(householdMembers = HouseholdMembersUiState(
+                            content = HouseholdMembersContent.Ready(
+                                canInvite = result.value.canInvite,
+                                canEditHousehold = result.value.canEditHousehold,
+                                members = result.value.members.map { member -> member.toMemberUi() },
+                            ),
+                            problem = problemAfterLoad,
+                        ))
+                    }
+                }
+                is ApiResult.Failure -> if (_uiState.value.route != AppRoute.SignIn &&
+                    _uiState.value.selectedHousehold?.id == household.id) {
+                    _uiState.update {
+                        it.copy(householdMembers = HouseholdMembersUiState(
+                            content = HouseholdMembersContent.Error,
+                            problem = HouseholdMembersProblem.LOAD_FAILED,
+                        ))
+                    }
+                }
+            }
+        }
     }
 
     fun updateInvitationEmail(value: String) {
@@ -1483,11 +1866,17 @@ class SharedHouseViewModel(
                         money = selected?.let { household ->
                             it.money.forHousehold(household)
                         } ?: MoneyUiState(),
+                        tasks = selected?.let { household ->
+                            it.tasks.forHousehold(household)
+                        } ?: TasksUiState(),
+                        householdMembers = HouseholdMembersUiState(),
                     )
                 }
                 if (selected != null) {
                     loadCalendar()
                     loadMoney()
+                    loadTasks()
+                    loadHouseholdMembers()
                 }
             }
 
@@ -1615,6 +2004,7 @@ class SharedHouseViewModel(
         sessionStore.clear()
         calendarLoadJob?.cancel()
         moneyLoadJob?.cancel()
+        tasksLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
         calendarCreationIdempotencyKey = null
@@ -1623,6 +2013,8 @@ class SharedHouseViewModel(
         expenseCreationDraft = null
         templateCreationIdempotencyKey = null
         templateCreationDraft = null
+        taskCreationIdempotencyKey = null
+        taskCreationDraft = null
         _uiState.update {
             it.copy(
                 route = AppRoute.SignIn,
@@ -1638,6 +2030,7 @@ class SharedHouseViewModel(
                 fieldErrors = emptyMap(),
                 calendar = CalendarUiState(),
                 money = MoneyUiState(),
+                tasks = TasksUiState(),
                 invitation = InvitationUiState(),
             )
         }
@@ -1646,6 +2039,7 @@ class SharedHouseViewModel(
     private fun clearSession(notice: UiMessage) {
         calendarLoadJob?.cancel()
         moneyLoadJob?.cancel()
+        tasksLoadJob?.cancel()
         session = null
         householdCreationIdempotencyKey = null
         calendarCreationIdempotencyKey = null
@@ -1654,6 +2048,8 @@ class SharedHouseViewModel(
         expenseCreationDraft = null
         templateCreationIdempotencyKey = null
         templateCreationDraft = null
+        taskCreationIdempotencyKey = null
+        taskCreationDraft = null
         _uiState.update {
             AppUiState(
                 route = AppRoute.Welcome,
@@ -1750,6 +2146,54 @@ class SharedHouseViewModel(
         canManageTemplates = household.role in MONEY_MANAGER_ROLES,
     )
 
+    private fun TasksUiState.forHousehold(
+        household: com.sharedhouse.network.HouseholdDto,
+    ) = TasksUiState(
+        content = TasksContent.Loading,
+        canCreate = household.role in TASK_MANAGER_ROLES,
+    )
+
+    private fun HouseholdTaskDto.toTaskUi(members: List<HouseholdTaskMemberDto>): HouseholdTaskUi {
+        val household = requireNotNull(_uiState.value.selectedHousehold)
+        require(householdId == household.id)
+        val currentMembershipId = members.firstOrNull { it.isCurrentUser }?.membershipId
+            ?: _uiState.value.tasks.members.firstOrNull { it.isCurrentUser }?.membershipId
+        return HouseholdTaskUi(
+            id = id,
+            title = title,
+            instructions = instructions,
+            zone = zone,
+            priority = TaskPriority.valueOf(priority.uppercase()),
+            dueDate = LocalDate.parse(dueDate),
+            dueTime = dueTime,
+            estimatedMinutes = estimatedMinutes,
+            assigneeMembershipId = assigneeMembershipId,
+            assigneeDisplayName = assigneeDisplayName,
+            isMine = assigneeMembershipId == currentMembershipId,
+            status = TaskStatus.valueOf(status.uppercase()),
+            completionNote = completionNote,
+            completedAt = completedAt?.let(Instant::parse),
+            requests = requests.map { request ->
+                TaskRequestUi(
+                    id = request.id,
+                    type = TaskRequestType.valueOf(request.type.uppercase()),
+                    status = TaskRequestStatus.valueOf(request.status.uppercase()),
+                    reason = request.reason,
+                    requestedAssigneeMembershipId = request.requestedAssigneeMembershipId,
+                    requestedDueDate = request.requestedDueDate?.let(LocalDate::parse),
+                    requestedDueTime = request.requestedDueTime,
+                    createdByDisplayName = request.createdByDisplayName,
+                    resolutionNote = request.resolutionNote,
+                )
+            },
+            canManage = canManage,
+            canStart = canStart,
+            canComplete = canComplete,
+            canRequest = canRequest,
+            version = version,
+        )
+    }
+
     private fun ExpenseDto.toMoneyUi(): ExpenseUi {
         val household = requireNotNull(_uiState.value.selectedHousehold)
         require(householdId == household.id && amount.currency == household.currency)
@@ -1769,13 +2213,56 @@ class SharedHouseViewModel(
             currency = amount.currency,
             dueDate = LocalDate.parse(dueDate),
             notes = notes,
+            sourceTemplateId = sourceTemplateId,
+            occurrenceDate = occurrenceDate?.let(LocalDate::parse),
             status = parsedStatus,
             allocations = allocations.map { allocation ->
                 require(allocation.amount.currency == amount.currency)
                 ExpenseAllocationUi(
+                    membershipId = allocation.membershipId,
                     displayName = allocation.displayName,
                     amountMinor = allocation.amount.minorUnits,
                     roundingAdjustmentMinor = allocation.roundingAdjustmentMinor,
+                    status = when (allocation.status) {
+                        "outstanding" -> ExpenseAllocationStatus.OUTSTANDING
+                        "declared" -> ExpenseAllocationStatus.DECLARED
+                        "paid" -> ExpenseAllocationStatus.PAID
+                        "disputed" -> ExpenseAllocationStatus.DISPUTED
+                        else -> error("Unknown allocation payment status")
+                    },
+                    paymentDeclarations = allocation.paymentDeclarations.map { payment ->
+                        require(
+                            payment.expenseId == id &&
+                                payment.allocationMembershipId == allocation.membershipId &&
+                                payment.amount.currency == amount.currency,
+                        )
+                        ExpensePaymentUi(
+                            id = payment.id,
+                            payerDisplayName = payment.payerDisplayName,
+                            amountMinor = payment.amount.minorUnits,
+                            currency = payment.amount.currency,
+                            method = ExpensePaymentMethod.fromWire(payment.method),
+                            reference = payment.reference,
+                            note = payment.note,
+                            paidAt = Instant.parse(payment.paidAt),
+                            status = when (payment.status) {
+                                "declared" -> ExpensePaymentStatus.DECLARED
+                                "confirmed" -> ExpensePaymentStatus.CONFIRMED
+                                "disputed" -> ExpensePaymentStatus.DISPUTED
+                                "reversed" -> ExpensePaymentStatus.REVERSED
+                                else -> error("Unknown payment status")
+                            },
+                            confirmedAt = payment.confirmedAt?.let(Instant::parse),
+                            disputeReason = payment.disputeReason,
+                            reversedAt = payment.reversedAt?.let(Instant::parse),
+                            reversalReason = payment.reversalReason,
+                            canConfirm = payment.canConfirm,
+                            canDispute = payment.canDispute,
+                            canReverse = payment.canReverse,
+                            version = payment.version,
+                        )
+                    },
+                    canDeclarePayment = allocation.canDeclarePayment,
                     isCurrentUser = allocation.isCurrentUser,
                 )
             },
@@ -1785,6 +2272,8 @@ class SharedHouseViewModel(
             version = version,
         )
     }
+
+    private enum class PaymentTransition { CONFIRM, DISPUTE, REVERSE }
 
     private fun ExpenseTemplateDraft.toDto(currency: String) = ExpenseTemplateConfigurationDto(
         title = title,
@@ -1868,10 +2357,27 @@ class SharedHouseViewModel(
         cycleAnchor = cycleAnchor,
     )
 
+    private fun HouseholdMemberDto.toMemberUi() = HouseholdMemberUi(
+        membershipId = membershipId,
+        displayName = displayName,
+        role = role,
+        status = status,
+        isCurrentUser = isCurrentUser,
+        canChangeRole = canChangeRole,
+        canSuspend = canSuspend,
+        canReactivate = canReactivate,
+        canRemove = canRemove,
+        canTransferOwnership = canTransferOwnership,
+        assignableRoles = assignableRoles,
+        joinedAt = joinedAt,
+        version = version,
+    )
+
     private companion object {
         val CALENDAR_WRITER_ROLES = setOf("owner", "admin", "member")
         val MONEY_WRITER_ROLES = setOf("owner", "admin", "member")
         val MONEY_MANAGER_ROLES = setOf("owner", "admin")
+        val TASK_MANAGER_ROLES = setOf("owner", "admin")
         val INVITATION_TOKEN = Regex("^sh_inv_[A-Za-z0-9_-]{43}$")
         val EMAIL = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
     }

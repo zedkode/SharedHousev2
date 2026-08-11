@@ -68,7 +68,10 @@ import java.math.RoundingMode
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Currency
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +106,11 @@ fun MoneyScreen(
     val templatePrefill = templatePrefillId?.let { id -> state.templates.firstOrNull { it.id == id } }
     val approved = expenses.filter { it.status == ExpenseStatus.APPROVED }
     val householdTotal = approved.sumOf { it.amountMinor }
-    val personalTotal = approved.sumOf { it.currentUserShareMinor }
+    val personalTotal = approved.sumOf { expense ->
+        expense.allocations
+            .filter { it.isCurrentUser && it.status != ExpenseAllocationStatus.PAID }
+            .sumOf(ExpenseAllocationUi::amountMinor)
+    }
 
     Scaffold(
         modifier = modifier,
@@ -233,6 +240,32 @@ fun MoneyScreen(
                 onAction(MoneyAction.Reverse(selected.id, selected.version, reason))
                 selectedId = null
             },
+            onDeclarePayment = { draft ->
+                onAction(MoneyAction.DeclarePayment(selected.id, draft))
+            },
+            onConfirmPayment = { payment ->
+                onAction(MoneyAction.ConfirmPayment(selected.id, payment.id, payment.version))
+            },
+            onDisputePayment = { payment, reason ->
+                onAction(
+                    MoneyAction.DisputePayment(
+                        selected.id,
+                        payment.id,
+                        payment.version,
+                        reason,
+                    ),
+                )
+            },
+            onReversePayment = { payment, reason ->
+                onAction(
+                    MoneyAction.ReversePayment(
+                        selected.id,
+                        payment.id,
+                        payment.version,
+                        reason,
+                    ),
+                )
+            },
         )
     }
     if (templateAdminOpen) {
@@ -296,6 +329,13 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(expense.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(expense.category.displayName(expense.customCategoryName), style = MaterialTheme.typography.bodySmall)
+                    if (expense.sourceTemplateId != null) {
+                        Text(
+                            stringResource(R.string.money_generated_cost),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
                 Text(formatMoney(expense.amountMinor, expense.currency), style = MaterialTheme.typography.titleMedium)
                 Icon(Icons.Outlined.MoreVert, null)
@@ -663,33 +703,196 @@ private fun ExpenseEditor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExpenseDetails(expense: ExpenseUi, busy: Boolean, onDismiss: () -> Unit, onApprove: () -> Unit, onReverse: (String) -> Unit) {
+private fun ExpenseDetails(
+    expense: ExpenseUi,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onApprove: () -> Unit,
+    onReverse: (String) -> Unit,
+    onDeclarePayment: (ExpensePaymentDraft) -> Unit,
+    onConfirmPayment: (ExpensePaymentUi) -> Unit,
+    onDisputePayment: (ExpensePaymentUi, String) -> Unit,
+    onReversePayment: (ExpensePaymentUi, String) -> Unit,
+) {
     var reverseOpen by rememberSaveable { mutableStateOf(false) }
+    var declarationOpen by rememberSaveable { mutableStateOf(false) }
+    var confirmPaymentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var disputePaymentId by rememberSaveable { mutableStateOf<String?>(null) }
+    var reversePaymentId by rememberSaveable { mutableStateOf<String?>(null) }
+    val payments = expense.allocations.flatMap(ExpenseAllocationUi::paymentDeclarations)
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(expense.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(stringResource(expense.status.labelResource), color = expense.status.color())
-            Text(formatMoney(expense.amountMinor, expense.currency), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.money_due_value, expense.dueDate.toString()))
-            expense.notes?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            HorizontalDivider()
-            Text(stringResource(R.string.money_split_breakdown), style = MaterialTheme.typography.titleMedium)
-            expense.allocations.forEach { allocation ->
-                Row(Modifier.fillMaxWidth()) {
-                    Text(if (allocation.isCurrentUser) stringResource(R.string.money_you_name, allocation.displayName) else allocation.displayName, Modifier.weight(1f))
-                    Text(formatMoney(allocation.amountMinor, expense.currency))
+        LazyColumn(
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Text(
+                    expense.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            item { Text(stringResource(expense.status.labelResource), color = expense.status.color()) }
+            item {
+                Text(
+                    formatMoney(expense.amountMinor, expense.currency),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+            }
+            item { Text(stringResource(R.string.money_due_value, expense.dueDate.toString())) }
+            if (expense.sourceTemplateId != null) {
+                item {
+                    Text(
+                        stringResource(
+                            R.string.money_generated_cost_details,
+                            (expense.occurrenceDate ?: expense.dueDate).toString(),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            expense.notes?.let { note ->
+                item { Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            item { HorizontalDivider() }
+            item {
+                Text(
+                    stringResource(R.string.money_split_breakdown),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            items(expense.allocations, key = ExpenseAllocationUi::membershipId) { allocation ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (allocation.isCurrentUser) {
+                                stringResource(R.string.money_you_name, allocation.displayName)
+                            } else {
+                                allocation.displayName
+                            },
+                            Modifier.weight(1f),
+                        )
+                        Text(formatMoney(allocation.amountMinor, expense.currency))
+                    }
+                    Text(
+                        stringResource(allocation.status.labelResource),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = allocation.status.color(),
+                    )
+                    if (allocation.canDeclarePayment) {
+                        Button(
+                            onClick = { declarationOpen = true },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.money_declare_payment))
+                        }
+                    }
                 }
             }
             if (expense.allocations.any { it.roundingAdjustmentMinor != 0L }) {
-                Text(stringResource(R.string.money_rounding_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                item {
+                    Text(
+                        stringResource(R.string.money_rounding_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            if (expense.canApprove) Button(onClick = onApprove, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.money_approve))
+            if (payments.isNotEmpty()) {
+                item { HorizontalDivider() }
+                item {
+                    Text(
+                        stringResource(R.string.money_payment_history),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                items(payments, key = ExpensePaymentUi::id) { payment ->
+                    PaymentHistoryCard(
+                        payment = payment,
+                        busy = busy,
+                        onConfirm = { confirmPaymentId = payment.id },
+                        onDispute = { disputePaymentId = payment.id },
+                        onReverse = { reversePaymentId = payment.id },
+                    )
+                }
             }
-            if (expense.canReverse) TextButton(onClick = { reverseOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.money_reverse))
+            if (expense.canApprove) {
+                item {
+                    Button(
+                        onClick = onApprove,
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.money_approve)) }
+                }
+            }
+            if (expense.canReverse) {
+                item {
+                    TextButton(
+                        onClick = { reverseOpen = true },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.money_reverse)) }
+                }
             }
         }
+    }
+    if (declarationOpen) {
+        PaymentDeclarationDialog(
+            amountMinor = expense.allocations.firstOrNull { it.isCurrentUser }?.amountMinor ?: 0,
+            currency = expense.currency,
+            onDismiss = { declarationOpen = false },
+            onConfirm = {
+                onDeclarePayment(it)
+                declarationOpen = false
+            },
+        )
+    }
+    val confirmation = payments.firstOrNull { it.id == confirmPaymentId }
+    if (confirmation != null) {
+        AlertDialog(
+            onDismissRequest = { confirmPaymentId = null },
+            title = { Text(stringResource(R.string.money_confirm_payment_title)) },
+            text = { Text(stringResource(R.string.money_confirm_payment_explanation)) },
+            confirmButton = {
+                Button(onClick = {
+                    onConfirmPayment(confirmation)
+                    confirmPaymentId = null
+                }) { Text(stringResource(R.string.money_confirm_payment)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmPaymentId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+    val dispute = payments.firstOrNull { it.id == disputePaymentId }
+    if (dispute != null) {
+        PaymentReasonDialog(
+            title = stringResource(R.string.money_dispute_payment_title),
+            explanation = stringResource(R.string.money_dispute_payment_explanation),
+            actionLabel = stringResource(R.string.money_dispute_payment),
+            onDismiss = { disputePaymentId = null },
+            onConfirm = {
+                onDisputePayment(dispute, it)
+                disputePaymentId = null
+            },
+        )
+    }
+    val paymentToReverse = payments.firstOrNull { it.id == reversePaymentId }
+    if (paymentToReverse != null) {
+        PaymentReasonDialog(
+            title = stringResource(R.string.money_reverse_payment_title),
+            explanation = stringResource(R.string.money_reverse_payment_explanation),
+            actionLabel = stringResource(R.string.money_reverse_payment),
+            onDismiss = { reversePaymentId = null },
+            onConfirm = {
+                onReversePayment(paymentToReverse, it)
+                reversePaymentId = null
+            },
+        )
     }
     if (reverseOpen) {
         var reason by rememberSaveable { mutableStateOf("") }
@@ -701,6 +904,178 @@ private fun ExpenseDetails(expense: ExpenseUi, busy: Boolean, onDismiss: () -> U
             dismissButton = { TextButton(onClick = { reverseOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
+}
+
+@Composable
+private fun PaymentHistoryCard(
+    payment: ExpensePaymentUi,
+    busy: Boolean,
+    onConfirm: () -> Unit,
+    onDispute: () -> Unit,
+    onReverse: () -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(payment.payerDisplayName, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                Text(formatMoney(payment.amountMinor, payment.currency), fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                stringResource(payment.status.labelResource),
+                style = MaterialTheme.typography.labelMedium,
+                color = payment.status.color(),
+            )
+            Text(
+                stringResource(
+                    R.string.money_payment_method_date,
+                    stringResource(payment.method.labelResource),
+                    formatPaymentTime(payment.paidAt),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            payment.reference?.let {
+                Text(stringResource(R.string.money_payment_reference_value, it))
+            }
+            payment.note?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            payment.disputeReason?.let {
+                Text(stringResource(R.string.money_payment_dispute_reason_value, it))
+            }
+            payment.reversalReason?.let {
+                Text(stringResource(R.string.money_payment_reversal_reason_value, it))
+            }
+            if (payment.canConfirm || payment.canDispute || payment.canReverse) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (payment.canConfirm) {
+                        Button(onClick = onConfirm, enabled = !busy) {
+                            Text(stringResource(R.string.money_confirm_payment))
+                        }
+                    }
+                    if (payment.canDispute) {
+                        TextButton(onClick = onDispute, enabled = !busy) {
+                            Text(stringResource(R.string.money_dispute_payment))
+                        }
+                    }
+                    if (payment.canReverse) {
+                        TextButton(onClick = onReverse, enabled = !busy) {
+                            Text(stringResource(R.string.money_reverse_payment))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentDeclarationDialog(
+    amountMinor: Long,
+    currency: String,
+    onDismiss: () -> Unit,
+    onConfirm: (ExpensePaymentDraft) -> Unit,
+) {
+    var methodName by rememberSaveable { mutableStateOf(ExpensePaymentMethod.BANK_TRANSFER.name) }
+    var reference by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    val method = ExpensePaymentMethod.valueOf(methodName)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.money_declare_payment_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    stringResource(
+                        R.string.money_declare_payment_explanation,
+                        formatMoney(amountMinor, currency),
+                    ),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ExpensePaymentMethod.entries.forEach { candidate ->
+                        FilterChip(
+                            selected = candidate == method,
+                            onClick = { methodName = candidate.name },
+                            label = { Text(stringResource(candidate.labelResource)) },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = reference,
+                    onValueChange = { reference = it.take(120) },
+                    label = { Text(stringResource(R.string.money_payment_reference_optional)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(500) },
+                    label = { Text(stringResource(R.string.money_payment_note_optional)) },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.money_payment_declaration_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onConfirm(
+                    ExpensePaymentDraft(
+                        method = method,
+                        paidAt = Instant.now(),
+                        reference = reference.trim().ifEmpty { null },
+                        note = note.trim().ifEmpty { null },
+                    ),
+                )
+            }) { Text(stringResource(R.string.money_declare_payment)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun PaymentReasonDialog(
+    title: String,
+    explanation: String,
+    actionLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var reason by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(explanation)
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it.take(500) },
+                    label = { Text(stringResource(R.string.money_payment_action_reason)) },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(reason.trim()) },
+                enabled = reason.trim().length >= 3,
+            ) { Text(actionLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 private fun parseMoney(value: String, currency: String): Long? = runCatching {
@@ -717,6 +1092,11 @@ private fun editableMoney(minor: Long, currency: String): String = runCatching {
     val exponent = Currency.getInstance(currency).defaultFractionDigits.coerceIn(0, 3)
     BigDecimal.valueOf(minor, exponent).toPlainString()
 }.getOrElse { minor.toString() }
+
+private fun formatPaymentTime(value: Instant): String =
+    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+        .withZone(ZoneId.systemDefault())
+        .format(value)
 
 @Composable
 private fun ExpenseCategory.displayName(customName: String?): String =
@@ -750,10 +1130,46 @@ private val ExpenseStatus.labelResource: Int @StringRes get() = when (this) {
     ExpenseStatus.REVERSED -> R.string.money_status_reversed
 }
 
+private val ExpenseAllocationStatus.labelResource: Int @StringRes get() = when (this) {
+    ExpenseAllocationStatus.OUTSTANDING -> R.string.money_allocation_outstanding
+    ExpenseAllocationStatus.DECLARED -> R.string.money_allocation_declared
+    ExpenseAllocationStatus.PAID -> R.string.money_allocation_paid
+    ExpenseAllocationStatus.DISPUTED -> R.string.money_allocation_disputed
+}
+
+private val ExpensePaymentStatus.labelResource: Int @StringRes get() = when (this) {
+    ExpensePaymentStatus.DECLARED -> R.string.money_payment_status_declared
+    ExpensePaymentStatus.CONFIRMED -> R.string.money_payment_status_confirmed
+    ExpensePaymentStatus.DISPUTED -> R.string.money_payment_status_disputed
+    ExpensePaymentStatus.REVERSED -> R.string.money_payment_status_reversed
+}
+
+private val ExpensePaymentMethod.labelResource: Int @StringRes get() = when (this) {
+    ExpensePaymentMethod.BANK_TRANSFER -> R.string.money_payment_method_bank_transfer
+    ExpensePaymentMethod.CASH -> R.string.money_payment_method_cash
+    ExpensePaymentMethod.CARD -> R.string.money_payment_method_card
+    ExpensePaymentMethod.DIRECT_DEBIT -> R.string.money_payment_method_direct_debit
+    ExpensePaymentMethod.OTHER -> R.string.money_payment_method_other
+}
+
 @Composable private fun ExpenseStatus.color() = when (this) {
     ExpenseStatus.PROPOSED -> MaterialTheme.colorScheme.tertiary
     ExpenseStatus.APPROVED -> MaterialTheme.colorScheme.primary
     ExpenseStatus.REVERSED -> MaterialTheme.colorScheme.outline
+}
+
+@Composable private fun ExpenseAllocationStatus.color() = when (this) {
+    ExpenseAllocationStatus.OUTSTANDING -> MaterialTheme.colorScheme.onSurfaceVariant
+    ExpenseAllocationStatus.DECLARED -> MaterialTheme.colorScheme.tertiary
+    ExpenseAllocationStatus.PAID -> MaterialTheme.colorScheme.primary
+    ExpenseAllocationStatus.DISPUTED -> MaterialTheme.colorScheme.error
+}
+
+@Composable private fun ExpensePaymentStatus.color() = when (this) {
+    ExpensePaymentStatus.DECLARED -> MaterialTheme.colorScheme.tertiary
+    ExpensePaymentStatus.CONFIRMED -> MaterialTheme.colorScheme.primary
+    ExpensePaymentStatus.DISPUTED -> MaterialTheme.colorScheme.error
+    ExpensePaymentStatus.REVERSED -> MaterialTheme.colorScheme.outline
 }
 
 private val MoneyFilter.labelResource: Int @StringRes get() = when (this) {
@@ -774,6 +1190,10 @@ private val MoneyProblem.messageResource: Int @StringRes get() = when (this) {
     MoneyProblem.APPROVE_FAILED -> R.string.money_approve_error
     MoneyProblem.REVERSE_FAILED -> R.string.money_reverse_error
     MoneyProblem.TEMPLATE_FAILED -> R.string.money_template_error
+    MoneyProblem.PAYMENT_DECLARE_FAILED -> R.string.money_payment_declare_error
+    MoneyProblem.PAYMENT_CONFIRM_FAILED -> R.string.money_payment_confirm_error
+    MoneyProblem.PAYMENT_DISPUTE_FAILED -> R.string.money_payment_dispute_error
+    MoneyProblem.PAYMENT_REVERSE_FAILED -> R.string.money_payment_reverse_error
     MoneyProblem.VERSION_CONFLICT -> R.string.money_version_conflict
 }
 

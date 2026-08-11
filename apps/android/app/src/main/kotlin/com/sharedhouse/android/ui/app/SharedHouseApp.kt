@@ -45,6 +45,7 @@ import com.sharedhouse.android.ui.guides.GuideArticleScreen
 import com.sharedhouse.android.ui.guides.GuideTopic
 import com.sharedhouse.android.ui.guides.GuidesScreen
 import com.sharedhouse.android.ui.home.DashboardCalendarContent
+import com.sharedhouse.android.ui.home.DashboardTasksContent
 import com.sharedhouse.android.ui.home.HouseholdDashboardScreen
 import com.sharedhouse.android.ui.home.HouseholdDashboardUiModel
 import com.sharedhouse.android.ui.home.HouseholdDestination
@@ -55,6 +56,7 @@ import com.sharedhouse.android.ui.home.HouseholdNavigationShell
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeature
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeatureScreen
 import com.sharedhouse.android.ui.money.MoneyScreen
+import com.sharedhouse.android.ui.tasks.TasksScreen
 import com.sharedhouse.android.ui.invitations.InvitationJoinScreen
 import com.sharedhouse.android.ui.invitations.InvitationManagerScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
@@ -330,6 +332,7 @@ private fun AuthenticatedHouseholdExperience(
                         householdName = household.name,
                         accountDisplayName = state.account?.displayName.orEmpty(),
                         calendar = state.calendar.toDashboardCalendar(),
+                        tasks = state.tasks.toDashboardTasks(),
                     ),
                     onOpenCalendar = {
                         selectedDestinationName = HouseholdDestination.CALENDAR.name
@@ -356,12 +359,9 @@ private fun AuthenticatedHouseholdExperience(
                     onAction = viewModel::handleMoneyAction,
                 )
 
-                HouseholdDestination.TASKS -> UnavailableHouseholdFeatureScreen(
-                    feature = UnavailableHouseholdFeature.TASKS,
-                    onOpenCalendar = {
-                        selectedDestinationName = HouseholdDestination.CALENDAR.name
-                    },
-                    onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
+                HouseholdDestination.TASKS -> TasksScreen(
+                    state = state.tasks,
+                    onAction = viewModel::handleTasksAction,
                 )
 
                 HouseholdDestination.HOUSE -> HouseholdHubScreen(
@@ -384,6 +384,7 @@ private fun AuthenticatedHouseholdExperience(
                                 selected = option.id == household.id,
                             )
                         },
+                        memberState = state.householdMembers,
                     ),
                     onEditHousehold = viewModel::openHouseholdEditor,
                     onManageInvitations = viewModel::openInvitationManager,
@@ -392,6 +393,8 @@ private fun AuthenticatedHouseholdExperience(
                     onOpenSettings = { openSecondary(SecondarySurface.SETTINGS) },
                     onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
                     onSignOut = viewModel::signOut,
+                    onRetryMembers = viewModel::retryHouseholdMembers,
+                    onMemberAction = viewModel::actOnHouseholdMember,
                 )
             }
         }
@@ -418,4 +421,18 @@ private fun com.sharedhouse.android.ui.calendar.CalendarUiState.toDashboardCalen
                 !event.date.isBefore(LocalDate.now(zoneId))
             },
         )
+    }
+
+private fun com.sharedhouse.android.ui.tasks.TasksUiState.toDashboardTasks(): DashboardTasksContent =
+    when (val current = content) {
+        com.sharedhouse.android.ui.tasks.TasksContent.Loading -> DashboardTasksContent.Loading
+        com.sharedhouse.android.ui.tasks.TasksContent.Error -> DashboardTasksContent.Error
+        is com.sharedhouse.android.ui.tasks.TasksContent.Ready -> {
+            val active = current.tasks.filter { it.status == com.sharedhouse.android.ui.tasks.TaskStatus.OPEN || it.status == com.sharedhouse.android.ui.tasks.TaskStatus.IN_PROGRESS }
+            DashboardTasksContent.Ready(
+                nextMineTitle = active.filter { it.isMine }.minByOrNull { it.dueDate }?.title,
+                activeCount = active.size,
+                pendingRequests = current.tasks.sumOf { task -> task.requests.count { it.status == com.sharedhouse.android.ui.tasks.TaskRequestStatus.PENDING } },
+            )
+        }
     }

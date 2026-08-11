@@ -46,20 +46,24 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 - [in progress] Household configuration and lifecycle. Authenticated create/list/get/update with
   idempotency and optimistic version checks are implemented.
-- [in progress] Membership roles and owner-transfer invariant. Creation atomically provisions the
-  owner membership; role management and transfer remain.
+- [completed] Membership roles and owner-transfer invariant. Creation atomically provisions the
+  owner membership. The production API and Android Household panel now list members, enforce
+  owner/admin delegation boundaries, change roles, suspend/reactivate/remove access, retain an
+  append-only membership history and transfer ownership atomically with optimistic locking.
 - [in progress] Secure invitation creation, preview, acceptance, revocation and deep links. Hashed,
   expiring, single-use and optionally email-restricted codes plus the Android management/join flows
   are implemented; provider email delivery and Android/iOS App Links remain.
-- [in progress] Cross-household authorisation test suite. Household and invitation reads/mutations,
-  inviter role boundaries, token replay and tenant hiding are covered; broader membership role and
-  owner-transfer coverage remains.
+- [in progress] Cross-household authorisation test suite. Household, invitation and membership
+  reads/mutations, inviter/admin delegation boundaries, suspension, token/action replay, optimistic
+  conflicts, owner transfer and tenant hiding are covered; household closure remains.
 
 ## EPIC-05 Cycles and recurrence
 
-- Local-date/IANA-timezone recurrence engine.
+- [in progress] Local-date/IANA-timezone recurrence engine. Expense schedules now evaluate due dates
+  in the household timezone and preserve month-end/yearly anchors; reusable series editing remains.
 - Fourteen-day, monthly, weekly and custom rules.
-- Deterministic occurrence keys, edits and series scope.
+- [in progress] Deterministic occurrence keys, edits and series scope. Recurring expenses have an
+  exact-once template/date key and future-only template edits; calendar/chore series scope remains.
 - DST and invalid-date property tests.
 
 ## EPIC-06 Ledger
@@ -68,12 +72,16 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
   configured household ISO currency; floating-point arithmetic is not used.
 - [in progress] Expenses, revisions, allocations and all split methods. The first production-shaped
   vertical supports one-off expenses, deterministic equal allocation, member proposals,
-  owner/admin approval and append-only reasoned reversal. Fixed, percentage, weighted, usage and
-  custom splits remain.
+  owner/admin approval, append-only reasoned reversal and exact-once generated occurrences. Fixed,
+  percentage, weighted, usage and custom splits remain.
 - [in progress] Recurring cost administration. Owner/admin can create, edit and archive reusable
   weekly/monthly/quarterly/yearly rent, bill and custom-category templates, then use a template to
-  prefill a confirmed ledger expense. Automatic background occurrence generation remains.
-- Payment declaration/confirmation/dispute/reversal.
+  create weekly/monthly/quarterly/yearly rent, bill and custom-category templates. A production
+  worker now creates each due occurrence transactionally, advances the schedule, preserves local
+  date anchors and exposes its generated origin in Android.
+- [completed] Payment declaration/confirmation/dispute/reversal. Members declare only their own
+  approved allocation; another active writer confirms or disputes it, corrections are append-only,
+  active payments block charge reversal, and Android/export expose the complete history.
 - [in progress] Dashboard and explanation read models. Android shows authoritative personal and
   household approved totals, filters, exact allocations and rounding explanations in EN/RO.
 - [in progress] Integrity checker and reconciliation tools. The database has a deferred allocation
@@ -88,10 +96,15 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 
 ## EPIC-08 Chores
 
-- Templates, zones, recurrence and assignment strategies.
+- [in progress] Task occurrences, zones and assignment. Owner/admin creation, active-member
+  assignment, priority, local deadline, estimate, start/complete/cancel/reopen and Android task-board
+  filters are implemented; reusable templates, recurrence and series editing remain.
 - Balanced/round-robin fairness and exemptions.
-- Completion evidence and issue reporting.
-- Swap/help/postpone request state machine.
+- [in progress] Completion evidence and issue reporting. Completion notes and issue reports are
+  append-audited; photo proof and explicit supply/safety classifications remain.
+- [completed] Swap/help/postpone request state machine. Assignees submit typed pending requests;
+  owner/admin decisions are version-checked and only approved swap/postpone requests alter the task.
+  API tests cover help, swap, postpone, stale versions, roles, exports and tenant isolation.
 
 ## EPIC-09 Calendar
 
@@ -169,3 +182,8 @@ The task IDs below are implementation epics. Break each into reviewable tasks wi
 - [in progress] Store metadata/assets/review accounts and staged rollout. The detailed Google Play,
   Firebase, AdMob, signing and Data safety runbook exists; real accounts/assets and closed-track
   evidence remain.
+- [in progress] Production-only distribution gate. Debug variants remain available strictly for
+  compiler/lint/unit-test coverage, but named debug APK packaging has been removed; user delivery
+  accepts only an optimized public APK/AAB. A stable direct-install signing identity and fail-closed
+  production build now support core operation with Firebase/AdMob explicitly disabled. The Play
+  upload identity, Firebase production file and real AdMob IDs remain store-channel blockers.

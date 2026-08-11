@@ -5,10 +5,14 @@ import {
   CALENDAR_EVENT_TYPES,
   EXPENSE_CATEGORIES,
   EXPENSE_TEMPLATE_CADENCES,
+  EXPENSE_PAYMENT_METHODS,
   HOUSEHOLD_CYCLE_TYPES,
+  HOUSEHOLD_TASK_PRIORITIES,
+  HOUSEHOLD_TASK_REQUEST_TYPES,
   SUPPORTED_LOCALES,
   type CalendarEventConfiguration,
   type HouseholdConfiguration,
+  type ExpenseSummary,
   type Money,
 } from './index.js';
 
@@ -67,5 +71,29 @@ describe('public contracts', () => {
   it('supports reusable and user-defined household cost vocabulary', () => {
     expect(EXPENSE_CATEGORIES).toContain('custom');
     expect(EXPENSE_TEMPLATE_CADENCES).toEqual(['weekly', 'monthly', 'quarterly', 'yearly']);
+  });
+
+  it('distinguishes generated ledger occurrences from manual expenses', () => {
+    const occurrence = {
+      sourceTemplateId: '10000000-0000-7000-8000-000000000001',
+      occurrenceDate: '2026-08-31',
+    } satisfies Pick<ExpenseSummary, 'sourceTemplateId' | 'occurrenceDate'>;
+
+    expect(occurrence.occurrenceDate).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
+  });
+
+  it('keeps payment declarations separate from payment transport', () => {
+    expect(EXPENSE_PAYMENT_METHODS).toEqual([
+      'bank_transfer',
+      'cash',
+      'card',
+      'direct_debit',
+      'other',
+    ]);
+  });
+
+  it('pins task priority and request workflow vocabulary', () => {
+    expect(HOUSEHOLD_TASK_PRIORITIES).toEqual(['low', 'normal', 'high']);
+    expect(HOUSEHOLD_TASK_REQUEST_TYPES).toEqual(['help', 'swap', 'postpone', 'issue']);
   });
 });
