@@ -22,31 +22,30 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTimePickerState
+import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.ButtonDefaults
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.DatePicker
+import com.sharedhouse.android.ui.atmosphere.DatePickerDialog
+import com.sharedhouse.android.ui.atmosphere.FilterChip
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.ModalBottomSheet
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Switch
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
+import com.sharedhouse.android.ui.atmosphere.TimePicker
+import com.sharedhouse.android.ui.atmosphere.rememberDatePickerState
+import com.sharedhouse.android.ui.atmosphere.rememberModalBottomSheetState
+import com.sharedhouse.android.ui.atmosphere.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
@@ -71,7 +70,6 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CalendarDayAgendaSheet(
     date: LocalDate,
@@ -103,13 +101,13 @@ internal fun CalendarDayAgendaSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.calendar_day_agenda),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.labelLarge,
                     )
                     Text(
                         text = localizedDate(date, FormatStyle.FULL),
                         modifier = Modifier.semantics { heading() },
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = AtmosphereTheme.typography.headlineSmall,
                     )
                 }
                 if (canCreateEvents) {
@@ -128,8 +126,8 @@ internal fun CalendarDayAgendaSheet(
             if (events.isEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.large,
+                    color = AtmosphereTheme.colorScheme.surfaceVariant,
+                    shape = AtmosphereTheme.shapes.large,
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -139,11 +137,11 @@ internal fun CalendarDayAgendaSheet(
                         Icon(
                             imageVector = Icons.Outlined.CalendarMonth,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = stringResource(R.string.calendar_day_empty_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = AtmosphereTheme.typography.titleMedium,
                         )
                         Text(
                             text = stringResource(
@@ -153,8 +151,8 @@ internal fun CalendarDayAgendaSheet(
                                     R.string.calendar_day_empty_read_only_description
                                 },
                             ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodyMedium,
                         )
                         if (canCreateEvents) {
                             Button(onClick = onAdd) {
@@ -204,8 +202,8 @@ private fun AgendaEventCard(
     onDelete: () -> Unit,
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -227,22 +225,22 @@ private fun AgendaEventCard(
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                     Text(
                         text = calendarEventTimeRange(event),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyMedium,
                     )
                 }
             }
             event.description?.takeIf(String::isNotBlank)?.let { description ->
                 Text(
                     text = description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             }
             HorizontalDivider()
@@ -271,7 +269,7 @@ private fun AgendaEventCard(
                         Icon(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = stringResource(R.string.calendar_delete_event),
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = AtmosphereTheme.colorScheme.error,
                         )
                     }
                 }
@@ -280,7 +278,6 @@ private fun AgendaEventCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CalendarEventEditorDialog(
     initialDate: LocalDate,
@@ -328,7 +325,7 @@ internal fun CalendarEventEditorDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 720.dp),
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = AtmosphereTheme.shapes.extraLarge,
             tonalElevation = 6.dp,
         ) {
             Column(
@@ -346,13 +343,15 @@ internal fun CalendarEventEditorDialog(
                         },
                     ),
                     modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = AtmosphereTheme.typography.headlineSmall,
                 )
                 Text(
                     text = stringResource(R.string.calendar_event_form_description),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
+
+                FormSectionLabel(stringResource(R.string.calendar_event_details_section))
 
                 OutlinedTextField(
                     value = title,
@@ -407,7 +406,7 @@ internal fun CalendarEventEditorDialog(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    CalendarEventType.entries.forEach { type ->
+                    CalendarEventType.entries.filter { it.userCreatable }.forEach { type ->
                         FilterChip(
                             selected = selectedType == type,
                             onClick = { typeName = type.name },
@@ -445,12 +444,12 @@ internal fun CalendarEventEditorDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.calendar_all_day),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = AtmosphereTheme.typography.bodyLarge,
                         )
                         Text(
                             text = stringResource(R.string.calendar_all_day_support),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodySmall,
                         )
                     }
                     Switch(
@@ -483,8 +482,8 @@ internal fun CalendarEventEditorDialog(
                     if (CalendarDraftError.END_NOT_AFTER_START in errors) {
                         Text(
                             text = stringResource(R.string.calendar_error_end_after_start),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
+                            color = AtmosphereTheme.colorScheme.error,
+                            style = AtmosphereTheme.typography.bodySmall,
                         )
                     }
                 }
@@ -518,9 +517,33 @@ internal fun CalendarEventEditorDialog(
                 }
                 Text(
                     text = stringResource(R.string.calendar_reminder_support),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
                 )
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
+                    border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Info, contentDescription = null, tint = AtmosphereTheme.colorScheme.primary)
+                            Text(stringResource(R.string.calendar_event_preview), fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(
+                            stringResource(
+                                R.string.calendar_event_preview_value,
+                                calendarEventTypeLabel(selectedType),
+                                localizedDate(date, FormatStyle.LONG),
+                                if (allDay) stringResource(R.string.calendar_all_day) else "$startTime–$endTime",
+                                reminderLabel(reminderMinutes),
+                            ),
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodySmall,
+                        )
+                        Text(stringResource(R.string.calendar_event_preview_help), style = AtmosphereTheme.typography.bodySmall)
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -606,7 +629,7 @@ private fun FormSectionLabel(text: String) {
     Text(
         text = text,
         fontWeight = FontWeight.SemiBold,
-        style = MaterialTheme.typography.titleSmall,
+        style = AtmosphereTheme.typography.titleSmall,
     )
 }
 
@@ -625,19 +648,18 @@ private fun TimeButton(
     ) {
         Icon(Icons.Outlined.Schedule, contentDescription = null)
         Column(modifier = Modifier.padding(start = 8.dp)) {
-            Text(text = label, style = MaterialTheme.typography.labelSmall)
+            Text(text = label, style = AtmosphereTheme.typography.labelSmall)
             Text(
                 text = time.format(
                     DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
                         .withLocale(currentJavaLocale()),
                 ),
-                style = MaterialTheme.typography.bodyMedium,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarDatePickerDialog(
     selectedDate: LocalDate,
@@ -670,7 +692,6 @@ private fun CalendarDatePickerDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarTimePickerDialog(
     initialTime: LocalTime,
@@ -684,7 +705,7 @@ private fun CalendarTimePickerDialog(
     )
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = AtmosphereTheme.shapes.extraLarge,
             tonalElevation = 6.dp,
         ) {
             Column(
@@ -697,7 +718,7 @@ private fun CalendarTimePickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { heading() },
-                    style = MaterialTheme.typography.titleLarge,
+                    style = AtmosphereTheme.typography.titleLarge,
                 )
                 TimePicker(state = state)
                 Row(
@@ -786,11 +807,11 @@ internal fun CalendarEventDetailsDialog(
                             Icon(
                                 Icons.Outlined.DeleteOutline,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = AtmosphereTheme.colorScheme.error,
                             )
                             Text(
                                 text = stringResource(R.string.calendar_delete_event),
-                                color = MaterialTheme.colorScheme.error,
+                                color = AtmosphereTheme.colorScheme.error,
                                 modifier = Modifier.padding(start = 6.dp),
                             )
                         }
@@ -806,10 +827,10 @@ private fun DetailRow(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             text = label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.labelMedium,
         )
-        Text(text = value, style = MaterialTheme.typography.bodyLarge)
+        Text(text = value, style = AtmosphereTheme.typography.bodyLarge)
     }
 }
 
@@ -826,7 +847,7 @@ internal fun CalendarDeleteConfirmationDialog(
             Icon(
                 imageVector = Icons.Outlined.DeleteOutline,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
+                tint = AtmosphereTheme.colorScheme.error,
             )
         },
         title = { Text(stringResource(R.string.calendar_delete_confirmation_title)) },
@@ -838,8 +859,8 @@ internal fun CalendarDeleteConfirmationDialog(
                 onClick = onConfirm,
                 enabled = !isDeleting,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
+                    containerColor = AtmosphereTheme.colorScheme.error,
+                    contentColor = AtmosphereTheme.colorScheme.onError,
                 ),
             ) {
                 if (isDeleting) {
@@ -867,6 +888,8 @@ internal fun calendarEventTypeLabel(type: CalendarEventType): String = stringRes
         CalendarEventType.MAINTENANCE -> R.string.calendar_type_maintenance
         CalendarEventType.APPOINTMENT -> R.string.calendar_type_appointment
         CalendarEventType.SHOPPING -> R.string.calendar_type_shopping
+        CalendarEventType.MONEY -> R.string.calendar_type_money
+        CalendarEventType.TASK -> R.string.calendar_type_task
         CalendarEventType.OTHER -> R.string.calendar_type_other
     },
 )

@@ -189,7 +189,14 @@ describe('household task workflow', () => {
     );
     expect(approvedHelp.body).toMatchObject({
       version: 3,
-      requests: [{ type: 'help', status: 'approved' }],
+      requests: [
+        {
+          type: 'help',
+          status: 'approved',
+          createdByDisplayName: 'Task Member',
+          resolvedByDisplayName: 'Task Owner',
+        },
+      ],
     });
     const swap = await act(
       server,
@@ -216,7 +223,18 @@ describe('household task workflow', () => {
       { action: 'approve_request', requestId: swapId, note: 'Accepted for this occurrence.' },
       201,
     );
-    expect(approvedSwap.body).toMatchObject({ assigneeDisplayName: 'Task Owner', version: 5 });
+    expect(approvedSwap.body).toMatchObject({
+      assigneeDisplayName: 'Task Owner',
+      version: 5,
+    });
+    const resolvedSwap = (
+      approvedSwap.body as { requests: Record<string, unknown>[] }
+    ).requests.find((value) => value.type === 'swap');
+    expect(resolvedSwap).toMatchObject({
+      type: 'swap',
+      createdByDisplayName: 'Task Member',
+      resolvedByDisplayName: 'Task Owner',
+    });
     const postpone = await act(
       server,
       ownerToken,
@@ -248,6 +266,47 @@ describe('household task workflow', () => {
       dueTime: '20:00',
       version: 7,
     });
+  });
+
+  it('stores a finite fortnightly cleaning schedule as an auditable series', async () => {
+    const board = await request(server)
+      .get(`/v1/households/${householdId}/tasks`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const member = readMembers(board.body).find((value) => value.displayName === 'Task Member');
+    if (member === undefined) throw new Error('Member option missing.');
+
+    const created = await request(server)
+      .post(`/v1/households/${householdId}/tasks`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'tasks-recurring-clean-0001')
+      .send({
+        ...taskBody(member.membershipId),
+        recurrenceCadence: 'fortnightly',
+        recurrenceEndsOn: '2026-12-31',
+      })
+      .expect(201);
+
+    expect(created.body).toMatchObject({
+      recurrenceCadence: 'fortnightly',
+      recurrenceEndsOn: '2026-12-31',
+      occurrenceDate: '2026-08-15',
+    });
+    expect(readString(created.body, 'seriesId')).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+
+    const stopped = await act(
+      server,
+      ownerToken,
+      householdId,
+      readString(created.body, 'id'),
+      1,
+      'tasks-stop-series-000001',
+      { action: 'stop_recurrence', note: 'Cleaning plan changed.' },
+      201,
+    );
+    expect(stopped.body).toMatchObject({ recurrenceActive: false, version: 2 });
   });
 });
 

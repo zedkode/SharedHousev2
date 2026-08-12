@@ -14,40 +14,49 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AddCard
+import androidx.compose.material.icons.outlined.AddTask
+import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.AssistChip
+import com.sharedhouse.android.ui.atmosphere.AmbientBackground
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.FilledTonalButton
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.PremiumHeroCard
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
@@ -64,7 +73,12 @@ import com.sharedhouse.android.R
 import com.sharedhouse.android.ui.calendar.CalendarEventType
 import com.sharedhouse.android.ui.calendar.CalendarEventUi
 import com.sharedhouse.android.ui.components.GlassCard
+import com.sharedhouse.android.ui.chat.ChatConnection
+import com.sharedhouse.android.ui.chat.ChatUiState
+import com.sharedhouse.android.ui.icons.SharedHouseIcons
 import java.time.format.DateTimeFormatter
+import java.text.NumberFormat
+import java.util.Currency
 
 import java.time.format.FormatStyle
 
@@ -75,6 +89,8 @@ import java.time.format.FormatStyle
 @Composable
 fun HouseholdDashboardScreen(
     model: HouseholdDashboardUiModel,
+    chat: ChatUiState,
+    onOpenChat: () -> Unit,
     onOpenCalendar: () -> Unit,
     onRetryCalendar: () -> Unit,
     onEditHousehold: () -> Unit,
@@ -82,24 +98,30 @@ fun HouseholdDashboardScreen(
     onOpenSettings: () -> Unit,
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
+    onOpenRequests: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentAlignment = Alignment.TopCenter,
+    AmbientBackground(
+        modifier = modifier.fillMaxSize(),
     ) {
         LazyColumn(
             modifier = Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .widthIn(max = 960.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                DashboardHero(model)
+                DashboardHero(
+                    model = model,
+                    onOpenMoney = onOpenMoney,
+                    onOpenTasks = onOpenTasks,
+                    onOpenCalendar = onOpenCalendar,
+                    onOpenRequests = onOpenRequests,
+                )
             }
+            item { ChatResumeCard(chat, onOpenChat) }
             item {
                 DashboardSectionTitle(
                     title = stringResource(R.string.dashboard_quick_actions_title),
@@ -110,8 +132,9 @@ fun HouseholdDashboardScreen(
                 QuickActions(
                     onOpenCalendar = onOpenCalendar,
                     onEditHousehold = onEditHousehold,
-                    onOpenGuides = onOpenGuides,
                     onOpenSettings = onOpenSettings,
+                    onOpenMoney = onOpenMoney,
+                    onOpenTasks = onOpenTasks,
                 )
             }
             item {
@@ -129,10 +152,11 @@ fun HouseholdDashboardScreen(
             }
             item {
                 FeatureReadinessGrid(
+                    money = model.money,
                     tasks = model.tasks,
                     onOpenMoney = onOpenMoney,
                     onOpenTasks = onOpenTasks,
-                    onOpenGuides = onOpenGuides,
+                    onOpenRequests = onOpenRequests,
                 )
             }
             item {
@@ -143,58 +167,187 @@ fun HouseholdDashboardScreen(
 }
 
 @Composable
-private fun DashboardHero(model: HouseholdDashboardUiModel) {
+private fun ChatResumeCard(chat: ChatUiState, onOpenChat: () -> Unit) {
+    val latest = chat.messages.lastOrNull()
+    Surface(
+        onClick = onOpenChat,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = AtmosphereTheme.colorScheme.cardLevel2,
+        contentColor = AtmosphereTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
+        shadowElevation = 8.dp,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = AtmosphereTheme.shapes.medium,
+                color = AtmosphereTheme.colorScheme.primary.copy(alpha = .14f),
+                contentColor = AtmosphereTheme.colorScheme.primary,
+                border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .28f)),
+            ) { Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) { Icon(SharedHouseIcons.Chat, null, Modifier.size(22.dp)) } }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(if (chat.connection == ChatConnection.LIVE) R.string.dashboard_chat_live else R.string.dashboard_chat_open),
+                    style = AtmosphereTheme.typography.labelSmall,
+                    color = if (chat.connection == ChatConnection.LIVE) AtmosphereTheme.colorScheme.statusPositive else AtmosphereTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    latest?.let { stringResource(R.string.dashboard_chat_message, it.senderDisplayName, it.body) }
+                        ?: stringResource(R.string.dashboard_chat_empty),
+                    style = AtmosphereTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, null)
+        }
+    }
+}
+
+@Composable
+private fun DashboardHero(
+    model: HouseholdDashboardUiModel,
+    onOpenMoney: () -> Unit,
+    onOpenTasks: () -> Unit,
+    onOpenCalendar: () -> Unit,
+    onOpenRequests: () -> Unit,
+) {
     val hasName = model.accountDisplayName.isNotBlank()
     val householdName = model.householdName.takeIf(String::isNotBlank)
         ?: stringResource(R.string.dashboard_household_name_unavailable)
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shape = MaterialTheme.shapes.extraLarge,
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    val dueValue = when (val money = model.money) {
+        is DashboardMoneyContent.Ready -> dashboardMoney(money.amountDueMinor, money.currency)
+        DashboardMoneyContent.Loading -> "…"
+        DashboardMoneyContent.Error -> "—"
+    }
+    val taskValue = (model.tasks as? DashboardTasksContent.Ready)?.activeCount?.toString() ?: "—"
+    val eventValue = (model.calendar as? DashboardCalendarContent.Ready)?.events?.size?.toString() ?: "—"
+    val requestValue = (model.tasks as? DashboardTasksContent.Ready)?.pendingRequests?.toString() ?: "—"
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        PremiumHeroCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onOpenMoney,
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = MaterialTheme.shapes.large,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Home, contentDescription = null)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(
+                        text = if (hasName) {
+                            stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
+                        } else {
+                            stringResource(R.string.dashboard_greeting_generic)
+                        },
+                        style = AtmosphereTheme.typography.headlineLarge,
+                        color = Color.White,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(
+                        text = stringResource(R.string.dashboard_household_context, householdName),
+                        style = AtmosphereTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = .75f),
+                    )
+                }
+                Surface(
+                    shape = AtmosphereTheme.shapes.medium,
+                    color = Color.White.copy(alpha = .14f),
+                    contentColor = Color.White,
+                ) {
+                    Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                        Icon(SharedHouseIcons.House, null, Modifier.size(22.dp))
+                    }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = if (hasName) {
-                        stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
-                    } else {
-                        stringResource(R.string.dashboard_greeting_generic)
-                    },
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Text(
-                    text = stringResource(R.string.dashboard_household_context, householdName),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-            AssistChip(
-                onClick = {},
-                enabled = false,
-                label = { Text(stringResource(R.string.dashboard_configured_household_badge)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.Groups,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                },
+            Text(
+                text = stringResource(R.string.dashboard_metric_due),
+                style = AtmosphereTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = .75f),
+            )
+            Text(
+                text = dueValue,
+                style = AtmosphereTheme.typography.displayMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DashboardMetric(taskValue, stringResource(R.string.dashboard_metric_tasks), SharedHouseIcons.Tasks, onOpenTasks, Modifier.weight(1f))
+            DashboardMetric(eventValue, stringResource(R.string.dashboard_metric_events), SharedHouseIcons.Calendar, onOpenCalendar, Modifier.weight(1f))
+            DashboardMetric(
+                requestValue,
+                stringResource(R.string.dashboard_metric_requests),
+                SharedHouseIcons.Pending,
+                onOpenRequests,
+                Modifier.weight(1f),
+                attention = requestValue !in setOf("0", "—"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardMetric(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    prominent: Boolean = false,
+    attention: Boolean = false,
+) {
+    val container = when {
+        prominent -> AtmosphereTheme.colorScheme.primaryContainer
+        attention -> AtmosphereTheme.colorScheme.tertiaryContainer
+        else -> AtmosphereTheme.colorScheme.surfaceContainer
+    }
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = if (prominent) 84.dp else 70.dp),
+        shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
+        color = container,
+        border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .42f) else AtmosphereTheme.colorScheme.outlineVariant),
+        shadowElevation = if (prominent) 7.dp else 2.dp,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(11.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = AtmosphereTheme.shapes.small,
+                color = if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .15f) else AtmosphereTheme.colorScheme.secondaryContainer,
+                contentColor = if (attention) AtmosphereTheme.colorScheme.tertiary else AtmosphereTheme.colorScheme.primary,
+            ) {
+                Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(17.dp))
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(value, style = if (prominent) AtmosphereTheme.typography.headlineMedium else AtmosphereTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, style = AtmosphereTheme.typography.labelSmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun dashboardMoney(amountMinor: Long, currencyCode: String): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(amountMinor, currencyCode, locale) {
+        runCatching {
+            NumberFormat.getCurrencyInstance(locale).apply { currency = Currency.getInstance(currencyCode) }
+                .format(amountMinor / 100.0)
+        }.getOrDefault("$currencyCode ${amountMinor / 100}")
     }
 }
 
@@ -206,13 +359,13 @@ private fun DashboardSectionTitle(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = AtmosphereTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
         Text(
             text = supporting,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
     }
 }
@@ -221,66 +374,33 @@ private fun DashboardSectionTitle(
 private fun QuickActions(
     onOpenCalendar: () -> Unit,
     onEditHousehold: () -> Unit,
-    onOpenGuides: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenMoney: () -> Unit,
+    onOpenTasks: () -> Unit,
 ) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        if (maxWidth >= 620.dp) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickAction(
-                    title = R.string.dashboard_action_calendar,
-                    icon = Icons.Outlined.CalendarMonth,
-                    onClick = onOpenCalendar,
-                    modifier = Modifier.weight(1f),
-                )
-                QuickAction(
-                    title = R.string.dashboard_action_edit_household,
-                    icon = Icons.Outlined.Edit,
-                    onClick = onEditHousehold,
-                    modifier = Modifier.weight(1f),
-                )
-                QuickAction(
-                    title = R.string.dashboard_action_guides,
-                    icon = Icons.AutoMirrored.Outlined.MenuBook,
-                    onClick = onOpenGuides,
-                    modifier = Modifier.weight(1f),
-                )
-                QuickAction(
-                    title = R.string.dashboard_action_settings,
-                    icon = Icons.Outlined.Settings,
-                    onClick = onOpenSettings,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickAction(
-                        title = R.string.dashboard_action_calendar,
-                        icon = Icons.Outlined.CalendarMonth,
-                        onClick = onOpenCalendar,
-                        modifier = Modifier.weight(1f),
-                    )
-                    QuickAction(
-                        title = R.string.dashboard_action_edit_household,
-                        icon = Icons.Outlined.Edit,
-                        onClick = onEditHousehold,
-                        modifier = Modifier.weight(1f),
-                    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(R.string.dashboard_action_add_expense, Icons.Outlined.AddCard, onOpenMoney, Modifier.weight(1f), prominent = true)
+            QuickAction(R.string.dashboard_action_add_task, Icons.Outlined.AddTask, onOpenTasks, Modifier.weight(1f), prominent = true)
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth >= 600.dp) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickAction(R.string.dashboard_action_record_payment, Icons.Outlined.Payments, onOpenMoney, Modifier.weight(1f))
+                    QuickAction(R.string.dashboard_action_add_bill, Icons.AutoMirrored.Outlined.ReceiptLong, onOpenMoney, Modifier.weight(1f))
+                    QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
+                    QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickAction(
-                        title = R.string.dashboard_action_guides,
-                        icon = Icons.AutoMirrored.Outlined.MenuBook,
-                        onClick = onOpenGuides,
-                        modifier = Modifier.weight(1f),
-                    )
-                    QuickAction(
-                        title = R.string.dashboard_action_settings,
-                        icon = Icons.Outlined.Settings,
-                        onClick = onOpenSettings,
-                        modifier = Modifier.weight(1f),
-                    )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        QuickAction(R.string.dashboard_action_record_payment, Icons.Outlined.Payments, onOpenMoney, Modifier.weight(1f))
+                        QuickAction(R.string.dashboard_action_add_bill, Icons.AutoMirrored.Outlined.ReceiptLong, onOpenMoney, Modifier.weight(1f))
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
+                        QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -293,18 +413,34 @@ private fun RowScope.QuickAction(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    prominent: Boolean = false,
 ) {
-    GlassCard(
+    Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 104.dp),
+        modifier = modifier.heightIn(min = if (prominent) 72.dp else 76.dp),
+        shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
+        color = if (prominent) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .38f) else AtmosphereTheme.colorScheme.outlineVariant),
+        shadowElevation = if (prominent) 5.dp else 1.dp,
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Text(
-            text = stringResource(title),
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 12.dp else 7.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Surface(
+                shape = AtmosphereTheme.shapes.small,
+                color = AtmosphereTheme.colorScheme.secondaryContainer,
+                contentColor = AtmosphereTheme.colorScheme.secondary,
+            ) { Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(17.dp)) } }
+            Text(
+                text = stringResource(title),
+                style = if (prominent) AtmosphereTheme.typography.labelLarge else AtmosphereTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -323,9 +459,9 @@ private fun CalendarOverviewCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = MaterialTheme.shapes.large,
+                color = AtmosphereTheme.colorScheme.secondaryContainer,
+                contentColor = AtmosphereTheme.colorScheme.onSecondaryContainer,
+                shape = AtmosphereTheme.shapes.large,
             ) {
                 Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     Icon(Icons.Outlined.Today, contentDescription = null)
@@ -334,13 +470,13 @@ private fun CalendarOverviewCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.dashboard_calendar_title),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = AtmosphereTheme.typography.titleLarge,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
                     text = calendarStatusText(content),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             }
         }
@@ -388,8 +524,8 @@ private fun CalendarLoading() {
         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
         Text(
             text = stringResource(R.string.dashboard_calendar_loading),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
     }
 }
@@ -400,9 +536,9 @@ private fun CalendarError(onRetry: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .semantics { liveRegion = LiveRegionMode.Assertive },
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = MaterialTheme.shapes.large,
+        color = AtmosphereTheme.colorScheme.errorContainer,
+        contentColor = AtmosphereTheme.colorScheme.onErrorContainer,
+        shape = AtmosphereTheme.shapes.large,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -412,7 +548,7 @@ private fun CalendarError(onRetry: () -> Unit) {
                 Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
                 Text(
                     text = stringResource(R.string.dashboard_calendar_error),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             }
             FilledTonalButton(onClick = onRetry) {
@@ -431,8 +567,8 @@ private fun CalendarReady(events: List<CalendarEventUi>) {
     if (events.isEmpty()) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = MaterialTheme.shapes.large,
+            color = AtmosphereTheme.colorScheme.surfaceContainerLow,
+            shape = AtmosphereTheme.shapes.large,
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -442,12 +578,12 @@ private fun CalendarReady(events: List<CalendarEventUi>) {
                 Icon(
                     Icons.Outlined.CalendarMonth,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = stringResource(R.string.dashboard_calendar_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             }
         }
@@ -461,7 +597,7 @@ private fun CalendarReady(events: List<CalendarEventUi>) {
         visibleEvents.forEachIndexed { index, event ->
             DashboardEventRow(event)
             if (index != visibleEvents.lastIndex) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = AtmosphereTheme.colorScheme.outlineVariant)
             }
         }
         if (events.size > visibleEvents.size) {
@@ -471,8 +607,8 @@ private fun CalendarReady(events: List<CalendarEventUi>) {
                     events.size - visibleEvents.size,
                     events.size - visibleEvents.size,
                 ),
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelLarge,
+                color = AtmosphereTheme.colorScheme.primary,
+                style = AtmosphereTheme.typography.labelLarge,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -507,9 +643,9 @@ private fun DashboardEventRow(event: CalendarEventUi) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-            shape = MaterialTheme.shapes.medium,
+            color = AtmosphereTheme.colorScheme.tertiaryContainer,
+            contentColor = AtmosphereTheme.colorScheme.onTertiaryContainer,
+            shape = AtmosphereTheme.shapes.medium,
         ) {
             Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
                 Icon(eventTypeIcon(event.type), contentDescription = null)
@@ -518,14 +654,14 @@ private fun DashboardEventRow(event: CalendarEventUi) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = event.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = AtmosphereTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = stringResource(R.string.dashboard_calendar_event_when, date, time),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
             )
         }
     }
@@ -536,24 +672,28 @@ private fun eventTypeIcon(type: CalendarEventType): ImageVector = when (type) {
     CalendarEventType.MAINTENANCE -> Icons.Outlined.Settings
     CalendarEventType.APPOINTMENT -> Icons.Outlined.Schedule
     CalendarEventType.SHOPPING -> Icons.Outlined.AccountBalanceWallet
+    CalendarEventType.MONEY -> Icons.Outlined.AccountBalanceWallet
+    CalendarEventType.TASK -> Icons.Outlined.Checklist
     CalendarEventType.OTHER -> Icons.Outlined.CalendarMonth
 }
 
 @Composable
 private fun FeatureReadinessGrid(
+    money: DashboardMoneyContent,
     tasks: DashboardTasksContent,
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
-    onOpenGuides: () -> Unit,
+    onOpenRequests: () -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth >= 760.dp) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FeatureReadinessCard(
                     title = R.string.dashboard_money_title,
-                    description = stringResource(R.string.dashboard_money_unavailable),
+                    description = dashboardMoneyDescription(money),
                     icon = Icons.Outlined.AccountBalanceWallet,
                     onClick = onOpenMoney,
+                    connected = money is DashboardMoneyContent.Ready,
                     modifier = Modifier.weight(1f),
                 )
                 FeatureReadinessCard(
@@ -566,9 +706,10 @@ private fun FeatureReadinessGrid(
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_requests_title,
-                    description = stringResource(R.string.dashboard_requests_unavailable),
+                    description = dashboardRequestsDescription(tasks),
                     icon = Icons.Outlined.NotificationsNone,
-                    onClick = onOpenGuides,
+                    onClick = onOpenRequests,
+                    connected = tasks is DashboardTasksContent.Ready,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -576,9 +717,10 @@ private fun FeatureReadinessGrid(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 FeatureReadinessCard(
                     title = R.string.dashboard_money_title,
-                    description = stringResource(R.string.dashboard_money_unavailable),
+                    description = dashboardMoneyDescription(money),
                     icon = Icons.Outlined.AccountBalanceWallet,
                     onClick = onOpenMoney,
+                    connected = money is DashboardMoneyContent.Ready,
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_tasks_title,
@@ -589,9 +731,10 @@ private fun FeatureReadinessGrid(
                 )
                 FeatureReadinessCard(
                     title = R.string.dashboard_requests_title,
-                    description = stringResource(R.string.dashboard_requests_unavailable),
+                    description = dashboardRequestsDescription(tasks),
                     icon = Icons.Outlined.NotificationsNone,
-                    onClick = onOpenGuides,
+                    onClick = onOpenRequests,
+                    connected = tasks is DashboardTasksContent.Ready,
                 )
             }
         }
@@ -607,39 +750,65 @@ private fun FeatureReadinessCard(
     modifier: Modifier = Modifier,
     connected: Boolean = false,
 ) {
-    GlassCard(
+    val statusColor = if (connected) {
+        AtmosphereTheme.colorScheme.statusPositive
+    } else {
+        AtmosphereTheme.colorScheme.statusAttention
+    }
+    Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = AtmosphereTheme.colorScheme.cardLevel1,
+        ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                shape = MaterialTheme.shapes.extraLarge,
+                color = AtmosphereTheme.colorScheme.primary.copy(alpha = .15f),
+                contentColor = AtmosphereTheme.colorScheme.primary,
+                shape = AtmosphereTheme.shapes.small,
             ) {
+                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, Modifier.size(20.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = stringResource(title), style = AtmosphereTheme.typography.titleMedium)
                 Text(
-                    text = stringResource(if (connected) R.string.dashboard_connected_badge else R.string.dashboard_not_connected_badge),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
+                    text = description,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+            Surface(
+                color = statusColor.copy(alpha = .14f),
+                contentColor = statusColor,
+                shape = AtmosphereTheme.shapes.extraLarge,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (connected) SharedHouseIcons.Approved else SharedHouseIcons.Pending,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(if (connected) R.string.dashboard_connected_badge else R.string.dashboard_not_connected_badge),
+                        style = AtmosphereTheme.typography.labelSmall,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
-        Text(text = stringResource(title), style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = description,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            text = stringResource(R.string.dashboard_feature_learn_more),
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        )
     }
 }
 
@@ -647,18 +816,52 @@ private fun FeatureReadinessCard(
 private fun dashboardTasksDescription(content: DashboardTasksContent): String = when (content) {
     DashboardTasksContent.Loading -> stringResource(R.string.dashboard_tasks_loading)
     DashboardTasksContent.Error -> stringResource(R.string.dashboard_tasks_error)
-    is DashboardTasksContent.Ready -> content.nextMineTitle?.let {
-        stringResource(R.string.dashboard_tasks_next, it, content.activeCount, content.pendingRequests)
-    } ?: stringResource(R.string.dashboard_tasks_ready, content.activeCount, content.pendingRequests)
+    is DashboardTasksContent.Ready -> {
+        val active = pluralStringResource(
+            R.plurals.dashboard_active_tasks_count,
+            content.activeCount,
+            content.activeCount,
+        )
+        val pending = pluralStringResource(
+            R.plurals.tasks_pending_count,
+            content.pendingRequests,
+            content.pendingRequests,
+        )
+        content.nextMineTitle?.let {
+            stringResource(R.string.dashboard_tasks_next, it, active, pending)
+        } ?: stringResource(R.string.dashboard_tasks_ready, active, pending)
+    }
+}
+
+@Composable
+private fun dashboardMoneyDescription(content: DashboardMoneyContent): String = when (content) {
+    DashboardMoneyContent.Loading -> stringResource(R.string.dashboard_money_loading)
+    DashboardMoneyContent.Error -> stringResource(R.string.dashboard_money_error)
+    is DashboardMoneyContent.Ready -> stringResource(
+        R.string.dashboard_money_ready,
+        dashboardMoney(content.amountDueMinor, content.currency),
+        content.outstandingCount,
+    )
+}
+
+@Composable
+private fun dashboardRequestsDescription(content: DashboardTasksContent): String = when (content) {
+    DashboardTasksContent.Loading -> stringResource(R.string.dashboard_requests_loading)
+    DashboardTasksContent.Error -> stringResource(R.string.dashboard_requests_error)
+    is DashboardTasksContent.Ready -> pluralStringResource(
+        R.plurals.dashboard_requests_ready,
+        content.pendingRequests,
+        content.pendingRequests,
+    )
 }
 
 @Composable
 private fun GuidanceCard(onOpenGuides: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+        color = AtmosphereTheme.colorScheme.tertiaryContainer,
+        contentColor = AtmosphereTheme.colorScheme.onTertiaryContainer,
+        shape = AtmosphereTheme.shapes.extraLarge,
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -667,11 +870,11 @@ private fun GuidanceCard(onOpenGuides: () -> Unit) {
             Icon(Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null)
             Text(
                 text = stringResource(R.string.dashboard_guidance_title),
-                style = MaterialTheme.typography.titleLarge,
+                style = AtmosphereTheme.typography.titleLarge,
             )
             Text(
                 text = stringResource(R.string.dashboard_guidance_description),
-                style = MaterialTheme.typography.bodyMedium,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
             FilledTonalButton(onClick = onOpenGuides) {
                 Text(stringResource(R.string.dashboard_action_guides))

@@ -34,6 +34,10 @@ data class HouseholdTaskUi(
     val estimatedMinutes: Int?,
     val assigneeMembershipId: String,
     val assigneeDisplayName: String,
+    val recurrence: TaskRecurrence,
+    val recurrenceEndsOn: LocalDate?,
+    val seriesId: String?,
+    val recurrenceActive: Boolean,
     val isMine: Boolean,
     val status: TaskStatus,
     val completionNote: String?,
@@ -55,16 +59,24 @@ data class TaskRequestUi(
     val requestedDueDate: LocalDate?,
     val requestedDueTime: String?,
     val createdByDisplayName: String,
+    val resolvedByDisplayName: String?,
     val resolutionNote: String?,
 )
 
 enum class TaskPriority(val wireValue: String) { LOW("low"), NORMAL("normal"), HIGH("high") }
+enum class TaskRecurrence(val wireValue: String?) {
+    ONCE(null), WEEKLY("weekly"), FORTNIGHTLY("fortnightly"), MONTHLY("monthly");
+
+    companion object {
+        fun fromWire(value: String?) = entries.firstOrNull { it.wireValue == value } ?: ONCE
+    }
+}
 enum class TaskStatus { OPEN, IN_PROGRESS, COMPLETED, CANCELLED }
 enum class TaskRequestType { HELP, SWAP, POSTPONE, ISSUE }
 enum class TaskRequestStatus { PENDING, APPROVED, REJECTED, CANCELLED }
 enum class TaskFilter { MY_TASKS, ACTIVE, REQUESTS, COMPLETED, ALL }
 enum class TaskCommand(val wireValue: String) {
-    START("start"), COMPLETE("complete"), REOPEN("reopen"), CANCEL("cancel"),
+    START("start"), COMPLETE("complete"), REOPEN("reopen"), CANCEL("cancel"), STOP_RECURRENCE("stop_recurrence"),
     REQUEST_HELP("request_help"), REQUEST_SWAP("request_swap"), REQUEST_POSTPONE("request_postpone"),
     REPORT_ISSUE("report_issue"), APPROVE_REQUEST("approve_request"), REJECT_REQUEST("reject_request"),
 }
@@ -78,6 +90,8 @@ data class TaskDraft(
     val dueTime: String?,
     val estimatedMinutes: Int?,
     val assigneeMembershipId: String,
+    val recurrence: TaskRecurrence = TaskRecurrence.ONCE,
+    val recurrenceEndsOn: LocalDate? = null,
 )
 
 data class TaskCommandDraft(

@@ -11,14 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.atmosphere.RadioButton
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,13 +67,13 @@ fun HouseholdSetupScreen(
                     state.account?.displayName.orEmpty(),
                     state.account?.email.orEmpty(),
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
             Text(
                     text = stringResource(R.string.session_secure_notice),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.labelMedium,
             )
         },
     ) {
@@ -216,7 +216,7 @@ fun HouseholdSetupScreen(
             if (state.isSubmitting) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = AtmosphereTheme.colorScheme.onPrimary,
                     strokeWidth = 2.dp,
                 )
                 Spacer(modifier = Modifier.size(10.dp))
@@ -243,7 +243,7 @@ fun HouseholdSetupScreen(
 
 @Composable
 private fun ChoiceGroupTitle(resource: Int) {
-    Text(text = stringResource(resource), style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(resource), style = AtmosphereTheme.typography.titleMedium)
 }
 
 @Composable

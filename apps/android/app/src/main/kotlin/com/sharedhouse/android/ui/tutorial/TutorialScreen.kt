@@ -21,19 +21,18 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.LinearProgressIndicator
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -128,7 +127,6 @@ fun TutorialRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TutorialScreen(
     currentPage: Int,
@@ -156,7 +154,7 @@ fun TutorialScreen(
                 },
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -182,20 +180,20 @@ fun TutorialScreen(
                         safePage + 1,
                         tutorialPages.size,
                     ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.labelLarge,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
                 Box(
                     modifier = Modifier
                         .size(112.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        .background(AtmosphereTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = page.icon,
                         contentDescription = null,
                         modifier = Modifier.size(52.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = AtmosphereTheme.colorScheme.onPrimaryContainer,
                     )
                 }
                 Column(
@@ -204,33 +202,33 @@ fun TutorialScreen(
                 ) {
                     Text(
                         text = stringResource(page.title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = AtmosphereTheme.typography.headlineMedium,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
                         text = stringResource(page.description),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        containerColor = AtmosphereTheme.colorScheme.surfaceContainer,
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
                 ) {
                     Text(
                         text = stringResource(page.detail),
                         modifier = Modifier.padding(18.dp),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = AtmosphereTheme.typography.bodyMedium,
                     )
                 }
                 if (persistenceFailed) {
                     Text(
                         text = stringResource(R.string.tutorial_save_error),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.error,
+                        style = AtmosphereTheme.typography.bodyMedium,
                     )
                 }
                 Spacer(Modifier.height(4.dp))

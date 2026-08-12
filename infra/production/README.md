@@ -214,7 +214,7 @@ verification code or recipient address into a support ticket or server log.
 Choose a directory outside the repository, ideally on an encrypted attached volume:
 
 ```sh
-./infra/production/scripts/backup.sh /var/backups/sharedhouse
+./infra/production/scripts/backup.sh /home/sharedhouse-backups
 ```
 
 The script writes a PostgreSQL custom-format dump atomically and prints its final path. Copy backups

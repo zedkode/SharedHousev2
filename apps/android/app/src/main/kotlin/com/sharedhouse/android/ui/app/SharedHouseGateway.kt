@@ -6,6 +6,7 @@ import com.sharedhouse.network.CalendarEventDto
 import com.sharedhouse.network.BillingCoupleConfigurationDto
 import com.sharedhouse.network.BillingRosterDto
 import com.sharedhouse.network.ExpenseConfigurationDto
+import com.sharedhouse.network.ReviseExpensePayload
 import com.sharedhouse.network.ExpenseDto
 import com.sharedhouse.network.ExpensePaymentDeclarationDto
 import com.sharedhouse.network.ExpenseTemplateConfigurationDto
@@ -25,6 +26,8 @@ import com.sharedhouse.network.HouseholdTaskActionDto
 import com.sharedhouse.network.HouseholdTaskBoardDto
 import com.sharedhouse.network.HouseholdTaskConfigurationDto
 import com.sharedhouse.network.HouseholdTaskDto
+import com.sharedhouse.network.HouseholdChatMessageDto
+import com.sharedhouse.network.HouseholdChatPageDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
 import com.sharedhouse.network.ResendVerificationPayload
@@ -32,6 +35,7 @@ import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SharedHouseApiClient
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
+import kotlinx.coroutines.flow.Flow
 
 interface SharedHouseGateway {
     suspend fun register(payload: RegisterPayload): ApiResult<RegistrationAcceptedDto>
@@ -152,6 +156,25 @@ interface SharedHouseGateway {
         action: HouseholdTaskActionDto,
     ): ApiResult<HouseholdTaskDto>
 
+    suspend fun listHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ): ApiResult<HouseholdChatPageDto>
+
+    suspend fun createHouseholdChatMessage(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        body: String,
+    ): ApiResult<HouseholdChatMessageDto>
+
+    fun streamHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ): Flow<ApiResult<HouseholdChatMessageDto>>
+
     suspend fun listExpenses(accessToken: String, householdId: String): ApiResult<List<ExpenseDto>>
 
     suspend fun getBillingRoster(accessToken: String, householdId: String): ApiResult<BillingRosterDto>
@@ -176,6 +199,15 @@ interface SharedHouseGateway {
         householdId: String,
         expenseId: String,
         expectedVersion: Int,
+    ): ApiResult<ExpenseDto>
+
+    suspend fun reviseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        payload: ReviseExpensePayload,
     ): ApiResult<ExpenseDto>
 
     suspend fun reverseExpense(
@@ -386,6 +418,25 @@ class ApiSharedHouseGateway(
         action,
     )
 
+    override suspend fun listHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ) = api.listHouseholdChatMessages(accessToken, householdId, after)
+
+    override suspend fun createHouseholdChatMessage(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        body: String,
+    ) = api.createHouseholdChatMessage(accessToken, householdId, idempotencyKey, body)
+
+    override fun streamHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ) = api.streamHouseholdChatMessages(accessToken, householdId, after)
+
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         api.listExpenses(accessToken, householdId)
 
@@ -419,6 +470,22 @@ class ApiSharedHouseGateway(
         expenseId: String,
         expectedVersion: Int,
     ) = api.approveExpense(accessToken, householdId, expenseId, expectedVersion)
+
+    override suspend fun reviseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        payload: ReviseExpensePayload,
+    ) = api.reviseExpense(
+        accessToken,
+        householdId,
+        expenseId,
+        expectedVersion,
+        idempotencyKey,
+        payload,
+    )
 
     override suspend fun reverseExpense(
         accessToken: String,

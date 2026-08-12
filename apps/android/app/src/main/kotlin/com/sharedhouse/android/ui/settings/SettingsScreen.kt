@@ -36,22 +36,21 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.FilterChip
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Switch
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,15 +84,14 @@ private data class Choice<T>(
     @StringRes val label: Int,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     preferences: AppPreferences,
     notice: SettingsNotice?,
     onBack: () -> Unit,
-    onAppearanceModeChanged: (AppearanceMode) -> Unit,
-    onDynamicColorChanged: (Boolean) -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
+    onAppearanceChanged: (AppearanceMode) -> Unit,
+    onDynamicColorChanged: (Boolean) -> Unit,
     onReducedMotionChanged: (Boolean) -> Unit,
     onHighContrastChanged: (Boolean) -> Unit,
     onTextScaleChanged: (TextScale) -> Unit,
@@ -127,7 +125,7 @@ fun SettingsScreen(
     var exportPassword by remember { mutableStateOf("") }
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
@@ -159,13 +157,13 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.settings_heading),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = AtmosphereTheme.typography.headlineMedium,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
                         text = stringResource(R.string.settings_description),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyLarge,
                     )
                 }
             }
@@ -178,9 +176,9 @@ fun SettingsScreen(
                             .widthIn(max = 720.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (notice.isError) {
-                                MaterialTheme.colorScheme.errorContainer
+                                AtmosphereTheme.colorScheme.errorContainer
                             } else {
-                                MaterialTheme.colorScheme.primaryContainer
+                                AtmosphereTheme.colorScheme.primaryContainer
                             },
                         ),
                     ) {
@@ -188,9 +186,9 @@ fun SettingsScreen(
                             text = stringResource(notice.messageResource),
                             modifier = Modifier.padding(16.dp),
                             color = if (notice.isError) {
-                                MaterialTheme.colorScheme.onErrorContainer
+                                AtmosphereTheme.colorScheme.onErrorContainer
                             } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                                AtmosphereTheme.colorScheme.onPrimaryContainer
                             },
                         )
                     }
@@ -203,22 +201,23 @@ fun SettingsScreen(
                     title = R.string.settings_appearance_title,
                     description = R.string.settings_appearance_description,
                 ) {
-                    SettingLabel(R.string.settings_theme_label)
                     ChoiceRow(
                         choices = listOf(
-                            Choice(AppearanceMode.SYSTEM, R.string.settings_theme_system),
-                            Choice(AppearanceMode.LIGHT, R.string.settings_theme_light),
-                            Choice(AppearanceMode.DARK, R.string.settings_theme_dark),
+                            Choice(AppearanceMode.SYSTEM, R.string.settings_appearance_system),
+                            Choice(AppearanceMode.LIGHT, R.string.settings_appearance_light),
+                            Choice(AppearanceMode.DARK, R.string.settings_appearance_dark),
                         ),
                         selected = preferences.appearanceMode,
-                        onSelected = onAppearanceModeChanged,
+                        onSelected = onAppearanceChanged,
                     )
-                    HorizontalDivider()
-                    ToggleSetting(
-                        title = R.string.settings_dynamic_color,
-                        description = R.string.settings_dynamic_color_description,
-                        checked = preferences.dynamicColor,
-                        onCheckedChange = onDynamicColorChanged,
+                    Text(
+                        text = stringResource(R.string.settings_atmospheric_theme_description),
+                        style = AtmosphereTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_atmospheric_theme_note),
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -240,8 +239,8 @@ fun SettingsScreen(
                     )
                     Text(
                         text = stringResource(R.string.settings_language_apply_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -338,8 +337,8 @@ fun SettingsScreen(
                     if (googleServicesStatus.consentRequestFailed) {
                         Text(
                             text = stringResource(R.string.settings_ad_consent_error),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            style = AtmosphereTheme.typography.bodySmall,
+                            color = AtmosphereTheme.colorScheme.error,
                         )
                     }
                     Button(
@@ -351,8 +350,8 @@ fun SettingsScreen(
                     }
                     Text(
                         text = stringResource(R.string.settings_optional_data_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -366,7 +365,7 @@ fun SettingsScreen(
                     NotificationPermissionExplainer()
                     Text(
                         text = stringResource(R.string.notification_categories_heading),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                         modifier = Modifier.semantics { heading() },
                     )
                     NotificationCategory.entries.forEachIndexed { index, category ->
@@ -393,8 +392,8 @@ fun SettingsScreen(
                     )
                     Text(
                         text = stringResource(R.string.notification_lead_time_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                     HorizontalDivider()
                     ToggleSetting(
@@ -411,8 +410,8 @@ fun SettingsScreen(
                     )
                     Text(
                         text = stringResource(R.string.notification_channel_authority_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                     HorizontalDivider()
                     ToggleSetting(
@@ -449,8 +448,8 @@ fun SettingsScreen(
                     HorizontalDivider()
                     Text(
                         text = stringResource(R.string.notification_test_explanation),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(
                         onClick = onSendTestNotification,
@@ -526,8 +525,8 @@ fun SettingsScreen(
                     accountError?.let {
                         Text(
                             text = it.localized(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            style = AtmosphereTheme.typography.bodySmall,
+                            color = AtmosphereTheme.colorScheme.error,
                         )
                     }
                 }
@@ -623,8 +622,8 @@ private fun SettingsSection(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 720.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(
@@ -640,18 +639,18 @@ private fun SettingsSection(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = AtmosphereTheme.colorScheme.primary,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
                         text = stringResource(title),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AtmosphereTheme.typography.titleLarge,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
                         text = stringResource(description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -664,8 +663,8 @@ private fun SettingsSection(
 private fun SettingLabel(@StringRes label: Int) {
     Text(
         text = stringResource(label),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = AtmosphereTheme.typography.titleSmall,
+        color = AtmosphereTheme.colorScheme.onSurface,
     )
 }
 
@@ -715,11 +714,11 @@ private fun ToggleSetting(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(text = stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            Text(text = stringResource(title), style = AtmosphereTheme.typography.bodyLarge)
             Text(
                 text = stringResource(description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
         Switch(checked = checked, onCheckedChange = null, enabled = enabled)
@@ -740,14 +739,14 @@ private fun ServiceStatusRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = AtmosphereTheme.colorScheme.primary,
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            Text(text = stringResource(title), style = AtmosphereTheme.typography.bodyLarge)
             Text(
                 text = stringResource(status),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.labelMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -760,6 +759,7 @@ private fun NotificationCategorySetting(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val title = when (category) {
+        NotificationCategory.CHAT -> R.string.notification_category_chat
         NotificationCategory.MONEY -> R.string.notification_category_money
         NotificationCategory.TASKS -> R.string.notification_category_tasks
         NotificationCategory.REQUESTS -> R.string.notification_category_requests
@@ -768,6 +768,7 @@ private fun NotificationCategorySetting(
         NotificationCategory.SUBSCRIPTION -> R.string.notification_category_subscription
     }
     val description = when (category) {
+        NotificationCategory.CHAT -> R.string.notification_category_chat_description
         NotificationCategory.MONEY -> R.string.notification_category_money_description
         NotificationCategory.TASKS -> R.string.notification_category_tasks_description
         NotificationCategory.REQUESTS -> R.string.notification_category_requests_description
@@ -791,7 +792,7 @@ private fun QuietTimeControl(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(text = stringResource(label), style = MaterialTheme.typography.labelLarge)
+        Text(text = stringResource(label), style = AtmosphereTheme.typography.labelLarge)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -806,7 +807,7 @@ private fun QuietTimeControl(
             }
             Text(
                 text = formatMinutesOfDay(value),
-                style = MaterialTheme.typography.titleMedium,
+                style = AtmosphereTheme.typography.titleMedium,
             )
             IconButton(
                 onClick = { onValueChange(adjustedQuietTime(value, 30, otherValue)) },
@@ -839,23 +840,23 @@ private fun NavigationSetting(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = AtmosphereTheme.colorScheme.primary,
         )
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(text = stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            Text(text = stringResource(title), style = AtmosphereTheme.typography.bodyLarge)
             Text(
                 text = stringResource(description),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

@@ -1,0 +1,290 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharedHouse | Members &amp; Invites</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(122, 111, 99, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Root Container -->
+    <div class="w-full h-screen flex flex-col relative overflow-hidden" data-sd-id="1">
+        
+        <!-- Background Organic Shapes -->
+        <div class="organic-blob w-72 h-72 bg-[#C1673F] -top-10 -right-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-64 h-64 bg-[#7C8B6F] bottom-1/4 -left-20 rounded-full" data-sd-id="3"></div>
+
+        <!-- Shared Component: Household Header -->
+        <sd-component componentid="d43d5b33-1cd7-4250-be95-8c682aa360a4" name="HouseholdHeader"></sd-component>
+
+        <!-- Main Scrollable Content -->
+        <main class="flex-1 overflow-y-auto px-5 py-2 z-10 space-y-8" data-sd-id="4">
+            
+            <!-- Breadcrumb / Section Title -->
+            <div class="mt-2 flex items-center justify-between" data-sd-id="5">
+                <div class="flex items-center gap-2" data-sd-id="6">
+                    <a href="https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev" id="back-to-settings" class="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center text-[#7A6F63] hover:text-[#3A332C] transition-colors" data-sd-id="7">
+                        <iconify-icon icon="lucide:arrow-left"></iconify-icon>
+                    </a>
+                    <h2 class="text-xl font-bold tracking-tight" data-sd-id="8">Members &amp; Roles</h2>
+                </div>
+            </div>
+
+            <!-- Active Members Section -->
+            <section class="space-y-4" data-sd-id="9">
+                <div class="flex items-center justify-between px-1" data-sd-id="10">
+                    <h3 class="text-sm font-bold text-[#7A6F63] uppercase tracking-wider" data-sd-id="11">Active Members</h3>
+                    <span class="text-[10px] font-bold text-[#7C8B6F] bg-[#7C8B6F]/10 px-2 py-0.5 rounded-full" data-sd-id="12">4 TOTAL</span>
+                </div>
+
+                <div class="space-y-3" data-sd-id="13">
+                    <!-- Member Card 1 (Admin/Me) -->
+                    <div class="glass-card p-4 flex items-center justify-between border-l-4 border-[#C1673F]" data-sd-id="14">
+                        <div class="flex items-center gap-3" data-sd-id="15">
+                            <div class="relative" data-sd-id="16">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-12 h-12 rounded-2xl bg-stone-200 border-2 border-white/50" alt="Felix" data-sd-id="17">
+                                <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#6E8A5E] border-2 border-[#F7F2EA] rounded-full" data-sd-id="18"></div>
+                            </div>
+                            <div data-sd-id="19">
+                                <h4 class="text-sm font-bold flex items-center gap-2" data-sd-id="20">
+                                    Felix (You)
+                                    <span class="text-[9px] font-bold bg-[#C1673F]/10 text-[#C1673F] px-1.5 py-0.5 rounded uppercase" data-sd-id="21">Admin</span>
+                                </h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#7A6F63] mt-0.5" data-sd-id="22">
+                                    <iconify-icon icon="lucide:globe"></iconify-icon>
+                                    Online now
+                                </div>
+                            </div>
+                        </div>
+                        <button class="w-9 h-9 flex items-center justify-center text-[#7A6F63] hover:bg-white/40 rounded-xl transition-colors" data-sd-id="23">
+                            <iconify-icon icon="lucide:more-vertical" class="text-lg"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <!-- Member Card 2 -->
+                    <div class="glass-card p-4 flex items-center justify-between" data-sd-id="24">
+                        <div class="flex items-center gap-3" data-sd-id="25">
+                            <div class="relative" data-sd-id="26">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-12 h-12 rounded-2xl bg-stone-200 border-2 border-white/50" alt="Luna" data-sd-id="27">
+                                <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#6E8A5E] border-2 border-[#F7F2EA] rounded-full" data-sd-id="28"></div>
+                            </div>
+                            <div data-sd-id="29">
+                                <h4 class="text-sm font-bold flex items-center gap-2" data-sd-id="30">
+                                    Luna 
+                                    <span class="text-[9px] font-bold bg-[#7C8B6F]/10 text-[#7C8B6F] px-1.5 py-0.5 rounded uppercase" data-sd-id="31">User</span>
+                                </h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#7A6F63] mt-0.5" data-sd-id="32">
+                                    <iconify-icon icon="lucide:smartphone"></iconify-icon>
+                                    Active 5m ago
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" data-sd-id="33">
+                            <button class="w-8 h-8 flex items-center justify-center text-[#B5533A] bg-[#B5533A]/5 hover:bg-[#B5533A]/10 rounded-lg transition-colors" title="Remove Member" data-sd-id="34">
+                                <iconify-icon icon="lucide:user-minus"></iconify-icon>
+                            </button>
+                            <button class="w-8 h-8 flex items-center justify-center text-[#7A6F63] hover:bg-white/40 rounded-lg transition-colors" data-sd-id="35">
+                                <iconify-icon icon="lucide:settings-2"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Member Card 3 -->
+                    <div class="glass-card p-4 flex items-center justify-between" data-sd-id="36">
+                        <div class="flex items-center gap-3" data-sd-id="37">
+                            <div class="relative" data-sd-id="38">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar" class="w-12 h-12 rounded-2xl bg-stone-200 border-2 border-white/50" alt="Oscar" data-sd-id="39">
+                                <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-stone-400 border-2 border-[#F7F2EA] rounded-full" data-sd-id="40"></div>
+                            </div>
+                            <div data-sd-id="41">
+                                <h4 class="text-sm font-bold flex items-center gap-2" data-sd-id="42">
+                                    Oscar
+                                    <span class="text-[9px] font-bold bg-[#7C8B6F]/10 text-[#7C8B6F] px-1.5 py-0.5 rounded uppercase" data-sd-id="43">User</span>
+                                </h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#7A6F63] mt-0.5" data-sd-id="44">
+                                    <iconify-icon icon="lucide:moon"></iconify-icon>
+                                    Away
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" data-sd-id="45">
+                            <button class="w-8 h-8 flex items-center justify-center text-[#B5533A] bg-[#B5533A]/5 hover:bg-[#B5533A]/10 rounded-lg transition-colors" data-sd-id="46">
+                                <iconify-icon icon="lucide:user-minus"></iconify-icon>
+                            </button>
+                            <button class="w-8 h-8 flex items-center justify-center text-[#7A6F63] hover:bg-white/40 rounded-lg transition-colors" data-sd-id="47">
+                                <iconify-icon icon="lucide:settings-2"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Invite Codes Section -->
+            <section class="space-y-4" data-sd-id="48">
+                <div class="flex items-center justify-between px-1" data-sd-id="49">
+                    <h3 class="text-sm font-bold text-[#7A6F63] uppercase tracking-wider" data-sd-id="50">Invite Codes</h3>
+                    <button id="generate-invite" class="text-[10px] font-bold text-[#C1673F] bg-[#C1673F]/10 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-[#C1673F]/20 transition-colors" data-sd-id="51">
+                        <iconify-icon icon="lucide:plus"></iconify-icon>
+                        GENERATE NEW
+                    </button>
+                </div>
+
+                <div class="space-y-3" data-sd-id="52">
+                    <!-- Active Invite -->
+                    <div class="glass-card p-5 relative overflow-hidden" data-sd-id="53">
+                        <div class="flex justify-between items-start mb-4" data-sd-id="54">
+                            <div data-sd-id="55">
+                                <h4 class="text-sm font-bold" data-sd-id="56">WILLOW-XQ92</h4>
+                                <p class="text-[10px] text-[#7A6F63] uppercase font-bold tracking-tight" data-sd-id="57">Active Code</p>
+                            </div>
+                            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C99A3A]/10 text-[#C99A3A] text-[10px] font-bold" data-sd-id="58">
+                                <iconify-icon icon="lucide:clock-4"></iconify-icon>
+                                EXPIRES IN 2 DAYS
+                            </div>
+                        </div>
+                        <div class="flex gap-2" data-sd-id="59">
+                            <button class="flex-1 py-2.5 bg-[#C1673F] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" data-sd-id="60">
+                                <iconify-icon icon="lucide:copy" class="text-base"></iconify-icon>
+                                COPY CODE
+                            </button>
+                            <button class="px-4 py-2.5 bg-white/50 text-[#B5533A] rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/80 transition-colors border border-white/30" data-sd-id="61">
+                                <iconify-icon icon="lucide:x-circle" class="text-base"></iconify-icon>
+                                REVOKE
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Expired/Disabled Invite (Subtle) -->
+                    <div class="glass-card p-4 flex items-center justify-between opacity-60 grayscale-[0.5]" data-sd-id="62">
+                        <div data-sd-id="63">
+                            <h4 class="text-sm font-bold line-through" data-sd-id="64">HOUSE-42KB</h4>
+                            <div class="flex items-center gap-1 text-[10px] text-[#7A6F63] mt-1 font-bold" data-sd-id="65">
+                                <iconify-icon icon="lucide:calendar-x"></iconify-icon>
+                                EXPIRED OCT 12
+                            </div>
+                        </div>
+                        <button class="w-8 h-8 flex items-center justify-center text-[#7A6F63] hover:bg-white/40 rounded-lg" data-sd-id="66">
+                            <iconify-icon icon="lucide:trash-2"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pending Invites Section -->
+            <section class="space-y-4 pb-12" data-sd-id="67">
+                <div class="flex items-center justify-between px-1" data-sd-id="68">
+                    <h3 class="text-sm font-bold text-[#7A6F63] uppercase tracking-wider" data-sd-id="69">Pending Email Invites</h3>
+                </div>
+
+                <div class="space-y-3" data-sd-id="70">
+                    <!-- Pending Item -->
+                    <div class="glass-card p-4 flex items-center justify-between" data-sd-id="71">
+                        <div class="flex items-center gap-3" data-sd-id="72">
+                            <div class="w-10 h-10 rounded-full bg-stone-200 flex items-center justify-center text-[#7A6F63]" data-sd-id="73">
+                                <iconify-icon icon="lucide:mail" class="text-xl"></iconify-icon>
+                            </div>
+                            <div data-sd-id="74">
+                                <h4 class="text-sm font-bold" data-sd-id="75">sarah.j@example.com</h4>
+                                <p class="text-[10px] text-[#7A6F63]" data-sd-id="76">Sent Oct 22 • Expiring soon</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" data-sd-id="77">
+                            <button class="w-8 h-8 flex items-center justify-center text-[#7C8B6F] bg-[#7C8B6F]/5 hover:bg-[#7C8B6F]/10 rounded-lg transition-colors" title="Resend Invite" data-sd-id="78">
+                                <iconify-icon icon="lucide:send"></iconify-icon>
+                            </button>
+                            <button class="w-8 h-8 flex items-center justify-center text-[#B5533A] bg-[#B5533A]/5 hover:bg-[#B5533A]/10 rounded-lg transition-colors" title="Cancel Invite" data-sd-id="79">
+                                <iconify-icon icon="lucide:trash-2"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Empty State for Pending (Just for demo logic) -->
+                    <!-- <div class="glass-card p-8 flex flex-col items-center text-center opacity-70">
+                        <iconify-icon icon="lucide:mail-question" class="text-3xl text-[#7A6F63] mb-2"></iconify-icon>
+                        <h4 class="text-sm font-bold">No Pending Email Invites</h4>
+                        <p class="text-[10px] text-[#7A6F63] max-w-[200px] mt-1">Direct email invitations will appear here until they are accepted or expire.</p>
+                    </div> -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Shared Component: Bottom Navigation Bar -->
+        <sd-component componentid="011a1bb3-065f-4d2a-9035-58d4869ef34f" name="NavigationBar" props="{
+            &quot;activeItem&quot;: &quot;settings&quot;,
+            &quot;homeHref&quot;: &quot;https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev&quot;,
+            &quot;moneyHref&quot;: &quot;https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev&quot;,
+            &quot;tasksHref&quot;: &quot;https://draft-568089be-461a-42e3-af60-9de71d50dcda.preview.superdesign.dev&quot;,
+            &quot;settingsHref&quot;: &quot;https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev&quot;
+        }"></sd-component>
+    </div>
+
+    <!-- Micro-interactions Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Visual feedback for buttons
+            document.querySelectorAll('button, a').forEach(el => {
+                el.addEventListener('mousedown', () => el.classList.add('opacity-70'));
+                el.addEventListener('mouseup', () => el.classList.remove('opacity-70'));
+                el.addEventListener('mouseleave', () => el.classList.remove('opacity-70'));
+            });
+
+            // Action notification mock
+            const notify = (msg) => {
+                console.log('Action: ' + msg);
+                // Real app would show a toast here
+            };
+
+            document.getElementById('generate-invite')?.addEventListener('click', () => notify('Generating new invite code...'));
+        });
+    </script>
+
+</body></html>

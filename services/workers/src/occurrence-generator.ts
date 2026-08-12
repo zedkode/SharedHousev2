@@ -20,6 +20,7 @@ interface DueTemplateRow {
   readonly next_due_date: Date | string;
   readonly schedule_anchor_day: number;
   readonly schedule_anchor_month: number;
+  readonly schedule_ends_on: Date | string | null;
   readonly notes: string | null;
 }
 
@@ -87,7 +88,7 @@ async function processOneOccurrence(
     await transaction.query<DueTemplateRow>(
       `SELECT t.id, t.household_id, t.created_by_membership_id, t.title, t.category,
          t.custom_category_name, t.amount_minor, t.currency, t.cadence, t.next_due_date,
-         t.schedule_anchor_day, t.schedule_anchor_month, t.notes
+         t.schedule_anchor_day, t.schedule_anchor_month, t.schedule_ends_on, t.notes
        FROM expense_templates t
        JOIN households h ON h.id = t.household_id AND h.status = 'active'
        WHERE t.status = 'active'
@@ -201,12 +202,24 @@ async function processOneOccurrence(
     template.schedule_anchor_day,
     template.schedule_anchor_month,
   );
+  const endsOn = template.schedule_ends_on === null ? null : toLocalDate(template.schedule_ends_on);
+  const seriesFinished = endsOn !== null && nextDueDate > endsOn;
   await transaction.query(
     `UPDATE expense_templates
-     SET next_due_date = $2, version = version + 1, updated_at = $3
+     SET next_due_date = $2, status = CASE WHEN $4 THEN 'archived' ELSE status END,
+         version = version + 1, updated_at = $3
      WHERE id = $1`,
-    [template.id, nextDueDate, occurredAt],
+    [template.id, nextDueDate, occurredAt, seriesFinished],
   );
+  if (seriesFinished) {
+    await transaction.query(
+      `INSERT INTO expense_template_status_events (
+         id, template_id, actor_membership_id, previous_status, next_status, reason, occurred_at
+       ) VALUES ($1, $2, NULL, 'active', 'archived',
+         'Scheduled series reached its configured final occurrence', $3)`,
+      [newUuidV7(checkedAt.getTime()), template.id, occurredAt],
+    );
+  }
   return inserted.length > 0 ? 'generated' : 'already_present';
 }
 

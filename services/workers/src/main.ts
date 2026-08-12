@@ -2,6 +2,7 @@ import { createWorkerHealth } from './health.js';
 import { PostgresWorkerDatabase } from './database.js';
 import { readWorkerEnvironment } from './environment.js';
 import { generateDueExpenseOccurrences } from './occurrence-generator.js';
+import { generateUpcomingTaskOccurrences } from './task-occurrence-generator.js';
 
 async function main(): Promise<void> {
   const environment = readWorkerEnvironment(process.env);
@@ -23,11 +24,17 @@ async function main(): Promise<void> {
           startedAt,
           environment.batchSize,
         );
+        const taskSummary = await generateUpcomingTaskOccurrences(
+          database,
+          startedAt,
+          environment.batchSize,
+        );
         console.log(
           JSON.stringify({
             event: 'worker.recurring_expenses.completed',
             checkedAt: startedAt.toISOString(),
             ...summary,
+            recurringTasks: taskSummary,
           }),
         );
       } catch (error: unknown) {

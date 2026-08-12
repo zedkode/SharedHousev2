@@ -1,0 +1,438 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharedHouse Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+    <meta name="view-transition" content="same-origin">
+    <link rel="prefetch" href="https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-a8d9d763-5250-4884-8a64-db5f8d90a239.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-72178586-d130-4380-8190-226619c55699.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-8c5f795b-33ab-4e61-893e-60d28da414d4.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-3f272ee0-8f90-4db3-a348-47799d156284.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev" as="document">
+    <link rel="prefetch" href="https://draft-8bdd083d-e84e-4ba7-a50e-76f60065e4f1.preview.superdesign.dev" as="document">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+            --status-positive: #6E8A5E;
+            --status-warning: #C99A3A;
+            --status-negative: #B5533A;
+            --status-neutral: #9C9184;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(60px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Custom scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(122, 111, 99, 0.2);
+            border-radius: 10px;
+        }
+
+        .nav-item-active {
+            color: var(--accent-terracotta);
+        }
+
+        html { background-color: var(--bg-warm); }
+        @view-transition { navigation: auto; }
+        ::view-transition { background-color: var(--bg-warm); }
+
+        ::view-transition-old(main-nav),
+        ::view-transition-new(main-nav),
+        ::view-transition-old(household-header),
+        ::view-transition-new(household-header) {
+            animation: none;
+            mix-blend-mode: normal;
+        }
+
+        ::view-transition-old(main-content) {
+            animation: 0.25s ease-out both fade-out;
+        }
+        ::view-transition-new(main-content) {
+            animation: 0.25s ease-in 0.1s both fade-in;
+        }
+
+        @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <!-- Root Container -->
+    <div class="w-full h-screen flex flex-col relative overflow-hidden" data-sd-id="1">
+        
+        <!-- Background Organic Shapes -->
+        <div class="organic-blob w-64 h-64 bg-[#C1673F] -top-20 -left-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-80 h-80 bg-[#7C8B6F] top-1/2 -right-20 rounded-full" data-sd-id="3"></div>
+        <div class="organic-blob w-72 h-72 bg-[#C99A3A] -bottom-20 left-10 rounded-full" data-sd-id="4"></div>
+
+        <!-- Header: Household Switcher -->
+        <header class="shrink-0 pt-14 px-5 z-10" style="view-transition-name: household-header;" data-sd-id="5">
+            <div class="flex items-center justify-between" data-sd-id="6">
+                <div class="flex items-center gap-3" data-sd-id="7">
+                    <div class="w-10 h-10 rounded-xl bg-[#C1673F] flex items-center justify-center text-white shadow-lg shadow-[#C1673F]/20" data-sd-id="8">
+                        <iconify-icon icon="lucide:home" class="text-xl"></iconify-icon>
+                    </div>
+                    <div data-sd-id="9">
+                        <button id="household-switcher" class="flex items-center gap-1 group" data-sd-id="10">
+                            <h1 class="text-lg font-bold tracking-tight" data-sd-id="11">Willow Creek 42</h1>
+                            <iconify-icon icon="lucide:chevron-down" class="text-sm text-neutral-400 group-hover:translate-y-0.5 transition-transform"></iconify-icon>
+                        </button>
+                        <p class="text-xs text-[#7A6F63] font-medium uppercase tracking-wider" data-sd-id="12">3 Members Active</p>
+                    </div>
+                </div>
+                <div class="flex -space-x-2" data-sd-id="13">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-8 h-8 rounded-full border-2 border-[#F7F2EA] bg-stone-200" alt="Member 1" data-sd-id="14">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-8 h-8 rounded-full border-2 border-[#F7F2EA] bg-stone-200" alt="Member 2" data-sd-id="15">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar" class="w-8 h-8 rounded-full border-2 border-[#F7F2EA] bg-stone-200" alt="Member 3" data-sd-id="16">
+                    <div class="w-8 h-8 rounded-full border-2 border-[#F7F2EA] bg-[#E8E2D9] flex items-center justify-center text-[10px] font-bold text-[#7A6F63]" data-sd-id="17">
+                        +1
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto px-5 py-6 z-10 space-y-6" style="view-transition-name: main-content;" data-sd-id="18">
+            
+            <!-- Section: Money Summary -->
+            <section data-sd-id="19">
+                <div class="glass-card p-5 relative overflow-hidden" data-sd-id="20">
+                    <div class="flex justify-between items-start mb-6" data-sd-id="21">
+                    <div data-sd-id="money-card-link-container">
+                        <a href="https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev" id="money-card-summary-link" class="block hover:opacity-80 transition-opacity">
+                        <div data-sd-id="22">
+                            <h2 class="text-sm font-semibold text-[#7A6F63] mb-1" data-sd-id="23">Total Household Balance</h2>
+                            <div class="flex items-baseline gap-2" data-sd-id="24">
+                                <span class="text-3xl font-bold" data-sd-id="25">£2,450.00</span>
+                                <span class="text-xs font-medium text-[#6E8A5E] bg-[#6E8A5E]/10 px-2 py-0.5 rounded-full flex items-center gap-1" data-sd-id="26">
+                                    <iconify-icon icon="lucide:arrow-up-right" class="text-[10px]"></iconify-icon>
+                                    Updated
+                                </span>
+                            </div>
+                        </a>
+                        </div>
+                        <button class="w-10 h-10 rounded-full bg-white/40 flex items-center justify-center hover:bg-white/60 transition-colors" data-sd-id="27">
+                            <iconify-icon icon="lucide:plus" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <div class="space-y-4" data-sd-id="28">
+                        <!-- Member Row 1 -->
+                        <div class="flex items-center justify-between" data-sd-id="29">
+                            <div class="flex items-center gap-3" data-sd-id="30">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-9 h-9 rounded-full bg-stone-100" alt="" data-sd-id="31">
+                                <div data-sd-id="32">
+                                    <p class="text-sm font-semibold" data-sd-id="33">Felix</p>
+                                    <p class="text-[10px] text-[#7A6F63]" data-sd-id="34">Paid 85% of share</p>
+                                </div>
+                            </div>
+                            <div class="text-right" data-sd-id="35">
+                                <p class="text-sm font-bold" data-sd-id="36">£850.00</p>
+                                <div class="flex items-center gap-1 text-[10px] text-[#6E8A5E]" data-sd-id="37">
+                                    <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                                    <span data-sd-id="38">Confirmed</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Member Row 2 -->
+                        <div class="flex items-center justify-between" data-sd-id="39">
+                            <div class="flex items-center gap-3" data-sd-id="40">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-9 h-9 rounded-full bg-stone-100" alt="" data-sd-id="41">
+                                <div data-sd-id="42">
+                                    <p class="text-sm font-semibold" data-sd-id="43">Luna</p>
+                                    <p class="text-[10px] text-[#7A6F63]" data-sd-id="44">Pending confirmation</p>
+                                </div>
+                            </div>
+                            <div class="text-right" data-sd-id="45">
+                                <p class="text-sm font-bold" data-sd-id="46">£1,200.00</p>
+                                <div class="flex items-center gap-1 text-[10px] text-[#C99A3A]" data-sd-id="47">
+                                    <iconify-icon icon="lucide:clock"></iconify-icon>
+                                    <span data-sd-id="48">Reviewing</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-white/30" data-sd-id="49">
+                        <a href="https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev" id="view-finances-link" class="text-xs font-bold text-[#C1673F] flex items-center justify-center gap-2 group" data-sd-id="50">
+                            VIEW FULL BREAKDOWN
+                            <iconify-icon icon="lucide:arrow-right" class="group-hover:translate-x-1 transition-transform"></iconify-icon>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Upcoming Bills/Due Items -->
+            <section class="space-y-4" data-sd-id="51">
+                <div class="flex items-center justify-between px-1" data-sd-id="52">
+                    <h3 class="text-base font-bold flex items-center gap-2" data-sd-id="53">
+                        <iconify-icon icon="lucide:receipt" class="text-[#C1673F]"></iconify-icon>
+                        Upcoming Bills
+                    </h3>
+                    <a href="https://draft-a8d9d763-5250-4884-8a64-db5f8d90a239.preview.superdesign.dev" id="view-all-bills-link" class="text-xs text-[#7A6F63] font-medium hover:text-[#C1673F]">View All</a>
+                </div>
+                
+                <div class="space-y-3" data-sd-id="55">
+                    <!-- Due Item 1 -->
+                    <div class="glass-card p-4 flex items-center justify-between" data-sd-id="56">
+                        <div class="flex items-center gap-4" data-sd-id="57">
+                            <div class="w-12 h-12 rounded-2xl bg-[#C1673F]/10 flex flex-col items-center justify-center text-[#C1673F]" data-sd-id="58">
+                                <span class="text-[10px] font-bold uppercase" data-sd-id="59">Oct</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="60">24</span>
+                            </div>
+                            <div data-sd-id="61">
+                                <h4 class="text-sm font-bold" data-sd-id="62">Council Tax</h4>
+                                <p class="text-[11px] text-[#7A6F63]" data-sd-id="63">Assigned to <span class="font-semibold" data-sd-id="64">Luna</span></p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="65">
+                            <span class="text-sm font-bold" data-sd-id="66">£184.00</span>
+                            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#B5533A]/10 text-[#B5533A] text-[10px] font-bold" data-sd-id="67">
+                                <iconify-icon icon="lucide:alert-triangle"></iconify-icon>
+                                OVERDUE
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Due Item 2 -->
+                    <div class="glass-card p-4 flex items-center justify-between" data-sd-id="68">
+                        <div class="flex items-center gap-4" data-sd-id="69">
+                            <div class="w-12 h-12 rounded-2xl bg-[#7C8B6F]/10 flex flex-col items-center justify-center text-[#7C8B6F]" data-sd-id="70">
+                                <span class="text-[10px] font-bold uppercase" data-sd-id="71">Nov</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="72">02</span>
+                            </div>
+                            <div data-sd-id="73">
+                                <h4 class="text-sm font-bold" data-sd-id="74">Gigabit Internet</h4>
+                                <p class="text-[11px] text-[#7A6F63]" data-sd-id="75">Assigned to <span class="font-semibold" data-sd-id="76">Oscar</span></p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="77">
+                            <span class="text-sm font-bold" data-sd-id="78">£45.00</span>
+                            <div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#9C9184]/10 text-[#9C9184] text-[10px] font-bold" data-sd-id="79">
+                                <iconify-icon icon="lucide:calendar"></iconify-icon>
+                                SCHEDULED
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Chores / Tasks -->
+            <section class="space-y-4" data-sd-id="80">
+                <div class="flex items-center justify-between px-1" data-sd-id="81">
+                    <h3 class="text-base font-bold flex items-center gap-2" data-sd-id="82">
+                        <iconify-icon icon="lucide:check-square" class="text-[#7C8B6F]"></iconify-icon>
+                        Household Tasks
+                    </h3>
+                    <a href="https://draft-72178586-d130-4380-8190-226619c55699.preview.superdesign.dev" id="view-all-tasks-link" class="text-xs text-[#7A6F63] font-medium hover:text-[#7C8B6F]">View All</a>
+                    <div class="hidden flex items-center gap-1 px-2 py-1 bg-white/40 rounded-lg" data-sd-id="83">
+                        <iconify-icon icon="lucide:filter" class="text-xs text-[#7A6F63]"></iconify-icon>
+                        <span class="text-[10px] font-bold" data-sd-id="84">FILTER</span>
+                    </div>
+                </div>
+
+                <!-- Task Card: Active -->
+                <div class="glass-card p-5 border-l-4 border-[#C99A3A]" data-sd-id="85">
+                    <div class="flex justify-between items-start mb-4" data-sd-id="86">
+                        <div class="flex items-center gap-3" data-sd-id="87">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-10 h-10 rounded-full border-2 border-white" alt="" data-sd-id="88">
+                            <div data-sd-id="89">
+                                <h4 class="text-sm font-bold" data-sd-id="90">Kitchen Deep Clean</h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#C99A3A] font-bold" data-sd-id="91">
+                                    <iconify-icon icon="lucide:clock-4"></iconify-icon>
+                                    DUE IN 2 DAYS
+                                </div>
+                            </div>
+                        </div>
+                        <button class="text-[#7A6F63]" data-sd-id="92">
+                            <iconify-icon icon="lucide:more-horizontal" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4" data-sd-id="93">
+                        <button class="flex-1 py-2 px-3 bg-[#7C8B6F] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2" data-sd-id="94">
+                            <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                            COMPLETE
+                        </button>
+                        <button class="flex-1 py-2 px-3 bg-white/50 text-[#3A332C] rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/80 transition-colors" data-sd-id="95">
+                            <iconify-icon icon="lucide:refresh-cw"></iconify-icon>
+                            SWAP
+                        </button>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-[#7A6F63]" data-sd-id="96">
+                        <span class="flex items-center gap-1" data-sd-id="97">
+                            <iconify-icon icon="lucide:help-circle"></iconify-icon>
+                            Need help?
+                        </span>
+                        <span class="flex items-center gap-1 font-semibold text-[#C1673F]" data-sd-id="98">
+                            POSTPONE
+                            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Empty State Demo (Shopping List example) -->
+                <div class="glass-card p-8 flex flex-col items-center text-center opacity-80" data-sd-id="99">
+                    <div class="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center mb-4 text-[#7A6F63]" data-sd-id="100">
+                        <iconify-icon icon="lucide:shopping-basket" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h4 class="text-sm font-bold mb-1" data-sd-id="101">Shopping List is Clear</h4>
+                    <p class="text-xs text-[#7A6F63] mb-5 max-w-[200px]" data-sd-id="102">Looks like the fridge is full! Tap below if we need anything new.</p>
+                    <button class="px-6 py-2 bg-white/60 border border-white/50 rounded-full text-xs font-bold text-[#3A332C] hover:bg-white transition-colors" data-sd-id="103">
+                        ADD ITEM
+                    </button>
+                </div>
+            </section>
+
+            <!-- Section: Calendar Snapshot -->
+            <section class="space-y-4 pb-10" data-sd-id="104">
+                <div class="flex items-center justify-between px-1" data-sd-id="105">
+                    <h3 class="text-base font-bold flex items-center gap-2" data-sd-id="106">
+                        <iconify-icon icon="lucide:calendar-days" class="text-[#C99A3A]"></iconify-icon>
+                        This Week
+                    </h3>
+                </div>
+
+                <div class="flex overflow-x-auto gap-3 pb-2 -mx-1 px-1 snap-x" data-sd-id="107">
+                    <!-- Event Chip 1 -->
+                    <div class="shrink-0 w-40 glass-card p-4 snap-start border-t-4 border-[#C1673F]" data-sd-id="108">
+                        <span class="text-[9px] font-bold uppercase text-[#7A6F63] tracking-widest" data-sd-id="109">Tuesday</span>
+                        <h4 class="text-xs font-bold mt-1" data-sd-id="110">Bin Collection</h4>
+                        <div class="flex items-center gap-1 mt-2 text-[10px] text-[#7A6F63]" data-sd-id="111">
+                            <iconify-icon icon="lucide:trash-2"></iconify-icon>
+                            General + Recycling
+                        </div>
+                    </div>
+
+                    <!-- Event Chip 2 -->
+                    <div class="shrink-0 w-40 glass-card p-4 snap-start border-t-4 border-[#7C8B6F]" data-sd-id="112">
+                        <span class="text-[9px] font-bold uppercase text-[#7A6F63] tracking-widest" data-sd-id="113">Thursday</span>
+                        <h4 class="text-xs font-bold mt-1" data-sd-id="114">House Meeting</h4>
+                        <div class="flex items-center gap-1 mt-2 text-[10px] text-[#7A6F63]" data-sd-id="115">
+                            <iconify-icon icon="lucide:users-2"></iconify-icon>
+                            Shared Expenses
+                        </div>
+                    </div>
+
+                    <!-- Event Chip 3 -->
+                    <div class="shrink-0 w-40 glass-card p-4 snap-start border-t-4 border-[#C99A3A]" data-sd-id="116">
+                        <span class="text-[9px] font-bold uppercase text-[#7A6F63] tracking-widest" data-sd-id="117">Friday</span>
+                        <h4 class="text-xs font-bold mt-1" data-sd-id="118">Luna's Birthday</h4>
+                        <div class="flex items-center gap-1 mt-2 text-[10px] text-[#7A6F63]" data-sd-id="119">
+                            <iconify-icon icon="lucide:cake"></iconify-icon>
+                            Dinner @ 7 PM
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer Navigation Bar -->
+        <footer class="shrink-0 pb-[34px] z-40 bg-white border-t border-[#E8E2D9]" style="view-transition-name: main-nav;" data-sd-id="120">
+            <nav class="flex items-center justify-between px-6 pt-3" data-sd-id="121">
+                <a href="#" id="nav-home" class="flex flex-col items-center gap-1 nav-item-active" data-sd-id="122">
+                    <iconify-icon icon="lucide:layout-grid" class="text-2xl"></iconify-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter" data-sd-id="123">Home</span>
+                </a>
+                <a href="https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev" id="nav-money" class="flex flex-col items-center gap-1 text-[#7A6F63] hover:text-[#C1673F] transition-colors" data-sd-id="124">
+                    <iconify-icon icon="lucide:wallet" class="text-2xl"></iconify-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter text-neutral-400" data-sd-id="125">Money</span>
+                </a>
+                
+                <!-- Action FAB -->
+                <button class="relative -top-8 w-14 h-14 bg-[#C1673F] rounded-2xl flex items-center justify-center text-white shadow-xl shadow-[#C1673F]/30 transform hover:scale-105 active:scale-95 transition-all" data-sd-id="126">
+                    <iconify-icon icon="lucide:plus" class="text-3xl"></iconify-icon>
+                </button>
+
+                <a href="https://draft-72178586-d130-4380-8190-226619c55699.preview.superdesign.dev" id="nav-tasks" class="flex flex-col items-center gap-1 text-[#7A6F63] hover:text-[#C1673F] transition-colors" data-sd-id="127">
+                    <iconify-icon icon="lucide:check-circle-2" class="text-2xl"></iconify-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter text-neutral-400" data-sd-id="128">Tasks</span>
+                </a>
+                <a href="https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev" id="nav-settings" class="flex flex-col items-center gap-1 text-[#7A6F63] hover:text-[#C1673F] transition-colors" data-sd-id="129">
+                    <iconify-icon icon="lucide:settings" class="text-2xl"></iconify-icon>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter text-neutral-400" data-sd-id="130">Settings</span>
+                </a>
+            </nav>
+        </footer>
+
+        <!-- Interaction Overlays (Hidden by default) -->
+        <div id="status-notification" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity" data-sd-id="131">
+            <div class="glass-card px-4 py-2 flex items-center gap-2 bg-[#6E8A5E]/20 border-[#6E8A5E]/30 text-[#6E8A5E] font-bold text-xs" data-sd-id="132">
+                <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                PAYMENT CONFIRMED
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Simple micro-interactions simulation
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('click', (e) => {
+                // Prevent real navigation for demo
+                if (el.tagName === 'A') e.preventDefault();
+                
+                // Visual feedback
+                el.classList.add('opacity-50');
+                setTimeout(() => el.classList.remove('opacity-50'), 150);
+            });
+        });
+
+        // Household switcher mock logic
+        const switcherBtn = document.getElementById('household-switcher');
+        switcherBtn.addEventListener('click', () => {
+            console.log('Open household switcher modal');
+            // Logic would show a bottom sheet here
+        });
+
+        // Add subtle scroll reveal effect
+        const main = document.querySelector('main');
+        main.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (main.scrollTop > 20) {
+                header.classList.add('bg-[#F7F2EA]/80', 'backdrop-blur-md');
+            } else {
+                header.classList.remove('bg-[#F7F2EA]/80', 'backdrop-blur-md');
+            }
+        });
+    </script>
+
+</body></html>

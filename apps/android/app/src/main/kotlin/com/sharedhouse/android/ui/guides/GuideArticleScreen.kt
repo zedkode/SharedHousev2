@@ -15,15 +15,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +59,54 @@ private fun articleFor(topic: GuideTopic): GuideArticle = when (topic) {
             R.string.guide_article_calendar_point_3,
         ),
         R.string.guide_article_calendar_note,
+    )
+    GuideTopic.MONEY -> GuideArticle(
+        R.string.guide_money_title,
+        R.string.guide_article_money_intro,
+        listOf(
+            R.string.guide_article_money_point_1,
+            R.string.guide_article_money_point_2,
+            R.string.guide_article_money_point_3,
+            R.string.guide_article_money_point_4,
+            R.string.guide_article_money_point_5,
+        ),
+        R.string.guide_article_money_note,
+    )
+    GuideTopic.TASKS -> GuideArticle(
+        R.string.guide_tasks_title,
+        R.string.guide_article_tasks_intro,
+        listOf(
+            R.string.guide_article_tasks_point_1,
+            R.string.guide_article_tasks_point_2,
+            R.string.guide_article_tasks_point_3,
+            R.string.guide_article_tasks_point_4,
+            R.string.guide_article_tasks_point_5,
+        ),
+        R.string.guide_article_tasks_note,
+    )
+    GuideTopic.HOUSEHOLD_ADMIN -> GuideArticle(
+        R.string.guide_admin_title,
+        R.string.guide_article_admin_intro,
+        listOf(
+            R.string.guide_article_admin_point_1,
+            R.string.guide_article_admin_point_2,
+            R.string.guide_article_admin_point_3,
+            R.string.guide_article_admin_point_4,
+            R.string.guide_article_admin_point_5,
+        ),
+        R.string.guide_article_admin_note,
+    )
+    GuideTopic.CHAT -> GuideArticle(
+        R.string.guide_chat_title,
+        R.string.guide_article_chat_intro,
+        listOf(
+            R.string.guide_article_chat_point_1,
+            R.string.guide_article_chat_point_2,
+            R.string.guide_article_chat_point_3,
+            R.string.guide_article_chat_point_4,
+            R.string.guide_article_chat_point_5,
+        ),
+        R.string.guide_article_chat_note,
     )
     GuideTopic.NOTIFICATIONS -> GuideArticle(
         R.string.guide_notifications_title,
@@ -113,7 +160,6 @@ private fun articleFor(topic: GuideTopic): GuideArticle = when (topic) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuideArticleScreen(
     topic: GuideTopic,
@@ -123,7 +169,7 @@ fun GuideArticleScreen(
     val article = articleFor(topic)
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.guide_title)) },
@@ -155,13 +201,13 @@ fun GuideArticleScreen(
                 ) {
                     Text(
                         text = stringResource(article.title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = AtmosphereTheme.typography.headlineMedium,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
                         text = stringResource(article.introduction),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -170,8 +216,8 @@ fun GuideArticleScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .widthIn(max = 720.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
@@ -185,12 +231,12 @@ fun GuideArticleScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.CheckCircleOutline,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = AtmosphereTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = stringResource(point),
                                     modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = AtmosphereTheme.typography.bodyLarge,
                                 )
                             }
                         }
@@ -203,7 +249,7 @@ fun GuideArticleScreen(
                         .fillMaxWidth()
                         .widthIn(max = 720.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        containerColor = AtmosphereTheme.colorScheme.secondaryContainer,
                     ),
                 ) {
                     Row(
@@ -215,7 +261,7 @@ fun GuideArticleScreen(
                         Text(
                             text = stringResource(article.note),
                             modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = AtmosphereTheme.typography.bodyMedium,
                         )
                     }
                 }

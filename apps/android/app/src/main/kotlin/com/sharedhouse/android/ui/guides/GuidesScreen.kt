@@ -17,22 +17,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Rule
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.HomeWork
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PrivacyTip
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.outlined.SupervisorAccount
+import com.sharedhouse.android.ui.atmosphere.AssistChip
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +49,10 @@ import com.sharedhouse.android.R
 enum class GuideTopic {
     GETTING_STARTED,
     CALENDAR,
+    MONEY,
+    TASKS,
+    HOUSEHOLD_ADMIN,
+    CHAT,
     NOTIFICATIONS,
     FEATURE_AVAILABILITY,
     PRIVACY,
@@ -81,6 +88,34 @@ private val guides = listOf(
         Icons.Outlined.CalendarMonth,
         R.string.guide_calendar_title,
         R.string.guide_calendar_description,
+        GuideAvailability.HOUSEHOLD_REQUIRED,
+    ),
+    GuideEntry(
+        GuideTopic.MONEY,
+        Icons.Outlined.AccountBalanceWallet,
+        R.string.guide_money_title,
+        R.string.guide_money_description,
+        GuideAvailability.HOUSEHOLD_REQUIRED,
+    ),
+    GuideEntry(
+        GuideTopic.TASKS,
+        Icons.Outlined.Checklist,
+        R.string.guide_tasks_title,
+        R.string.guide_tasks_description,
+        GuideAvailability.HOUSEHOLD_REQUIRED,
+    ),
+    GuideEntry(
+        GuideTopic.HOUSEHOLD_ADMIN,
+        Icons.Outlined.SupervisorAccount,
+        R.string.guide_admin_title,
+        R.string.guide_admin_description,
+        GuideAvailability.HOUSEHOLD_REQUIRED,
+    ),
+    GuideEntry(
+        GuideTopic.CHAT,
+        Icons.Outlined.ChatBubbleOutline,
+        R.string.guide_chat_title,
+        R.string.guide_chat_description,
         GuideAvailability.HOUSEHOLD_REQUIRED,
     ),
     GuideEntry(
@@ -120,7 +155,6 @@ private val guides = listOf(
     ),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuidesScreen(
     onBack: () -> Unit,
@@ -130,7 +164,7 @@ fun GuidesScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.guide_title)) },
@@ -162,13 +196,13 @@ fun GuidesScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.guide_heading),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = AtmosphereTheme.typography.headlineMedium,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
                         text = stringResource(R.string.guide_heading_description),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyLarge,
                     )
                 }
             }
@@ -201,8 +235,8 @@ private fun GuideCard(
             .fillMaxWidth()
             .widthIn(max = 720.dp)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier
@@ -215,17 +249,17 @@ private fun GuideCard(
                 imageVector = guide.icon,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = AtmosphereTheme.colorScheme.primary,
             )
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(text = stringResource(guide.title), style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(guide.title), style = AtmosphereTheme.typography.titleMedium)
                 Text(
                     text = stringResource(guide.description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
                 AssistChip(
                     onClick = onClick,
@@ -246,7 +280,7 @@ private fun GuideCard(
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

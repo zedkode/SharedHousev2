@@ -1,0 +1,299 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bills Management - SharedHouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+            --status-positive: #6E8A5E;
+            --status-warning: #C99A3A;
+            --status-negative: #B5533A;
+            --status-neutral: #9C9184;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(60px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(122, 111, 99, 0.2);
+            border-radius: 10px;
+        }
+
+        .bill-checkbox:checked + label .custom-check {
+            background-color: var(--accent-terracotta);
+            border-color: var(--accent-terracotta);
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full h-screen flex flex-col relative overflow-hidden bg-[#F7F2EA]" data-sd-id="1">
+        
+        <!-- Background Organic Shapes (Preserved from Dashboard) -->
+        <div class="organic-blob w-64 h-64 bg-[#C1673F] -top-20 -left-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-80 h-80 bg-[#7C8B6F] top-1/2 -right-20 rounded-full" data-sd-id="3"></div>
+        <div class="organic-blob w-72 h-72 bg-[#C99A3A] -bottom-20 left-10 rounded-full" data-sd-id="4"></div>
+
+        <!-- Household Header Component -->
+        <sd-component componentid="d43d5b33-1cd7-4250-be95-8c682aa360a4" name="HouseholdHeader"></sd-component>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto px-5 pt-4 pb-6 z-10 space-y-6" data-sd-id="5">
+            
+            <!-- Page Title & Header Actions -->
+            <div class="flex items-center justify-between" data-sd-id="6">
+                <div data-sd-id="7">
+                    <h2 class="text-2xl font-bold tracking-tight" data-sd-id="8">Household Bills</h2>
+                    <p class="text-xs text-[#7A6F63] font-medium uppercase tracking-wider" data-sd-id="9">Registrar of payments</p>
+                </div>
+                <button id="add-bill-btn" class="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center shadow-sm hover:bg-white transition-colors" data-sd-id="10">
+                    <iconify-icon icon="lucide:plus" class="text-xl"></iconify-icon>
+                </button>
+            </div>
+
+            <!-- Filters & Sorting -->
+            <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1" data-sd-id="11">
+                <button class="shrink-0 px-4 py-2 rounded-full bg-[#C1673F] text-white text-xs font-bold flex items-center gap-2" data-sd-id="12">
+                    <iconify-icon icon="lucide:layout-list"></iconify-icon>
+                    ALL BILLS
+                </button>
+                <button class="shrink-0 px-4 py-2 rounded-full bg-white/60 border border-white/50 text-[#3A332C] text-xs font-bold flex items-center gap-2 hover:bg-white transition-colors" data-sd-id="13">
+                    <iconify-icon icon="lucide:clock" class="text-[#C99A3A]"></iconify-icon>
+                    UNPAID
+                </button>
+                <button class="shrink-0 px-4 py-2 rounded-full bg-white/60 border border-white/50 text-[#3A332C] text-xs font-bold flex items-center gap-2 hover:bg-white transition-colors" data-sd-id="14">
+                    <iconify-icon icon="lucide:user" class="text-[#7C8B6F]"></iconify-icon>
+                    MY BILLS
+                </button>
+            </div>
+
+            <!-- Bills List -->
+            <div class="space-y-4" data-sd-id="15">
+                
+                <!-- Bill Item 1: Overdue -->
+                <div class="glass-card p-4 relative flex items-start gap-3" data-sd-id="16">
+                    <div class="pt-1" data-sd-id="17">
+                        <input type="checkbox" id="bill-1" class="hidden bill-checkbox" data-sd-id="18">
+                        <label for="bill-1" class="cursor-pointer" data-sd-id="19">
+                            <div class="custom-check w-5 h-5 rounded border-2 border-white/60 bg-white/20 flex items-center justify-center transition-all" data-sd-id="20">
+                                <iconify-icon icon="lucide:check" class="text-white text-xs"></iconify-icon>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="flex-1 flex items-center justify-between" data-sd-id="21">
+                        <div class="flex items-center gap-4" data-sd-id="22">
+                            <div class="w-12 h-12 rounded-2xl bg-[#B5533A]/10 flex flex-col items-center justify-center text-[#B5533A]" data-sd-id="23">
+                                <span class="text-[10px] font-bold uppercase leading-tight" data-sd-id="24">Oct</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="25">24</span>
+                            </div>
+                            <div data-sd-id="26">
+                                <h4 class="text-sm font-bold" data-sd-id="27">Council Tax</h4>
+                                <div class="flex items-center gap-2 mt-1" data-sd-id="28">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-4 h-4 rounded-full" alt="Luna" data-sd-id="29">
+                                    <p class="text-[11px] text-[#7A6F63]" data-sd-id="30">Luna</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="31">
+                            <span class="text-sm font-bold text-[#B5533A]" data-sd-id="32">£184.00</span>
+                            <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;: &quot;overdue&quot;}"></sd-component>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bill Item 2: Scheduled -->
+                <div class="glass-card p-4 relative flex items-start gap-3" data-sd-id="33">
+                    <div class="pt-1" data-sd-id="34">
+                        <input type="checkbox" id="bill-2" class="hidden bill-checkbox" data-sd-id="35">
+                        <label for="bill-2" class="cursor-pointer" data-sd-id="36">
+                            <div class="custom-check w-5 h-5 rounded border-2 border-white/60 bg-white/20 flex items-center justify-center transition-all" data-sd-id="37">
+                                <iconify-icon icon="lucide:check" class="text-white text-xs"></iconify-icon>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="flex-1 flex items-center justify-between" data-sd-id="38">
+                        <div class="flex items-center gap-4" data-sd-id="39">
+                            <div class="w-12 h-12 rounded-2xl bg-[#7C8B6F]/10 flex flex-col items-center justify-center text-[#7C8B6F]" data-sd-id="40">
+                                <span class="text-[10px] font-bold uppercase leading-tight" data-sd-id="41">Nov</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="42">02</span>
+                            </div>
+                            <div data-sd-id="43">
+                                <h4 class="text-sm font-bold" data-sd-id="44">Gigabit Internet</h4>
+                                <div class="flex items-center gap-2 mt-1" data-sd-id="45">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar" class="w-4 h-4 rounded-full" alt="Oscar" data-sd-id="46">
+                                    <p class="text-[11px] text-[#7A6F63]" data-sd-id="47">Oscar</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="48">
+                            <span class="text-sm font-bold" data-sd-id="49">£45.00</span>
+                            <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;: &quot;scheduled&quot;}"></sd-component>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bill Item 3: Reviewing -->
+                <div class="glass-card p-4 relative flex items-start gap-3" data-sd-id="50">
+                    <div class="pt-1" data-sd-id="51">
+                        <input type="checkbox" id="bill-3" class="hidden bill-checkbox" data-sd-id="52">
+                        <label for="bill-3" class="cursor-pointer" data-sd-id="53">
+                            <div class="custom-check w-5 h-5 rounded border-2 border-white/60 bg-white/20 flex items-center justify-center transition-all" data-sd-id="54">
+                                <iconify-icon icon="lucide:check" class="text-white text-xs"></iconify-icon>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="flex-1 flex items-center justify-between" data-sd-id="55">
+                        <div class="flex items-center gap-4" data-sd-id="56">
+                            <div class="w-12 h-12 rounded-2xl bg-[#C99A3A]/10 flex flex-col items-center justify-center text-[#C99A3A]" data-sd-id="57">
+                                <span class="text-[10px] font-bold uppercase leading-tight" data-sd-id="58">Nov</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="59">15</span>
+                            </div>
+                            <div data-sd-id="60">
+                                <h4 class="text-sm font-bold" data-sd-id="61">Water Bill</h4>
+                                <div class="flex items-center gap-2 mt-1" data-sd-id="62">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-4 h-4 rounded-full" alt="Felix" data-sd-id="63">
+                                    <p class="text-[11px] text-[#7A6F63]" data-sd-id="64">Felix</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="65">
+                            <span class="text-sm font-bold" data-sd-id="66">£72.50</span>
+                            <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;: &quot;reviewing&quot;}"></sd-component>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bill Item 4: Confirmed -->
+                <div class="glass-card p-4 relative flex items-start gap-3 opacity-70" data-sd-id="67">
+                    <div class="pt-1" data-sd-id="68">
+                        <input type="checkbox" id="bill-4" class="hidden bill-checkbox" data-sd-id="69">
+                        <label for="bill-4" class="cursor-pointer" data-sd-id="70">
+                            <div class="custom-check w-5 h-5 rounded border-2 border-white/60 bg-white/20 flex items-center justify-center transition-all" data-sd-id="71">
+                                <iconify-icon icon="lucide:check" class="text-white text-xs"></iconify-icon>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="flex-1 flex items-center justify-between" data-sd-id="72">
+                        <div class="flex items-center gap-4" data-sd-id="73">
+                            <div class="w-12 h-12 rounded-2xl bg-[#9C9184]/10 flex flex-col items-center justify-center text-[#9C9184]" data-sd-id="74">
+                                <span class="text-[10px] font-bold uppercase leading-tight" data-sd-id="75">Oct</span>
+                                <span class="text-lg font-bold leading-none" data-sd-id="76">12</span>
+                            </div>
+                            <div data-sd-id="77">
+                                <h4 class="text-sm font-bold" data-sd-id="78">Electricity</h4>
+                                <div class="flex items-center gap-2 mt-1" data-sd-id="79">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-4 h-4 rounded-full" alt="Luna" data-sd-id="80">
+                                    <p class="text-[11px] text-[#7A6F63]" data-sd-id="81">Luna</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1" data-sd-id="82">
+                            <span class="text-sm font-bold text-[#7A6F63]" data-sd-id="83">£112.00</span>
+                            <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;: &quot;confirmed&quot;}"></sd-component>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State Illustration Placeholder -->
+            <div id="empty-state" class="hidden glass-card p-10 flex flex-col items-center text-center opacity-70" data-sd-id="84">
+                <div class="w-20 h-20 rounded-full bg-white/40 flex items-center justify-center mb-4 text-[#7A6F63]" data-sd-id="85">
+                    <iconify-icon icon="lucide:check-square" class="text-4xl"></iconify-icon>
+                </div>
+                <h4 class="text-lg font-bold mb-2" data-sd-id="86">No active bills</h4>
+                <p class="text-xs text-[#7A6F63] max-w-[200px] mb-6" data-sd-id="87">Your household has registered all current payments. Great job!</p>
+                <button class="px-8 py-3 bg-[#C1673F] text-white rounded-2xl text-sm font-bold shadow-lg shadow-[#C1673F]/20" data-sd-id="88">
+                    REGISTER NEW BILL
+                </button>
+            </div>
+        </main>
+
+        <!-- Bulk Actions Toolbar (Floating) -->
+        <div id="bulk-toolbar" class="fixed bottom-[100px] left-5 right-5 z-30 transform translate-y-32 transition-transform duration-300" data-sd-id="89">
+            <div class="glass-card bg-[#3A332C] border-white/10 px-6 py-4 flex items-center justify-between shadow-2xl" data-sd-id="90">
+                <div class="text-white" data-sd-id="91">
+                    <span id="selected-count" class="text-lg font-bold" data-sd-id="92">2</span>
+                    <span class="text-xs text-[#B8AC9C] ml-1 uppercase font-bold tracking-wider" data-sd-id="93">Selected</span>
+                </div>
+                <div class="flex gap-2" data-sd-id="94">
+                    <button class="w-10 h-10 rounded-xl bg-[#6E8A5E] text-white flex items-center justify-center hover:scale-105 transition-transform" data-sd-id="95">
+                        <iconify-icon icon="lucide:check" class="text-xl"></iconify-icon>
+                    </button>
+                    <button class="w-10 h-10 rounded-xl bg-[#B5533A] text-white flex items-center justify-center hover:scale-105 transition-transform" data-sd-id="96">
+                        <iconify-icon icon="lucide:alert-circle" class="text-xl"></iconify-icon>
+                    </button>
+                    <button class="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center hover:scale-105 transition-transform" data-sd-id="97">
+                        <iconify-icon icon="lucide:trash-2" class="text-xl"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Bar Component -->
+        <sd-component componentid="011a1bb3-065f-4d2a-9035-58d4869ef34f" name="NavigationBar" props="{&quot;activeItem&quot;: &quot;money&quot;, &quot;homeHref&quot;: &quot;https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev&quot;, &quot;moneyHref&quot;: &quot;https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev&quot;, &quot;tasksHref&quot;: &quot;https://draft-568089be-461a-42e3-af60-9de71d50dcda.preview.superdesign.dev&quot;, &quot;settingsHref&quot;: &quot;https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev&quot;}"></sd-component>
+
+    </div>
+
+    <script>
+        // Simple selection logic to show/hide the bulk toolbar
+        const checkboxes = document.querySelectorAll('.bill-checkbox');
+        const toolbar = document.getElementById('bulk-toolbar');
+        const countDisplay = document.getElementById('selected-count');
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const selected = document.querySelectorAll('.bill-checkbox:checked');
+                if (selected.length > 0) {
+                    countDisplay.innerText = selected.length;
+                    toolbar.classList.remove('translate-y-32');
+                } else {
+                    toolbar.classList.add('translate-y-32');
+                }
+            });
+        });
+
+        // Toggle scoll style on header like the dashboard
+        const main = document.querySelector('main');
+        main.addEventListener('scroll', () => {
+            // Since we use sd-component, we can't easily inject state here 
+            // but the logic exists in the component definition
+        });
+    </script>
+
+</body></html>

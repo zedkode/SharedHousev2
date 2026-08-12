@@ -31,22 +31,22 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.NavigationBar
+import com.sharedhouse.android.ui.atmosphere.NavigationBarItem
+import com.sharedhouse.android.ui.atmosphere.NavigationBarItemDefaults
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.SnackbarHost
+import com.sharedhouse.android.ui.atmosphere.SnackbarHostState
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,7 +88,7 @@ fun SharedHouseHome(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.navigationBars,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -135,7 +135,7 @@ private fun HomeTopBar(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = AtmosphereTheme.colorScheme.surface,
         shadowElevation = 0.dp,
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
@@ -149,7 +149,7 @@ private fun HomeTopBar(
                 Column {
                     Text(
                         text = stringResource(R.string.home_title),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AtmosphereTheme.typography.titleLarge,
                     )
                     TextButton(
                         onClick = onHouseholdClick,
@@ -161,7 +161,7 @@ private fun HomeTopBar(
                         Text(
                             text = householdName?.takeIf(String::isNotBlank)
                                 ?: stringResource(R.string.household_not_configured),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = AtmosphereTheme.typography.labelMedium,
                         )
                         Icon(
                             imageVector = Icons.Outlined.ExpandMore,
@@ -175,7 +175,7 @@ private fun HomeTopBar(
                     onClick = onProfileClick,
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(MaterialTheme.shapes.extraLarge),
+                        .clip(AtmosphereTheme.shapes.extraLarge),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.PersonOutline,
@@ -186,7 +186,7 @@ private fun HomeTopBar(
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            HorizontalDivider(color = AtmosphereTheme.colorScheme.outline)
         }
     }
 }
@@ -230,9 +230,9 @@ private fun HomeContent(
                 SectionTitle(text = stringResource(R.string.requests_title))
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = AtmosphereTheme.colorScheme.background,
                     ),
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                    border = BorderStroke(2.dp, AtmosphereTheme.colorScheme.outline),
                 ) {
                     Column(
                         modifier = Modifier
@@ -244,7 +244,7 @@ private fun HomeContent(
                         Icon(
                             imageVector = Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(32.dp),
                         )
                         Text(
@@ -255,8 +255,8 @@ private fun HomeContent(
                                     R.string.requests_empty
                                 },
                             ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -271,8 +271,8 @@ private fun SetupCard(
     onStartSetup: () -> Unit,
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column(
@@ -282,9 +282,9 @@ private fun SetupCard(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.background,
-                shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                color = AtmosphereTheme.colorScheme.background,
+                shape = AtmosphereTheme.shapes.medium,
+                border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
             ) {
                 Box(
                     modifier = Modifier.size(48.dp),
@@ -297,7 +297,7 @@ private fun SetupCard(
                             Icons.Outlined.Home
                         },
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = AtmosphereTheme.colorScheme.primary,
                     )
                 }
             }
@@ -310,7 +310,7 @@ private fun SetupCard(
                         R.string.setup_title
                     },
                 ),
-                style = MaterialTheme.typography.headlineLarge,
+                style = AtmosphereTheme.typography.headlineLarge,
             )
             Text(
                 text = if (state.isHouseholdConfigured) {
@@ -321,8 +321,8 @@ private fun SetupCard(
                 } else {
                     stringResource(R.string.setup_description)
                 },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodyLarge,
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -362,13 +362,13 @@ private fun HonestEmptyRow(text: String) {
         Icon(
             imageVector = Icons.Outlined.Block,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
         )
         Text(
             text = text,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
         )
     }
 }
@@ -380,8 +380,8 @@ private fun FoundationStatusCard(
     icon: ImageVector,
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
@@ -397,14 +397,14 @@ private fun FoundationStatusCard(
             ) {
                 Text(
                     text = title.uppercase(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.labelMedium,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -415,13 +415,13 @@ private fun FoundationStatusCard(
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
                 Text(
                     text = status,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyLarge,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyLarge,
                 )
             }
         }
@@ -432,7 +432,7 @@ private fun FoundationStatusCard(
 private fun SectionTitle(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = AtmosphereTheme.typography.titleMedium,
     )
 }
 
@@ -447,7 +447,7 @@ private fun HomeBottomNavigation(onMessage: (String) -> Unit) {
             contentDescription = navigationDescription
             isTraversalGroup = true
         },
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = AtmosphereTheme.colorScheme.surface,
     ) {
         destinations.forEach { destination ->
             val label = stringResource(destination.label)
@@ -472,7 +472,7 @@ private fun HomeBottomNavigation(onMessage: (String) -> Unit) {
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = AtmosphereTheme.colorScheme.primaryContainer,
                 ),
             )
         }

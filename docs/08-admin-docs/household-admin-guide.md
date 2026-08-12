@@ -4,6 +4,12 @@
 
 A household owner/admin configures the shared home, members, billing cycles, recurring costs, chores, shopping rules and announcements. This role does not provide access to the platform’s commercial/admin portal.
 
+Android separates **User settings** from **Household creator settings**. User settings apply only to
+the signed-in account and device, including language, accessibility, notification categories, quiet
+hours, privacy, export and deletion. Household creator settings are visible to the owner/admin and
+route to the authoritative household identity, people, invitations, finance schedules, billing
+roster, chore schedules and calendar controls. They do not grant platform-administrator access.
+
 ## 2. Create the household
 
 Set:
@@ -55,8 +61,9 @@ for emergency services, tenancy advice or an agreed dispute process.
 Open **Money**, then use the settings action in the top bar to open **Money administration**.
 Owners and administrators can create reusable household costs for rent, electricity, gas, water,
 internet, council tax, groceries, supplies, maintenance, other or a user-defined category. For each
-cost set the title, price in the household currency, weekly/monthly/quarterly/yearly frequency, next
-due date and optional notes.
+cost set the title, price in the household currency, weekly/every-two-weeks/monthly/quarterly/yearly
+frequency, next due date, optional inclusive final date and optional notes. Leaving the final date
+empty creates an open-ended schedule; archive it explicitly when the obligation ends.
 
 Before creating rent, open **Configure people and couples** from the same administration sheet:
 
@@ -95,6 +102,14 @@ excluded-member split methods remain planned.
 When an amount changes, update the schedule before its next due date. Do not overwrite settled
 historical cycles; reverse an incorrect generated entry with a reason and record the corrected one.
 
+For a one-off expense, the supplier is optional and separate from the expense title. Owners and
+administrators may choose **Edit expense** only while the expense has no active payment declaration.
+Saving an edit requires a reason, creates a new approved expense and equal-allocation snapshot, and
+marks the old expense as superseded. **Remove expense (keep history)** is a reasoned reversal rather
+than database deletion. Both actions preserve the original amount, allocations, actor and timestamps
+for reconciliation and export. If a member has already declared payment, correct that declaration
+before reversing the charge; settled history is never silently rewritten.
+
 ## 5. Verify payments
 
 A member's **Declare paid** action creates a declaration for that member's exact approved allocation;
@@ -115,8 +130,12 @@ sole proof in a legal dispute; retain appropriate bank and supplier records.
 
 Open **Tasks** and choose **Add task**. Give the responsibility a short title, clear optional
 instructions, a room/zone, low/normal/high priority, local due date/time, realistic estimated
-minutes and an active writable member. Read-only members cannot be assigned. Only owners/admins can
-create assignments in the current release.
+minutes and an active writable member. Choose once, weekly, every two weeks or monthly and optionally
+set an inclusive final date. Leaving the final date empty creates an open-ended fixed-assignee
+schedule. The worker creates a rolling 90-day window of future occurrences, and each occurrence is
+shown automatically in Tasks and Calendar. Use **Stop schedule** with a reason to stop generation;
+later active occurrences are cancelled while completed/history records remain. Read-only members
+cannot be assigned. Only owners/admins can create assignments in the current release.
 
 The assignee can start or complete the work and can submit help, swap, postponement or issue
 requests. Open any card and review pending requests in its history. Approval of a swap changes the
@@ -126,10 +145,10 @@ decision trail. Stale device versions are rejected and refreshed rather than ove
 
 Respond to swap/help/postpone requests promptly. Overrides require a reason and should not be used punitively.
 
-Reusable templates, recurrence, separate bin-out/bin-return generation, proof photos,
-round-robin/balanced assignment and private exemptions are the next chore-administration stages.
-Until then, create each real occurrence explicitly; do not use placeholder assignments to simulate
-automation.
+Reusable named templates, whole-series editing, separate bin-out/bin-return generation, proof
+photos, round-robin/balanced assignment and private exemptions are the next chore-administration
+stages. Current recurrence keeps the selected assignee; use separate schedules when responsibility
+must not rotate automatically.
 
 ## 7. Shopping rules
 

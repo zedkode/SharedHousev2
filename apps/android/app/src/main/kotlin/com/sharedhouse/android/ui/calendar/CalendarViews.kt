@@ -3,6 +3,7 @@ package com.sharedhouse.android.ui.calendar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,21 +21,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Checklist
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -167,16 +168,16 @@ private fun WeekDayCard(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                selected -> MaterialTheme.colorScheme.primaryContainer
-                else -> MaterialTheme.colorScheme.surface
+                selected -> AtmosphereTheme.colorScheme.primaryContainer
+                else -> AtmosphereTheme.colorScheme.surface
             },
         ),
         border = BorderStroke(
             width = if (today) 2.dp else 1.dp,
             color = if (today) {
-                MaterialTheme.colorScheme.primary
+                AtmosphereTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.outlineVariant
+                AtmosphereTheme.colorScheme.outlineVariant
             },
         ),
     ) {
@@ -192,25 +193,25 @@ private fun WeekDayCard(
                 Column {
                     Text(
                         text = localizedWeekday(summary.date),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.labelLarge,
                     )
                     Text(
                         text = localizedDate(summary.date, FormatStyle.MEDIUM),
                         fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                 }
                 if (today) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        color = AtmosphereTheme.colorScheme.primary,
+                        contentColor = AtmosphereTheme.colorScheme.onPrimary,
                         shape = CircleShape,
                     ) {
                         Text(
                             text = stringResource(R.string.calendar_today),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = AtmosphereTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -219,8 +220,8 @@ private fun WeekDayCard(
             if (summary.events.isEmpty()) {
                 Text(
                     text = stringResource(R.string.calendar_day_no_events),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             } else {
                 summary.events.take(3).forEach { event ->
@@ -233,8 +234,8 @@ private fun WeekDayCard(
                             summary.events.size - 3,
                             summary.events.size - 3,
                         ),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelMedium,
+                        color = AtmosphereTheme.colorScheme.primary,
+                        style = AtmosphereTheme.typography.labelMedium,
                     )
                 }
             }
@@ -256,26 +257,35 @@ private fun MonthCalendar(
     val summaries = remember(dates, events, state.zoneId) {
         CalendarPeriodCalculator.summaries(dates, events)
     }
-    Column(
+    Card(
         modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 10.dp, vertical = 12.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = AtmosphereTheme.colorScheme.cardLevel1,
+        ),
     ) {
-        WeekdayHeader(state.firstDayOfWeek)
-        summaries.chunked(7).forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                week.forEach { summary ->
-                    CalendarDayCell(
-                        summary = summary,
-                        inPrimaryMonth = summary.date.month == month.month,
-                        selected = summary.date == state.selectedDate,
-                        today = summary.date == LocalDate.now(state.zoneId),
-                        onClick = { onDateSelected(summary.date) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(76.dp),
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            WeekdayHeader(state.firstDayOfWeek)
+            summaries.chunked(7).forEach { week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEach { summary ->
+                        CalendarDayCell(
+                            summary = summary,
+                            inPrimaryMonth = summary.date.month == month.month,
+                            selected = summary.date == state.selectedDate,
+                            today = summary.date == LocalDate.now(state.zoneId),
+                            onClick = { onDateSelected(summary.date) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f),
+                        )
+                    }
                 }
             }
         }
@@ -365,8 +375,8 @@ private fun MiniMonthCard(
         .filter { YearMonth.from(it.date) == month }
         .sumOf(CalendarDaySummary::eventCount)
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(if (compact) 8.dp else 12.dp),
@@ -382,20 +392,20 @@ private fun MiniMonthCard(
                     modifier = Modifier.semantics { heading() },
                     fontWeight = FontWeight.SemiBold,
                     style = if (compact) {
-                        MaterialTheme.typography.titleSmall
+                        AtmosphereTheme.typography.titleSmall
                     } else {
-                        MaterialTheme.typography.titleMedium
+                        AtmosphereTheme.typography.titleMedium
                     },
                 )
                 if (eventCount > 0) {
                     Surface(
-                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        color = AtmosphereTheme.colorScheme.secondaryContainer,
                         shape = CircleShape,
                     ) {
                         Text(
                             text = eventCount.toString(),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = AtmosphereTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -432,11 +442,11 @@ private fun WeekdayHeader(
             Text(
                 text = localizedDayOfWeek(day, narrow = compact),
                 modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall,
+                style = AtmosphereTheme.typography.labelSmall,
             )
         }
     }
@@ -470,35 +480,46 @@ private fun CalendarDayCell(
             }
             .clickable(onClick = onClick),
         color = when {
-            selected -> MaterialTheme.colorScheme.primaryContainer
+            selected -> AtmosphereTheme.colorScheme.primaryContainer
             else -> Color.Transparent
         },
-        shape = MaterialTheme.shapes.medium,
-        border = if (today) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        shape = AtmosphereTheme.shapes.small,
+        border = when {
+            today -> BorderStroke(2.dp, AtmosphereTheme.colorScheme.primary)
+            selected -> BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .65f))
+            else -> null
+        },
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
         ) {
             Text(
                 text = summary.date.dayOfMonth.toString(),
                 color = if (inPrimaryMonth) {
-                    MaterialTheme.colorScheme.onSurface
+                    AtmosphereTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 },
                 fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Normal,
-                style = MaterialTheme.typography.bodyMedium,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
             if (summary.eventCount > 0) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    EventDot(summary.events.first().type)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = summary.eventCount.toString(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
+                val type = summary.events.first().type
+                val typeColor = eventTypeColor(type)
+                Surface(
+                    color = typeColor.copy(alpha = .16f),
+                    contentColor = typeColor,
+                    shape = AtmosphereTheme.shapes.extraSmall,
+                ) {
+                    Row(Modifier.padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(type.icon, contentDescription = null, Modifier.size(11.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(text = summary.eventCount.toString(), style = AtmosphereTheme.typography.labelSmall)
+                    }
                 }
             }
         }
@@ -539,23 +560,23 @@ private fun MiniCalendarDayCell(
             Surface(
                 modifier = Modifier.size(28.dp),
                 color = if (selected) {
-                    MaterialTheme.colorScheme.primaryContainer
+                    AtmosphereTheme.colorScheme.primaryContainer
                 } else {
                     Color.Transparent
                 },
                 shape = CircleShape,
-                border = if (today) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+                border = if (today) BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary) else null,
             ) {}
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = summary.date.dayOfMonth.toString(),
                 color = if (inPrimaryMonth) {
-                    MaterialTheme.colorScheme.onSurface
+                    AtmosphereTheme.colorScheme.onSurface
                 } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 },
-                style = MaterialTheme.typography.labelSmall,
+                style = AtmosphereTheme.typography.labelSmall,
             )
             if (summary.eventCount > 0) {
                 Box(
@@ -565,7 +586,7 @@ private fun MiniCalendarDayCell(
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = AtmosphereTheme.colorScheme.primary,
                         shape = CircleShape,
                     ) {}
                 }
@@ -589,8 +610,8 @@ internal fun CompactEventRow(event: CalendarEventUi) {
         Spacer(Modifier.width(8.dp))
         Text(
             text = calendarEventTimeLabel(event),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.labelMedium,
         )
         Spacer(Modifier.width(8.dp))
         Text(
@@ -598,7 +619,7 @@ internal fun CompactEventRow(event: CalendarEventUi) {
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
     }
 }
@@ -618,16 +639,20 @@ internal val CalendarEventType.icon: ImageVector
         CalendarEventType.MAINTENANCE -> Icons.Outlined.Build
         CalendarEventType.APPOINTMENT -> Icons.Outlined.Event
         CalendarEventType.SHOPPING -> Icons.Outlined.ShoppingCart
+        CalendarEventType.MONEY -> Icons.Outlined.AccountBalanceWallet
+        CalendarEventType.TASK -> Icons.Outlined.Checklist
         CalendarEventType.OTHER -> Icons.Outlined.MoreHoriz
     }
 
 @Composable
 internal fun eventTypeColor(type: CalendarEventType): Color = when (type) {
-    CalendarEventType.HOUSEHOLD -> MaterialTheme.colorScheme.primary
-    CalendarEventType.MAINTENANCE -> MaterialTheme.colorScheme.tertiary
-    CalendarEventType.APPOINTMENT -> MaterialTheme.colorScheme.secondary
-    CalendarEventType.SHOPPING -> MaterialTheme.colorScheme.primary
-    CalendarEventType.OTHER -> MaterialTheme.colorScheme.onSurfaceVariant
+    CalendarEventType.HOUSEHOLD -> AtmosphereTheme.colorScheme.primary
+    CalendarEventType.MAINTENANCE -> AtmosphereTheme.colorScheme.tertiary
+    CalendarEventType.APPOINTMENT -> AtmosphereTheme.colorScheme.secondary
+    CalendarEventType.SHOPPING -> AtmosphereTheme.colorScheme.primary
+    CalendarEventType.MONEY -> AtmosphereTheme.colorScheme.secondary
+    CalendarEventType.TASK -> AtmosphereTheme.colorScheme.tertiary
+    CalendarEventType.OTHER -> AtmosphereTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable

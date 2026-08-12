@@ -5,6 +5,7 @@ import type { Response } from 'express';
 import { ApiProblemException, validationProblem } from '../http/api-problem.exception.js';
 import {
   parseExpenseConfiguration,
+  parseReviseExpenseRequest,
   parseReverseExpenseRequest,
 } from '../http/request-validation.js';
 import type { AuthenticatedPrincipal } from '../identity/identity.types.js';
@@ -69,6 +70,30 @@ export class ExpensesController {
       readUuid(householdId, 'householdId'),
       readUuid(expenseId, 'expenseId'),
       readExpectedVersion(ifMatch),
+    );
+    response.setHeader('ETag', `"${String(expense.version)}"`);
+    return expense;
+  }
+
+  @Post(':expenseId/revise')
+  async revise(
+    @CurrentPrincipal() principal: AuthenticatedPrincipal,
+    @Param('householdId') householdId: string,
+    @Param('expenseId') expenseId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<ExpenseSummary> {
+    const request = parseReviseExpenseRequest(body);
+    const expense = await this.expenses.revise(
+      principal.userId,
+      readUuid(householdId, 'householdId'),
+      readUuid(expenseId, 'expenseId'),
+      readExpectedVersion(ifMatch),
+      request.configuration,
+      request.reason,
+      readIdempotencyKey(idempotencyKey),
     );
     response.setHeader('ETag', `"${String(expense.version)}"`);
     return expense;

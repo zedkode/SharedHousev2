@@ -4,6 +4,9 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
+| 2026-08-11 | progress | UI-002 premium v2 UI, household chat and ledger actor attribution | `progress/2026-08-11__UI-002__premium-v2-ui-chat-ledger.md` | internal public-debug installed and visually verified; real chat and actor history confirmed; owner-signed release and full device gates remain |
+| 2026-08-11 | progress | EPIC-02/06/12/17 Deep Ink/Aurora UI, audited expense revision, split settings and household chat | `progress/2026-08-11__EPIC-02-06-12-17__atmospheric-ui-settings-chat.md` | original Compose redesign and guarded VPS rollout completed; signed release/device gate remain |
+| 2026-08-11 | progress | EPIC-05/08/09/11/12 live household operations | `progress/2026-08-11__EPIC-05-08-09-11-12__live-household-operations.md` | implementation and guarded VPS publication completed; signed release/device gate remain |
 | 2026-08-11 | progress | EPIC-01-02E Android optimized-startup crash repair | `progress/2026-08-11__EPIC-01-02E__android-optimized-startup-crash-repair.md` | completed; signed v0.5.1 passed physical-device release gate and was archived on VPS |
 | 2026-08-11 | progress | EPIC-04-02A household member administration | `progress/2026-08-11__EPIC-04-02A__household-member-administration.md` | completed; API live and signed Android v0.5.0 built |
 | 2026-08-11 | progress | EPIC-08-01A household task workflow | `progress/2026-08-11__EPIC-08-01A__household-task-workflow.md` | completed; API live and signed Android v0.4.0 built |

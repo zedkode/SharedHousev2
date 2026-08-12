@@ -1,0 +1,272 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - SharedHouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(60px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Toggle Switch Styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: var(--accent-sage);
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: var(--accent-sage);
+        }
+
+        .custom-toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .custom-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #D1CEC9;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent-sage);
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full h-screen flex flex-col relative overflow-hidden" data-sd-id="1">
+        
+        <!-- Background Organic Shapes -->
+        <div class="organic-blob w-64 h-64 bg-[#C1673F] -top-20 -right-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-80 h-80 bg-[#7C8B6F] top-1/3 -left-20 rounded-full" data-sd-id="3"></div>
+
+        <!-- Header -->
+        <header class="shrink-0 pt-14 px-5 z-10 flex items-center justify-between" data-sd-id="4">
+            <a href="https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev" id="back-to-home" class="w-10 h-10 rounded-full bg-white/40 flex items-center justify-center text-[#3A332C]" data-sd-id="5">
+                <iconify-icon icon="lucide:chevron-left" class="text-xl"></iconify-icon>
+            </a>
+            <h1 class="text-lg font-bold tracking-tight" data-sd-id="6">Settings</h1>
+            <div class="w-10" data-sd-id="7"></div> <!-- Spacer for center alignment -->
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto px-5 py-6 z-10 space-y-6" data-sd-id="8">
+            
+            <!-- Profile Section -->
+            <section class="glass-card p-5 text-center" data-sd-id="9">
+                <div class="relative w-24 h-24 mx-auto mb-4" data-sd-id="10">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-full h-full rounded-full border-4 border-white/50 bg-stone-200" alt="Profile Avatar" data-sd-id="11">
+                    <button class="absolute bottom-0 right-0 w-8 h-8 bg-[#C1673F] rounded-full flex items-center justify-center text-white border-2 border-white shadow-lg" data-sd-id="12">
+                        <iconify-icon icon="lucide:camera" class="text-sm"></iconify-icon>
+                    </button>
+                </div>
+                <h2 class="text-lg font-bold" data-sd-id="13">Felix Anderson</h2>
+                <p class="text-sm text-[#7A6F63] mb-4" data-sd-id="14">felix.a@sharedhouse.com</p>
+                <button class="px-6 py-2 bg-white/50 rounded-full text-xs font-bold text-[#C1673F] border border-[#C1673F]/20 hover:bg-white transition-colors" data-sd-id="15">
+                    EDIT PROFILE
+                </button>
+            </section>
+
+            <!-- Role Indicator (Admin Context Link) -->
+            <section class="px-1" data-sd-id="16">
+                <a href="https://draft-8bdd083d-e84e-4ba7-a50e-76f60065e4f1.preview.superdesign.dev" id="admin-settings-link" class="glass-card p-4 flex items-center justify-between border-l-4 border-[#C1673F]" data-sd-id="17">
+                    <div class="flex items-center gap-3" data-sd-id="18">
+                        <iconify-icon icon="lucide:shield-check" class="text-xl text-[#C1673F]"></iconify-icon>
+                        <div data-sd-id="19">
+                            <p class="text-sm font-bold" data-sd-id="20">Household Admin</p>
+                            <p class="text-[10px] text-[#7A6F63]" data-sd-id="21">Switch to household management</p>
+                        </div>
+                    </div>
+                    <iconify-icon icon="lucide:arrow-right" class="text-[#C1673F]"></iconify-icon>
+                </a>
+            </section>
+
+            <!-- Payment Preferences -->
+            <section class="space-y-3" data-sd-id="22">
+                <h3 class="text-xs font-bold text-[#7A6F63] uppercase tracking-wider px-2" data-sd-id="23">Payments</h3>
+                <div class="glass-card overflow-hidden" data-sd-id="24">
+                    <div class="p-4 flex items-center justify-between border-b border-white/30" data-sd-id="25">
+                        <div class="flex items-center gap-3" data-sd-id="26">
+                            <iconify-icon icon="lucide:credit-card" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="27">Payment Method</span>
+                        </div>
+                        <span class="text-xs font-bold text-[#C1673F]" data-sd-id="28">VISA •••• 4242</span>
+                    </div>
+                    <div class="p-4 flex items-center justify-between" data-sd-id="29">
+                        <div class="flex items-center gap-3" data-sd-id="30">
+                            <iconify-icon icon="lucide:rotate-cw" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="31">Billing Cycle</span>
+                        </div>
+                        <div class="flex bg-white/40 p-1 rounded-lg" data-sd-id="32">
+                            <button class="px-2 py-1 text-[10px] font-bold rounded-md bg-white shadow-sm text-[#C1673F]" data-sd-id="33">MONTHLY</button>
+                            <button class="px-2 py-1 text-[10px] font-bold text-[#7A6F63]" data-sd-id="34">WEEKLY</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications -->
+            <section class="space-y-3" data-sd-id="35">
+                <h3 class="text-xs font-bold text-[#7A6F63] uppercase tracking-wider px-2" data-sd-id="36">Notifications</h3>
+                <div class="glass-card divide-y divide-white/30" data-sd-id="37">
+                    <div class="p-4 flex items-center justify-between" data-sd-id="38">
+                        <div class="flex items-center gap-3" data-sd-id="39">
+                            <iconify-icon icon="lucide:receipt" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="40">Bills &amp; Payments</span>
+                        </div>
+                        <label class="custom-toggle" data-sd-id="41">
+                            <input type="checkbox" checked="" data-sd-id="42">
+                            <span class="slider" data-sd-id="43"></span>
+                        </label>
+                    </div>
+                    <div class="p-4 flex items-center justify-between" data-sd-id="44">
+                        <div class="flex items-center gap-3" data-sd-id="45">
+                            <iconify-icon icon="lucide:check-square" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="46">Task Assignments</span>
+                        </div>
+                        <label class="custom-toggle" data-sd-id="47">
+                            <input type="checkbox" checked="" data-sd-id="48">
+                            <span class="slider" data-sd-id="49"></span>
+                        </label>
+                    </div>
+                    <div class="p-4 flex items-center justify-between" data-sd-id="50">
+                        <div class="flex items-center gap-3" data-sd-id="51">
+                            <iconify-icon icon="lucide:calendar" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="52">Calendar Events</span>
+                        </div>
+                        <label class="custom-toggle" data-sd-id="53">
+                            <input type="checkbox" data-sd-id="54">
+                            <span class="slider" data-sd-id="55"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- App Preferences -->
+            <section class="space-y-3" data-sd-id="56">
+                <h3 class="text-xs font-bold text-[#7A6F63] uppercase tracking-wider px-2" data-sd-id="57">Preferences</h3>
+                <div class="glass-card divide-y divide-white/30" data-sd-id="58">
+                    <div class="p-4 flex items-center justify-between" data-sd-id="59">
+                        <div class="flex items-center gap-3" data-sd-id="60">
+                            <iconify-icon icon="lucide:moon" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="61">Dark Mode</span>
+                        </div>
+                        <label class="custom-toggle" data-sd-id="62">
+                            <input type="checkbox" data-sd-id="63">
+                            <span class="slider" data-sd-id="64"></span>
+                        </label>
+                    </div>
+                    <div class="p-4 flex items-center justify-between" data-sd-id="65">
+                        <div class="flex items-center gap-3" data-sd-id="66">
+                            <iconify-icon icon="lucide:eye-off" class="text-xl text-[#7A6F63]"></iconify-icon>
+                            <span class="text-sm font-medium" data-sd-id="67">Privacy Mode</span>
+                        </div>
+                        <label class="custom-toggle" data-sd-id="68">
+                            <input type="checkbox" checked="" data-sd-id="69">
+                            <span class="slider" data-sd-id="70"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Destructive Actions -->
+            <section class="pb-10" data-sd-id="71">
+                <button class="w-full glass-card p-4 flex items-center justify-center gap-2 text-[#B5533A] font-bold hover:bg-[#B5533A]/5 transition-colors" data-sd-id="72">
+                    <iconify-icon icon="lucide:log-out" class="text-xl"></iconify-icon>
+                    LOG OUT
+                </button>
+                <p class="text-[10px] text-center text-[#7A6F63] mt-6 uppercase tracking-[0.2em]" data-sd-id="73">SharedHouse v2.4.0</p>
+            </section>
+
+        </main>
+
+        <!-- Footer Navigation Bar -->
+        <sd-component componentid="011a1bb3-065f-4d2a-9035-58d4869ef34f" name="NavigationBar" props="{
+                &quot;activeItem&quot;: &quot;settings&quot;,
+                &quot;homeHref&quot;: &quot;https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev&quot;,
+                &quot;moneyHref&quot;: &quot;https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev&quot;,
+                &quot;tasksHref&quot;: &quot;https://draft-568089be-461a-42e3-af60-9de71d50dcda.preview.superdesign.dev&quot;,
+                &quot;settingsHref&quot;: &quot;https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev&quot;
+            }">
+        </sd-component>
+
+    </div>
+
+    <script>
+        // Simple micro-interactions for checkboxes/toggles
+        document.querySelectorAll('input[type="checkbox"]').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                // Add a haptic feedback feel
+                this.parentElement.classList.add('scale-95');
+                setTimeout(() => this.parentElement.classList.remove('scale-95'), 100);
+            });
+        });
+
+        // Highlight back button logic
+        const backBtn = document.getElementById('back-to-home');
+        backBtn.addEventListener('click', () => {
+            backBtn.classList.add('scale-90', 'opacity-50');
+        });
+    </script>
+
+</body></html>

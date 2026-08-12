@@ -2,7 +2,15 @@
 
 ## Delivery model
 
-The backend owns reminder evaluation and push intent. APNs and FCM are transport layers. The mobile app owns category preferences, local presentation and deep-link routing.
+The target architecture keeps reminder evaluation and push intent on the backend, with APNs and FCM
+as transport layers. The mobile app owns category preferences, local presentation and deep-link
+routing.
+
+The current Android release also provides a bounded local fallback: whenever an authenticated
+household projection refreshes, WorkManager replaces future reminders for the known approved
+expenses and the current member's tasks. This makes already-synchronised reminders survive process
+death, but it is not remote push delivery and cannot discover server changes until the app next
+refreshes.
 
 ## Priority levels
 
@@ -25,6 +33,31 @@ Preference scope can be global, per household and per category. Store lead time,
 - Recalculate after expense/task changes.
 - Respect membership state and mute periods.
 - Record provider response, invalid tokens and final delivery state where available.
+
+## Android quick actions
+
+Assigned task reminders expose **Start** or **Complete** only when the last authoritative task model
+allowed that action. The immutable pending intent targets a non-exported receiver, validates the
+household/task UUID, action allow-list and optimistic version, then runs the API command through
+WorkManager. The worker loads the encrypted session, rotates an expired access token when possible
+and lets the server re-check membership, capability and version. Stale or unauthorised actions fail
+closed and do not make the notification claim success.
+
+Notification bodies are privacy-minimised. The private version may show the task/cost title after
+unlock; the public lock-screen version shows the app name and a generic due reminder.
+
+## Household chat notifications
+
+Android has a separate user-controlled Chat category and notification channel. While the app is in
+the foreground, an authorised SSE/incremental refresh message from another household member creates
+a local notification when the chat surface is not already open. The notification intentionally
+does not copy the message body onto the lock screen and messages sent by the current user are not
+notified back to that user.
+
+This is not background remote push: when Android is stopped or cannot maintain the foreground
+stream, only a configured FCM provider and backend device-token fan-out can wake the device. Those
+provider credentials, token registration, delivery telemetry and background chat push are not yet
+implemented and must not be represented as working.
 
 ## Abuse prevention
 

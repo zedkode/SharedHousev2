@@ -4,13 +4,14 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -31,6 +33,8 @@ import androidx.navigation.compose.rememberNavController
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
+import com.sharedhouse.android.platform.notifications.HouseholdReminderScheduler
+import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
 import com.sharedhouse.android.platform.google.GoogleServicesStatus
 import com.sharedhouse.android.platform.google.CompliantAdBanner
 import com.sharedhouse.android.ui.auth.HouseholdGateScreen
@@ -40,12 +44,16 @@ import com.sharedhouse.android.ui.auth.SignInScreen
 import com.sharedhouse.android.ui.auth.VerifyEmailScreen
 import com.sharedhouse.android.ui.auth.WelcomeScreen
 import com.sharedhouse.android.ui.calendar.CalendarContent
+import com.sharedhouse.android.ui.calendar.CalendarEventType
+import com.sharedhouse.android.ui.calendar.CalendarEventUi
 import com.sharedhouse.android.ui.calendar.CalendarScreen
+import com.sharedhouse.android.ui.chat.HouseholdChatScreen
 import com.sharedhouse.android.ui.guides.GuideArticleScreen
 import com.sharedhouse.android.ui.guides.GuideTopic
 import com.sharedhouse.android.ui.guides.GuidesScreen
 import com.sharedhouse.android.ui.home.DashboardCalendarContent
 import com.sharedhouse.android.ui.home.DashboardTasksContent
+import com.sharedhouse.android.ui.home.DashboardMoneyContent
 import com.sharedhouse.android.ui.home.HouseholdDashboardScreen
 import com.sharedhouse.android.ui.home.HouseholdDashboardUiModel
 import com.sharedhouse.android.ui.home.HouseholdDestination
@@ -57,11 +65,16 @@ import com.sharedhouse.android.ui.home.UnavailableHouseholdFeature
 import com.sharedhouse.android.ui.home.UnavailableHouseholdFeatureScreen
 import com.sharedhouse.android.ui.money.MoneyScreen
 import com.sharedhouse.android.ui.tasks.TasksScreen
+import com.sharedhouse.android.ui.tasks.TaskFilter
 import com.sharedhouse.android.ui.invitations.InvitationJoinScreen
 import com.sharedhouse.android.ui.invitations.InvitationManagerScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
 import com.sharedhouse.android.ui.settings.SettingsRoute
+import com.sharedhouse.android.ui.settings.HouseholdCreatorSettingsScreen
 import java.time.LocalDate
+import java.time.LocalTime
+import java.text.NumberFormat
+import java.util.Currency
 import kotlinx.coroutines.launch
 
 @Composable
@@ -88,7 +101,7 @@ fun SharedHouseApp(
                 CircularProgressIndicator()
                 Text(
                     text = stringResource(R.string.session_restoring),
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = AtmosphereTheme.typography.bodyLarge,
                 )
             }
         }
@@ -218,6 +231,8 @@ fun SharedHouseApp(
 private enum class SecondarySurface {
     NONE,
     SETTINGS,
+    CHAT,
+    HOUSEHOLD_SETTINGS,
     GUIDES,
     ARTICLE,
 }
@@ -232,13 +247,37 @@ private fun AuthenticatedHouseholdExperience(
     onShowAdPrivacyOptions: () -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
 ) {
+    LifecycleStartEffect(viewModel, state.selectedHousehold?.id) {
+        viewModel.startLiveSync()
+        onStopOrDispose { viewModel.stopLiveSync() }
+    }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val household = state.selectedHousehold
     if (household == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
+    }
+    val reminderScheduler = remember(context) { HouseholdReminderScheduler(context) }
+    LaunchedEffect(
+        household.id,
+        household.timezone,
+        appPreferences.notifications,
+        state.money.content,
+        state.tasks.content,
+    ) {
+        reminderScheduler.replaceScheduledReminders(
+            householdId = household.id,
+            zoneId = runCatching { java.time.ZoneId.of(household.timezone) }
+                .getOrDefault(java.time.ZoneId.systemDefault()),
+            preferences = appPreferences.notifications,
+            expenses = (state.money.content as? com.sharedhouse.android.ui.money.MoneyContent.Ready)
+                ?.expenses.orEmpty(),
+            tasks = (state.tasks.content as? com.sharedhouse.android.ui.tasks.TasksContent.Ready)
+                ?.tasks.orEmpty(),
+        )
     }
 
     var selectedDestinationName by rememberSaveable {
@@ -247,6 +286,7 @@ private fun AuthenticatedHouseholdExperience(
     var secondarySurfaceName by rememberSaveable { mutableStateOf(SecondarySurface.NONE.name) }
     var guideTopicName by rememberSaveable { mutableStateOf(GuideTopic.GETTING_STARTED.name) }
     var articleParentName by rememberSaveable { mutableStateOf(SecondarySurface.GUIDES.name) }
+    var tasksInitialFilterName by rememberSaveable { mutableStateOf(TaskFilter.MY_TASKS.name) }
 
     val selectedDestination = runCatching {
         HouseholdDestination.valueOf(selectedDestinationName)
@@ -256,6 +296,16 @@ private fun AuthenticatedHouseholdExperience(
     }.getOrDefault(SecondarySurface.NONE)
     val guideTopic = runCatching { GuideTopic.valueOf(guideTopicName) }
         .getOrDefault(GuideTopic.GETTING_STARTED)
+    var lastObservedChatMessageId by rememberSaveable(household.id) { mutableStateOf<String?>(null) }
+    val newestChatMessage = state.chat.messages.lastOrNull()
+    LaunchedEffect(newestChatMessage?.id, secondarySurface) {
+        val message = newestChatMessage ?: return@LaunchedEffect
+        val previous = lastObservedChatMessageId
+        if (previous != null && previous != message.id && !message.isCurrentUser && secondarySurface != SecondarySurface.CHAT) {
+            SharedHouseNotifications.postChatMessage(context, appPreferences.notifications)
+        }
+        lastObservedChatMessageId = message.id
+    }
 
     fun openSecondary(surface: SecondarySurface) {
         secondarySurfaceName = surface.name
@@ -275,6 +325,39 @@ private fun AuthenticatedHouseholdExperience(
         },
     ) {
         when (secondarySurface) {
+            SecondarySurface.HOUSEHOLD_SETTINGS -> HouseholdCreatorSettingsScreen(
+                householdName = household.name,
+                role = household.role,
+                countryCode = household.countryCode,
+                timezone = household.timezone,
+                currency = household.currency,
+                firstDayOfWeek = household.firstDayOfWeek,
+                cycleType = household.cycleType,
+                cycleAnchor = household.cycleAnchor,
+                onBack = { openSecondary(SecondarySurface.NONE) },
+                onEditHousehold = viewModel::openHouseholdEditor,
+                onManageMembers = { openSecondary(SecondarySurface.NONE); selectedDestinationName = HouseholdDestination.HOUSE.name },
+                onManageInvitations = viewModel::openInvitationManager,
+                onManageFinance = { openSecondary(SecondarySurface.NONE); selectedDestinationName = HouseholdDestination.MONEY.name },
+                onManageChores = { openSecondary(SecondarySurface.NONE); selectedDestinationName = HouseholdDestination.TASKS.name },
+                onOpenCalendar = { openSecondary(SecondarySurface.NONE); selectedDestinationName = HouseholdDestination.CALENDAR.name },
+                onOpenUserNotifications = { openSecondary(SecondarySurface.SETTINGS) },
+            )
+
+            SecondarySurface.CHAT -> {
+                LifecycleStartEffect(viewModel, household.id) {
+                    viewModel.startChatLive()
+                    onStopOrDispose { viewModel.stopChatLive() }
+                }
+                HouseholdChatScreen(
+                    state = state.chat,
+                    onBack = { openSecondary(SecondarySurface.NONE) },
+                    onDraftChanged = viewModel::updateChatDraft,
+                    onSend = viewModel::sendChatMessage,
+                    onRetry = viewModel::retryChat,
+                )
+            }
+
             SecondarySurface.SETTINGS -> SettingsRoute(
                 repository = preferencesRepository,
                 onBack = { openSecondary(SecondarySurface.NONE) },
@@ -309,8 +392,8 @@ private fun AuthenticatedHouseholdExperience(
                     if (appPreferences.privacy.adsEnabled && googleServicesStatus.adsReady) {
                         Text(
                             text = stringResource(R.string.sponsored_content_label),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.labelMedium,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                         )
                         CompliantAdBanner(enabled = true)
                     }
@@ -333,7 +416,10 @@ private fun AuthenticatedHouseholdExperience(
                         accountDisplayName = state.account?.displayName.orEmpty(),
                         calendar = state.calendar.toDashboardCalendar(),
                         tasks = state.tasks.toDashboardTasks(),
+                        money = state.money.toDashboardMoney(),
                     ),
+                    chat = state.chat,
+                    onOpenChat = { openSecondary(SecondarySurface.CHAT) },
                     onOpenCalendar = {
                         selectedDestinationName = HouseholdDestination.CALENDAR.name
                     },
@@ -345,12 +431,17 @@ private fun AuthenticatedHouseholdExperience(
                         selectedDestinationName = HouseholdDestination.MONEY.name
                     },
                     onOpenTasks = {
+                        tasksInitialFilterName = TaskFilter.ACTIVE.name
+                        selectedDestinationName = HouseholdDestination.TASKS.name
+                    },
+                    onOpenRequests = {
+                        tasksInitialFilterName = TaskFilter.REQUESTS.name
                         selectedDestinationName = HouseholdDestination.TASKS.name
                     },
                 )
 
                 HouseholdDestination.CALENDAR -> CalendarScreen(
-                    state = state.calendar,
+                    state = state.calendar.withHouseholdItems(state),
                     onAction = viewModel::handleCalendarAction,
                 )
 
@@ -362,6 +453,8 @@ private fun AuthenticatedHouseholdExperience(
                 HouseholdDestination.TASKS -> TasksScreen(
                     state = state.tasks,
                     onAction = viewModel::handleTasksAction,
+                    initialFilter = runCatching { TaskFilter.valueOf(tasksInitialFilterName) }
+                        .getOrDefault(TaskFilter.MY_TASKS),
                 )
 
                 HouseholdDestination.HOUSE -> HouseholdHubScreen(
@@ -388,9 +481,16 @@ private fun AuthenticatedHouseholdExperience(
                     ),
                     onEditHousehold = viewModel::openHouseholdEditor,
                     onManageInvitations = viewModel::openInvitationManager,
+                    onManageCosts = {
+                        selectedDestinationName = HouseholdDestination.MONEY.name
+                    },
+                    onScheduleTasks = {
+                        selectedDestinationName = HouseholdDestination.TASKS.name
+                    },
                     onJoinHousehold = viewModel::openInvitationJoin,
                     onSelectHousehold = viewModel::selectHousehold,
                     onOpenSettings = { openSecondary(SecondarySurface.SETTINGS) },
+                    onOpenHouseholdSettings = { openSecondary(SecondarySurface.HOUSEHOLD_SETTINGS) },
                     onOpenGuides = { openSecondary(SecondarySurface.GUIDES) },
                     onSignOut = viewModel::signOut,
                     onRetryMembers = viewModel::retryHouseholdMembers,
@@ -399,6 +499,51 @@ private fun AuthenticatedHouseholdExperience(
             }
         }
     }
+}
+
+private fun com.sharedhouse.android.ui.calendar.CalendarUiState.withHouseholdItems(
+    appState: AppUiState,
+): com.sharedhouse.android.ui.calendar.CalendarUiState {
+    val ready = content as? CalendarContent.Ready ?: return this
+    val moneyEvents = (appState.money.content as? com.sharedhouse.android.ui.money.MoneyContent.Ready)
+        ?.expenses.orEmpty()
+        .filter { it.status != com.sharedhouse.android.ui.money.ExpenseStatus.REVERSED }
+        .map { expense ->
+            val amount = runCatching {
+                NumberFormat.getCurrencyInstance().apply {
+                    currency = Currency.getInstance(expense.currency)
+                }.format(expense.amountMinor / 100.0)
+            }.getOrDefault("${expense.currency} ${expense.amountMinor}")
+            CalendarEventUi(
+                id = "expense:${expense.id}",
+                title = expense.title,
+                description = amount,
+                type = CalendarEventType.MONEY,
+                date = expense.dueDate,
+                version = expense.version,
+            )
+        }
+    val taskEvents = (appState.tasks.content as? com.sharedhouse.android.ui.tasks.TasksContent.Ready)
+        ?.tasks.orEmpty()
+        .filter { it.status != com.sharedhouse.android.ui.tasks.TaskStatus.CANCELLED }
+        .map { task ->
+            CalendarEventUi(
+                id = "task:${task.id}",
+                title = task.title,
+                description = task.assigneeDisplayName,
+                type = CalendarEventType.TASK,
+                date = task.dueDate,
+                startTime = task.dueTime?.let { runCatching { LocalTime.parse(it) }.getOrNull() },
+                version = task.version,
+            )
+        }
+    return copy(
+        content = CalendarContent.Ready(
+            (ready.events + moneyEvents + taskEvents)
+                .distinctBy(CalendarEventUi::id)
+                .sortedWith(compareBy(CalendarEventUi::date).thenBy { it.startTime }),
+        ),
+    )
 }
 
 private fun shareInvitation(context: Context, token: String) {
@@ -433,6 +578,25 @@ private fun com.sharedhouse.android.ui.tasks.TasksUiState.toDashboardTasks(): Da
                 nextMineTitle = active.filter { it.isMine }.minByOrNull { it.dueDate }?.title,
                 activeCount = active.size,
                 pendingRequests = current.tasks.sumOf { task -> task.requests.count { it.status == com.sharedhouse.android.ui.tasks.TaskRequestStatus.PENDING } },
+            )
+        }
+    }
+
+private fun com.sharedhouse.android.ui.money.MoneyUiState.toDashboardMoney(): DashboardMoneyContent =
+    when (val current = content) {
+        com.sharedhouse.android.ui.money.MoneyContent.Loading -> DashboardMoneyContent.Loading
+        com.sharedhouse.android.ui.money.MoneyContent.Error -> DashboardMoneyContent.Error
+        is com.sharedhouse.android.ui.money.MoneyContent.Ready -> {
+            val active = current.expenses.filter {
+                it.status == com.sharedhouse.android.ui.money.ExpenseStatus.APPROVED
+            }
+            val outstanding = active.flatMap { it.allocations }.filter {
+                it.isCurrentUser && it.status != com.sharedhouse.android.ui.money.ExpenseAllocationStatus.PAID
+            }
+            DashboardMoneyContent.Ready(
+                amountDueMinor = outstanding.sumOf { it.amountMinor },
+                currency = currency,
+                outstandingCount = outstanding.size,
             )
         }
     }

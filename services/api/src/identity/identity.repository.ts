@@ -10,6 +10,7 @@ import type {
   ExpensePaymentSummary,
   ExpenseTemplateSummary,
   HouseholdSummary,
+  HouseholdTaskRecurrenceCadence,
   HouseholdTaskSummary,
 } from '@sharedhouse/contracts';
 
@@ -255,26 +256,31 @@ export class IdentityRepository {
       );
       const taskRows = await transaction.query<ExportTaskRow>(
         `SELECT t.id,t.household_id,t.assignee_membership_id,assignee_profile.display_name AS assignee_display_name,
-           t.title,t.instructions,t.zone,t.priority,t.due_date,t.due_time,t.estimated_minutes,t.status,
+           t.title,t.instructions,t.zone,t.priority,t.due_date,t.due_time,t.estimated_minutes,
+           t.recurrence_cadence,t.recurrence_ends_on,t.series_id,t.occurrence_date,
+           t.recurrence_completed,t.status,
            t.completion_note,t.completed_by_user_id,t.completed_at,t.version,t.created_at,t.updated_at,
            r.id AS request_id,r.request_type,r.status AS request_status,r.reason AS request_reason,
            r.requested_assignee_membership_id,r.requested_due_date,r.requested_due_time,
            r.created_by_membership_id,requester_profile.display_name AS request_created_by_display_name,
-           r.resolved_by_user_id,r.resolution_note,r.resolved_at,r.created_at AS request_created_at
+           r.resolved_by_user_id,resolver_profile.display_name AS resolved_by_display_name,
+           r.resolution_note,r.resolved_at,r.created_at AS request_created_at
          FROM household_tasks t
          JOIN household_memberships assignee ON assignee.id=t.assignee_membership_id
          JOIN user_profiles assignee_profile ON assignee_profile.user_id=assignee.user_id
          LEFT JOIN household_task_requests r ON r.task_id=t.id
          LEFT JOIN household_memberships requester ON requester.id=r.created_by_membership_id
          LEFT JOIN user_profiles requester_profile ON requester_profile.user_id=requester.user_id
+         LEFT JOIN user_profiles resolver_profile ON resolver_profile.user_id=r.resolved_by_user_id
          WHERE t.created_by_user_id=$1 OR assignee.user_id=$1
          ORDER BY t.due_date,t.id,r.created_at,r.id`,
         [userId],
       );
       const expenseRows = await transaction.query<ExportExpenseRow>(
-        `SELECT e.id, e.household_id, creator.user_id AS created_by_user_id, e.title,
+        `SELECT e.id, e.household_id, creator.user_id AS created_by_user_id, e.title, e.supplier_name,
            e.category, e.custom_category_name, e.amount_minor, e.currency, e.due_date, e.notes,
-           e.source_template_id, e.occurrence_date, e.split_method,
+           e.source_template_id, e.occurrence_date, e.revision_of_expense_id,
+           e.superseded_by_expense_id, e.split_method,
             e.status, e.version, e.created_at, e.updated_at, a.id AS allocation_id,
             a.membership_id, a.billing_unit_label AS display_name,
             a.billing_unit_type, a.participant_count,
@@ -284,10 +290,17 @@ export class IdentityRepository {
            p.id AS payment_id, p.amount_minor AS payment_amount_minor, p.method AS payment_method,
            p.payment_reference, p.note AS payment_note, p.paid_at AS payment_paid_at,
            p.status AS payment_status, declared.user_id AS payment_declared_by_user_id,
-           confirmed.user_id AS payment_confirmed_by_user_id, p.confirmed_at AS payment_confirmed_at,
-           disputed.user_id AS payment_disputed_by_user_id, p.disputed_at AS payment_disputed_at,
+           declared_profile.display_name AS payment_declared_by_display_name,
+           confirmed.user_id AS payment_confirmed_by_user_id,
+           confirmed_profile.display_name AS payment_confirmed_by_display_name,
+           p.confirmed_at AS payment_confirmed_at,
+           disputed.user_id AS payment_disputed_by_user_id,
+           disputed_profile.display_name AS payment_disputed_by_display_name,
+           p.disputed_at AS payment_disputed_at,
            p.dispute_reason AS payment_dispute_reason,
-           reversed.user_id AS payment_reversed_by_user_id, p.reversed_at AS payment_reversed_at,
+           reversed.user_id AS payment_reversed_by_user_id,
+           reversed_profile.display_name AS payment_reversed_by_display_name,
+           p.reversed_at AS payment_reversed_at,
            p.reversal_reason AS payment_reversal_reason, p.version AS payment_version,
            p.created_at AS payment_created_at, p.updated_at AS payment_updated_at
          FROM expenses e
@@ -302,9 +315,13 @@ export class IdentityRepository {
           ) eligible ON true
          LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
          LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
+         LEFT JOIN user_profiles declared_profile ON declared_profile.user_id = declared.user_id
          LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
+         LEFT JOIN user_profiles confirmed_profile ON confirmed_profile.user_id = confirmed.user_id
          LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
+         LEFT JOIN user_profiles disputed_profile ON disputed_profile.user_id = disputed.user_id
          LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
+         LEFT JOIN user_profiles reversed_profile ON reversed_profile.user_id = reversed.user_id
          WHERE creator.user_id = $1 OR EXISTS (
             SELECT 1 FROM expense_allocations mine
             JOIN expense_allocation_members mine_link ON mine_link.allocation_id = mine.id
@@ -316,7 +333,8 @@ export class IdentityRepository {
       );
       const expenseTemplates = await transaction.query<ExportExpenseTemplateRow>(
         `SELECT t.id, t.household_id, t.title, t.category, t.custom_category_name,
-           t.amount_minor, t.currency, t.cadence, t.next_due_date, t.notes, t.status,
+           t.amount_minor, t.currency, t.cadence, t.next_due_date, t.schedule_ends_on,
+           t.notes, t.status,
            t.version, t.created_at, t.updated_at
          FROM expense_templates t
          WHERE EXISTS (
@@ -847,6 +865,11 @@ interface ExportTaskRow {
   readonly due_date: Date | string;
   readonly due_time: string | null;
   readonly estimated_minutes: number | null;
+  readonly recurrence_cadence: HouseholdTaskRecurrenceCadence | null;
+  readonly recurrence_ends_on: Date | string | null;
+  readonly series_id: string | null;
+  readonly occurrence_date: Date | string | null;
+  readonly recurrence_completed: boolean;
   readonly status: HouseholdTaskSummary['status'];
   readonly completion_note: string | null;
   readonly completed_by_user_id: string | null;
@@ -864,6 +887,7 @@ interface ExportTaskRow {
   readonly created_by_membership_id: string | null;
   readonly request_created_by_display_name: string | null;
   readonly resolved_by_user_id: string | null;
+  readonly resolved_by_display_name: string | null;
   readonly resolution_note: string | null;
   readonly resolved_at: Date | string | null;
   readonly request_created_at: Date | string | null;
@@ -874,6 +898,7 @@ interface ExportExpenseRow {
   readonly household_id: string;
   readonly created_by_user_id: string;
   readonly title: string;
+  readonly supplier_name: string | null;
   readonly category: ExpenseSummary['category'];
   readonly custom_category_name: string | null;
   readonly amount_minor: number | string | bigint;
@@ -882,6 +907,8 @@ interface ExportExpenseRow {
   readonly notes: string | null;
   readonly source_template_id: string | null;
   readonly occurrence_date: Date | string | null;
+  readonly revision_of_expense_id: string | null;
+  readonly superseded_by_expense_id: string | null;
   readonly split_method: 'equal';
   readonly status: ExpenseSummary['status'];
   readonly version: number;
@@ -904,12 +931,16 @@ interface ExportExpenseRow {
   readonly payment_paid_at: Date | string | null;
   readonly payment_status: ExpensePaymentSummary['status'] | null;
   readonly payment_declared_by_user_id: string | null;
+  readonly payment_declared_by_display_name: string | null;
   readonly payment_confirmed_by_user_id: string | null;
+  readonly payment_confirmed_by_display_name: string | null;
   readonly payment_confirmed_at: Date | string | null;
   readonly payment_disputed_by_user_id: string | null;
+  readonly payment_disputed_by_display_name: string | null;
   readonly payment_disputed_at: Date | string | null;
   readonly payment_dispute_reason: string | null;
   readonly payment_reversed_by_user_id: string | null;
+  readonly payment_reversed_by_display_name: string | null;
   readonly payment_reversed_at: Date | string | null;
   readonly payment_reversal_reason: string | null;
   readonly payment_version: number | null;
@@ -927,6 +958,7 @@ interface ExportExpenseTemplateRow {
   readonly currency: string;
   readonly cadence: ExpenseTemplateSummary['cadence'];
   readonly next_due_date: Date | string;
+  readonly schedule_ends_on: Date | string | null;
   readonly notes: string | null;
   readonly status: ExpenseTemplateSummary['status'];
   readonly version: number;
@@ -1025,6 +1057,11 @@ function mapExportTasks(rows: readonly ExportTaskRow[]): HouseholdTaskSummary[] 
       estimatedMinutes: row.estimated_minutes,
       assigneeMembershipId: row.assignee_membership_id,
       assigneeDisplayName: row.assignee_display_name,
+      recurrenceCadence: row.recurrence_cadence,
+      recurrenceEndsOn: row.recurrence_ends_on === null ? null : toDate(row.recurrence_ends_on),
+      seriesId: row.series_id,
+      occurrenceDate: row.occurrence_date === null ? null : toDate(row.occurrence_date),
+      recurrenceActive: row.recurrence_cadence !== null && !row.recurrence_completed,
       status: row.status,
       completionNote: row.completion_note,
       completedByUserId: row.completed_by_user_id,
@@ -1053,6 +1090,7 @@ function mapExportTasks(rows: readonly ExportTaskRow[]): HouseholdTaskSummary[] 
             createdByMembershipId: request.created_by_membership_id,
             createdByDisplayName: request.request_created_by_display_name,
             resolvedByUserId: request.resolved_by_user_id,
+            resolvedByDisplayName: request.resolved_by_display_name,
             resolutionNote: request.resolution_note,
             resolvedAt: request.resolved_at === null ? null : toInstant(request.resolved_at),
             createdAt: toInstant(request.request_created_at),
@@ -1114,6 +1152,7 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       id: row.id,
       householdId: row.household_id,
       title: row.title,
+      supplierName: row.supplier_name,
       category: row.category,
       customCategoryName: row.custom_category_name,
       amount: { minorUnits: toSafeInteger(row.amount_minor), currency: row.currency },
@@ -1121,6 +1160,8 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       notes: row.notes,
       sourceTemplateId: row.source_template_id,
       occurrenceDate: row.occurrence_date === null ? null : toDate(row.occurrence_date),
+      revisionOfExpenseId: row.revision_of_expense_id,
+      supersededByExpenseId: row.superseded_by_expense_id,
       splitMethod: row.split_method,
       status: row.status,
       allocations,
@@ -1131,6 +1172,7 @@ function mapExportExpenses(rows: readonly ExportExpenseRow[], userId: string): E
       createdByUserId: row.created_by_user_id,
       canApprove: false,
       canReverse: false,
+      canRevise: false,
       version: row.version,
       createdAt: toInstant(row.created_at),
       updatedAt: toInstant(row.updated_at),
@@ -1149,6 +1191,7 @@ function mapExportPayment(
     payment.payment_paid_at === null ||
     payment.payment_status === null ||
     payment.payment_declared_by_user_id === null ||
+    payment.payment_declared_by_display_name === null ||
     payment.payment_version === null ||
     payment.payment_created_at === null ||
     payment.payment_updated_at === null
@@ -1170,14 +1213,18 @@ function mapExportPayment(
     paidAt: toInstant(payment.payment_paid_at),
     status: payment.payment_status,
     declaredByUserId: payment.payment_declared_by_user_id,
+    declaredByDisplayName: payment.payment_declared_by_display_name,
     confirmedByUserId: payment.payment_confirmed_by_user_id,
+    confirmedByDisplayName: payment.payment_confirmed_by_display_name,
     confirmedAt:
       payment.payment_confirmed_at === null ? null : toInstant(payment.payment_confirmed_at),
     disputedByUserId: payment.payment_disputed_by_user_id,
+    disputedByDisplayName: payment.payment_disputed_by_display_name,
     disputedAt:
       payment.payment_disputed_at === null ? null : toInstant(payment.payment_disputed_at),
     disputeReason: payment.payment_dispute_reason,
     reversedByUserId: payment.payment_reversed_by_user_id,
+    reversedByDisplayName: payment.payment_reversed_by_display_name,
     reversedAt:
       payment.payment_reversed_at === null ? null : toInstant(payment.payment_reversed_at),
     reversalReason: payment.payment_reversal_reason,
@@ -1208,6 +1255,7 @@ function mapExportExpenseTemplate(row: ExportExpenseTemplateRow): ExpenseTemplat
     amount: { minorUnits: toSafeInteger(row.amount_minor), currency: row.currency },
     cadence: row.cadence,
     nextDueDate: toDate(row.next_due_date),
+    endsOn: row.schedule_ends_on === null ? null : toDate(row.schedule_ends_on),
     notes: row.notes,
     status: row.status,
     canManage: false,

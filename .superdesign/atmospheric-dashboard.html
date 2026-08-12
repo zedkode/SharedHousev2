@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SharedHouse Atmospheric Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    .atmosphere {
+      background:
+        radial-gradient(circle at 84% 23%, rgba(91,122,146,.28), transparent 25%),
+        radial-gradient(circle at 12% 36%, rgba(52,78,99,.45), transparent 34%),
+        linear-gradient(180deg, #111820 0%, #26394a 37%, #161a1d 73%, #101316 100%);
+    }
+    .glass { background: rgba(37,39,36,.88); border: 1px solid rgba(255,255,255,.13); box-shadow: 0 26px 64px rgba(0,0,0,.58), inset 0 1px rgba(255,255,255,.10); backdrop-filter: blur(22px); }
+    .raised { background: linear-gradient(145deg, rgba(74,74,70,.94), rgba(49,49,46,.82)); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 12px 26px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.12); }
+    .action { background: linear-gradient(145deg, rgba(83,83,79,.92), rgba(55,55,52,.86)); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 12px 24px rgba(0,0,0,.45), inset 0 1px rgba(255,255,255,.11); transition: transform .16s ease, background .16s ease; }
+    .action:active, .metric:active { transform: translateY(2px) scale(.97); }
+    .metric { box-shadow: 0 10px 24px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.09); transition: transform .16s ease, border-color .16s ease; }
+    .metric:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid #D9CDBD; outline-offset: 3px; }
+    .safe-top { padding-top: max(1.25rem, env(safe-area-inset-top)); }
+    .safe-bottom { bottom: max(.75rem, env(safe-area-inset-bottom)); }
+  </style>
+</head>
+<body>
+  <div class="atmosphere min-h-screen w-full overflow-hidden text-[#F5F1EA]">
+    <main class="safe-top mx-auto flex min-h-screen w-full max-w-[390px] flex-col px-5 pb-32">
+      <header class="flex items-center justify-between py-2">
+        <button aria-label="Open household menu" class="flex h-12 w-12 items-center justify-center rounded-full text-[#C7C5BF]">
+          <iconify-icon icon="solar:hamburger-menu-linear" width="28"></iconify-icon>
+        </button>
+        <div class="text-center">
+          <p class="text-[11px] font-medium uppercase tracking-[.22em] text-[#969B9E]">SharedHouse</p>
+          <h1 class="mt-1 text-[19px] font-medium tracking-[-.02em]">Maple House</h1>
+        </div>
+        <button aria-label="Open profile" class="raised flex h-11 w-11 items-center justify-center rounded-full text-[13px] font-semibold">AN</button>
+      </header>
+
+      <div class="mt-4 flex items-center justify-center gap-2 text-[12px] font-medium text-[#A9D7B5]">
+        <span class="h-2 w-2 rounded-full bg-[#A9D7B5]"></span>
+        Live · updated now
+      </div>
+
+      <section aria-label="Household overview" class="mt-6 grid grid-cols-4 gap-3 text-center">
+        <a id="metric-money" href="#money" class="no-underline text-inherit"><span class="metric mx-auto flex h-[66px] w-[66px] flex-col items-center justify-center rounded-full border border-white/10 bg-white/[.055]"><iconify-icon icon="solar:wallet-money-linear" width="21" class="text-[#C7C5BF]"></iconify-icon><strong class="mt-1 text-[16px] font-medium">£86</strong></span><span class="mt-2 block text-[11px] text-[#C7C5BF]">Due</span></a>
+        <a id="metric-tasks" href="#tasks" class="no-underline text-inherit"><span class="metric mx-auto flex h-[66px] w-[66px] flex-col items-center justify-center rounded-full border border-white/10 bg-white/[.055]"><iconify-icon icon="solar:checklist-minimalistic-linear" width="21" class="text-[#C7C5BF]"></iconify-icon><strong class="mt-1 text-[16px] font-medium">2</strong></span><span class="mt-2 block text-[11px] text-[#C7C5BF]">Tasks</span></a>
+        <a id="metric-events" href="#calendar" class="no-underline text-inherit"><span class="metric mx-auto flex h-[66px] w-[66px] flex-col items-center justify-center rounded-full border border-white/10 bg-white/[.055]"><iconify-icon icon="solar:calendar-linear" width="21" class="text-[#C7C5BF]"></iconify-icon><strong class="mt-1 text-[16px] font-medium">4</strong></span><span class="mt-2 block text-[11px] text-[#C7C5BF]">Events</span></a>
+        <a id="metric-requests" href="#requests" class="no-underline text-inherit"><span class="metric mx-auto flex h-[66px] w-[66px] flex-col items-center justify-center rounded-full border border-[#D9CDBD]/50 bg-[#D9CDBD] text-[#171717]"><iconify-icon icon="solar:bell-bing-linear" width="21"></iconify-icon><strong class="mt-1 text-[16px] font-semibold">1</strong></span><span class="mt-2 block text-[11px] text-[#F5F1EA]">Request</span></a>
+      </section>
+
+      <a id="open-household-chat" href="#chat" class="glass mt-7 flex min-h-[108px] items-center gap-4 rounded-[28px] px-5 no-underline text-inherit">
+        <span class="raised flex h-14 w-14 shrink-0 items-center justify-center rounded-full"><iconify-icon icon="solar:chat-round-dots-linear" width="27"></iconify-icon></span>
+        <span class="min-w-0 flex-1"><span class="block text-[11px] uppercase tracking-[.18em] text-[#A9D7B5]">Household chat · live</span><strong class="mt-1 block truncate text-[17px] font-medium">Mara: I can pick up the keys</strong><span class="mt-1 block text-[12px] text-[#969B9E]">2 new messages</span></span>
+        <iconify-icon icon="solar:arrow-right-up-linear" width="25" class="text-[#C7C5BF]"></iconify-icon>
+      </a>
+
+      <section class="glass mt-5 rounded-[34px] px-5 pb-7 pt-4">
+        <div class="mx-auto h-1.5 w-12 rounded-full bg-[#969B9E]"></div>
+        <div class="mt-5 flex items-center gap-3">
+          <div class="raised flex h-14 flex-1 items-center gap-3 rounded-full px-5 text-[15px] text-[#C7C5BF]"><iconify-icon icon="solar:magic-stick-3-linear" width="20"></iconify-icon><span>What needs attention?</span></div>
+          <button aria-label="Filter quick actions" class="action flex h-14 w-14 items-center justify-center rounded-full"><iconify-icon icon="solar:tuning-2-linear" width="23"></iconify-icon></button>
+        </div>
+        <h2 class="mb-5 mt-7 text-[20px] font-medium">Quick actions</h2>
+        <div class="grid grid-cols-3 gap-x-3 gap-y-6 text-center">
+          <a id="add-expense" href="#add-expense" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:bill-list-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Add expense</span></a>
+          <a id="record-payment" href="#record-payment" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:hand-money-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Record payment</span></a>
+          <a id="add-bill" href="#add-bill" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:calendar-add-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Add bill</span></a>
+          <a id="add-task" href="#add-task" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:check-square-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Add task</span></a>
+          <a id="add-event" href="#add-event" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:calendar-date-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Add event</span></a>
+          <a id="invite-member" href="#invite-member" class="no-underline text-inherit"><span class="action mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full"><iconify-icon icon="solar:user-plus-linear" width="29"></iconify-icon></span><span class="mt-2 block text-[12px] leading-4">Invite member</span></a>
+        </div>
+      </section>
+
+      <section aria-label="Connected household workspace" class="mt-5 grid grid-cols-2 gap-3">
+        <a id="workspace-money" href="#money" class="raised rounded-[24px] p-4 no-underline text-inherit">
+          <span class="flex items-center justify-between"><iconify-icon icon="solar:wallet-money-linear" width="24"></iconify-icon><span class="flex items-center gap-1 text-[10px] font-semibold text-[#A9D7B5]"><span class="h-1.5 w-1.5 rounded-full bg-[#A9D7B5]"></span>CONNECTED</span></span>
+          <strong class="mt-5 block text-[16px]">Money</strong><span class="mt-1 block text-[12px] leading-4 text-[#C7C5BF]">£86 due across 2 items</span>
+        </a>
+        <a id="workspace-requests" href="#requests" class="raised rounded-[24px] p-4 no-underline text-inherit">
+          <span class="flex items-center justify-between"><iconify-icon icon="solar:inbox-in-linear" width="24"></iconify-icon><span class="flex items-center gap-1 text-[10px] font-semibold text-[#A9D7B5]"><span class="h-1.5 w-1.5 rounded-full bg-[#A9D7B5]"></span>CONNECTED</span></span>
+          <strong class="mt-5 block text-[16px]">Requests</strong><span class="mt-1 block text-[12px] leading-4 text-[#C7C5BF]">1 swap needs your answer</span>
+        </a>
+      </section>
+    </main>
+
+    <nav aria-label="Main navigation" class="glass safe-bottom fixed left-1/2 flex w-[calc(100%-24px)] max-w-[366px] -translate-x-1/2 items-center justify-around rounded-[26px] px-2 py-2">
+      <a id="nav-home" href="#home" aria-current="page" class="flex h-14 w-14 flex-col items-center justify-center rounded-[20px] border border-[#D9CDBD]/60 bg-[#D9CDBD] text-[#171717] shadow-lg shadow-black/40 no-underline"><iconify-icon icon="solar:home-smile-linear" width="22"></iconify-icon><span class="mt-1 text-[9px] font-semibold">Home</span></a>
+      <a id="nav-calendar" href="#calendar" class="flex h-14 w-14 flex-col items-center justify-center text-[#969B9E] no-underline"><iconify-icon icon="solar:calendar-linear" width="22"></iconify-icon><span class="mt-1 text-[9px]">Calendar</span></a>
+      <a id="nav-money" href="#money" class="flex h-14 w-14 flex-col items-center justify-center text-[#969B9E] no-underline"><iconify-icon icon="solar:wallet-money-linear" width="22"></iconify-icon><span class="mt-1 text-[9px]">Money</span></a>
+      <a id="nav-tasks" href="#tasks" class="flex h-14 w-14 flex-col items-center justify-center text-[#969B9E] no-underline"><iconify-icon icon="solar:checklist-minimalistic-linear" width="22"></iconify-icon><span class="mt-1 text-[9px]">Tasks</span></a>
+      <a id="nav-house" href="#house" class="flex h-14 w-14 flex-col items-center justify-center text-[#969B9E] no-underline"><iconify-icon icon="solar:users-group-rounded-linear" width="22"></iconify-icon><span class="mt-1 text-[9px]">House</span></a>
+    </nav>
+  </div>
+</body>
+</html>

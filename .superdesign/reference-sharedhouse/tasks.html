@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks Board - SharedHouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+            --status-positive: #6E8A5E;
+            --status-warning: #C99A3A;
+            --status-negative: #B5533A;
+            --status-neutral: #9C9184;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(60px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(122, 111, 99, 0.2);
+            border-radius: 10px;
+        }
+
+        .filter-tab-active {
+            background-color: var(--accent-terracotta);
+            color: white;
+            box-shadow: 0 4px 12px rgba(193, 103, 63, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full h-screen flex flex-col relative overflow-hidden" data-sd-id="1">
+        
+        <!-- Background Organic Shapes -->
+        <div class="organic-blob w-64 h-64 bg-[#C1673F] -top-20 -left-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-80 h-80 bg-[#7C8B6F] top-1/2 -right-20 rounded-full" data-sd-id="3"></div>
+        <div class="organic-blob w-72 h-72 bg-[#C99A3A] -bottom-20 left-10 rounded-full" data-sd-id="4"></div>
+
+        <!-- Header Component -->
+        <sd-component componentid="d43d5b33-1cd7-4250-be95-8c682aa360a4" name="HouseholdHeader">
+        </sd-component>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto px-5 py-6 z-10 space-y-6" data-sd-id="5">
+            
+            <!-- Filter Section -->
+            <section class="space-y-4" data-sd-id="6">
+                <div class="flex items-center justify-between px-1" data-sd-id="7">
+                    <h2 class="text-xl font-bold tracking-tight" data-sd-id="8">Household Tasks</h2>
+                    <button id="add-task-btn" class="w-10 h-10 rounded-2xl bg-[#C1673F] text-white flex items-center justify-center shadow-lg shadow-[#C1673F]/20 active:scale-95 transition-transform" data-sd-id="9">
+                        <iconify-icon icon="lucide:plus" class="text-xl"></iconify-icon>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar" data-sd-id="10">
+                    <button class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold filter-tab-active" data-sd-id="11">All Tasks</button>
+                    <button class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white/40 text-[#7A6F63]" data-sd-id="12">My Chores</button>
+                    <button class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white/40 text-[#7A6F63]" data-sd-id="13">Pending</button>
+                    <button class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-white/40 text-[#7A6F63]" data-sd-id="14">History</button>
+                </div>
+            </section>
+
+            <!-- Task List -->
+            <section class="space-y-4 pb-8" data-sd-id="15">
+                
+                <!-- Urgent Task -->
+                <sd-component componentid="8bd1572f-4b67-438f-8b04-ba46855c32b9" name="TaskCard" instance="task-1" props="{&quot;isUrgent&quot;:true, &quot;dueDays&quot;:1, &quot;postponeHref&quot;:&quot;#postpone-deep-clean&quot;}">
+                </sd-component>
+
+                <!-- Normal Task -->
+                <sd-component componentid="8bd1572f-4b67-438f-8b04-ba46855c32b9" name="TaskCard" instance="task-2" props="{&quot;isUrgent&quot;:false, &quot;dueDays&quot;:4, &quot;postponeHref&quot;:&quot;#postpone-trash&quot;}">
+                </sd-component>
+
+                <!-- Scheduled Task -->
+                <div class="glass-card p-5 border-l-4 border-[#9C9184]" data-sd-id="16">
+                    <div class="flex justify-between items-start mb-4" data-sd-id="17">
+                        <div class="flex items-center gap-3" data-sd-id="18">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-10 h-10 rounded-full border-2 border-white" alt="Luna" data-sd-id="19">
+                            <div data-sd-id="20">
+                                <h4 class="text-sm font-bold" data-sd-id="21">Gardening &amp; Patio</h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#9C9184] font-bold uppercase" data-sd-id="22">
+                                    <iconify-icon icon="lucide:calendar"></iconify-icon>
+                                    Starts Next Monday
+                                </div>
+                            </div>
+                        </div>
+                        <button class="text-[#7A6F63]" data-sd-id="23">
+                            <iconify-icon icon="lucide:more-horizontal" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4" data-sd-id="24">
+                        <button class="flex-1 py-2 px-3 bg-white/50 text-[#3A332C] rounded-xl text-xs font-bold flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" data-sd-id="25">
+                            <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                            WAITING
+                        </button>
+                        <button class="flex-1 py-2 px-3 bg-white/50 text-[#3A332C] rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/80 transition-colors" data-sd-id="26">
+                            <iconify-icon icon="lucide:refresh-cw"></iconify-icon>
+                            REASSIGN
+                        </button>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-[#7A6F63]" data-sd-id="27">
+                        <span class="flex items-center gap-1" data-sd-id="28">
+                            <iconify-icon icon="lucide:info"></iconify-icon>
+                            Recurring monthly
+                        </span>
+                        <span class="flex items-center gap-1 font-semibold text-[#C1673F]" data-sd-id="29">
+                            EDIT SCHEDULE
+                            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Overdue Task -->
+                <div class="glass-card p-5 border-l-4 border-[#B5533A]" data-sd-id="30">
+                    <div class="flex justify-between items-start mb-4" data-sd-id="31">
+                        <div class="flex items-center gap-3" data-sd-id="32">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar" class="w-10 h-10 rounded-full border-2 border-white" alt="Oscar" data-sd-id="33">
+                            <div data-sd-id="34">
+                                <h4 class="text-sm font-bold" data-sd-id="35">Trash &amp; Recycling</h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#B5533A] font-bold uppercase" data-sd-id="36">
+                                    <iconify-icon icon="lucide:alert-triangle"></iconify-icon>
+                                    OVERDUE BY 1 DAY
+                                </div>
+                            </div>
+                        </div>
+                        <button class="text-[#7A6F63]" data-sd-id="37">
+                            <iconify-icon icon="lucide:more-horizontal" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4" data-sd-id="38">
+                        <button class="flex-1 py-2 px-3 bg-[#7C8B6F] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#7C8B6F]/20" data-sd-id="39">
+                            <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                            DONE NOW
+                        </button>
+                        <button class="flex-1 py-2 px-3 bg-white/50 text-[#3A332C] rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/80 transition-colors" data-sd-id="40">
+                            <iconify-icon icon="lucide:megaphone"></iconify-icon>
+                            NUDGE
+                        </button>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-[#7A6F63]" data-sd-id="41">
+                        <span class="flex items-center gap-1 text-[#B5533A]" data-sd-id="42">
+                            <iconify-icon icon="lucide:help-circle"></iconify-icon>
+                            Assignee offline?
+                        </span>
+                        <span class="flex items-center gap-1 font-semibold text-[#C1673F]" data-sd-id="43">
+                            TAKE OVER
+                            <iconify-icon icon="lucide:chevron-right"></iconify-icon>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Completed Task (State Demo) -->
+                <div class="glass-card p-5 border-l-4 border-[#6E8A5E] opacity-60 grayscale-[0.2]" data-sd-id="44">
+                    <div class="flex justify-between items-start mb-2" data-sd-id="45">
+                        <div class="flex items-center gap-3" data-sd-id="46">
+                            <div class="w-10 h-10 rounded-full bg-[#6E8A5E]/20 flex items-center justify-center text-[#6E8A5E]" data-sd-id="47">
+                                <iconify-icon icon="lucide:check" class="text-xl"></iconify-icon>
+                            </div>
+                            <div data-sd-id="48">
+                                <h4 class="text-sm font-bold line-through" data-sd-id="49">Living Room Dusting</h4>
+                                <div class="flex items-center gap-1 text-[10px] text-[#6E8A5E] font-bold uppercase" data-sd-id="50">
+                                    <iconify-icon icon="lucide:check-circle"></iconify-icon>
+                                    Completed by Felix
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-[#7A6F63]" data-sd-id="51">Finished today at 10:45 AM</p>
+                </div>
+
+                <!-- Empty State Suggestion -->
+                <div class="glass-card p-8 flex flex-col items-center text-center opacity-80 mt-4" data-sd-id="52">
+                    <div class="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center mb-4 text-[#7A6F63]" data-sd-id="53">
+                        <iconify-icon icon="lucide:clipboard-list" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h4 class="text-sm font-bold mb-1" data-sd-id="54">Organize new chores?</h4>
+                    <p class="text-xs text-[#7A6F63] mb-5 max-w-[220px]" data-sd-id="55">Keep the house running smoothly by assigning weekly tasks to everyone.</p>
+                    <button id="cta-setup-rotations" class="px-6 py-2 bg-white/60 border border-white/50 rounded-full text-xs font-bold text-[#3A332C] hover:bg-white transition-colors" data-sd-id="56">
+                        SETUP ROTATIONS
+                    </button>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Navigation Bar -->
+        <sd-component componentid="011a1bb3-065f-4d2a-9035-58d4869ef34f" name="NavigationBar" props="{
+                &quot;activeItem&quot;: &quot;tasks&quot;,
+                &quot;homeHref&quot;: &quot;https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev&quot;,
+                &quot;moneyHref&quot;: &quot;https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev&quot;,
+                &quot;tasksHref&quot;: &quot;https://draft-568089be-461a-42e3-af60-9de71d50dcda.preview.superdesign.dev&quot;,
+                &quot;settingsHref&quot;: &quot;https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev&quot;
+            }">
+        </sd-component>
+
+    </div>
+
+    <script>
+        // Tab switching logic (Visual only)
+        document.querySelectorAll('.shrink-0').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.shrink-0').forEach(t => {
+                    t.classList.remove('filter-tab-active');
+                    t.classList.add('bg-white/40', 'text-[#7A6F63]');
+                });
+                this.classList.add('filter-tab-active');
+                this.classList.remove('bg-white/40', 'text-[#7A6F63]');
+            });
+        });
+
+        // Nudge interaction simulation
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (btn.innerText.includes('NUDGE')) {
+                    const icon = btn.querySelector('iconify-icon');
+                    icon.classList.add('animate-bounce');
+                    btn.classList.add('bg-[#B5533A]/20');
+                    btn.innerText = 'NUDGED!';
+                    btn.disabled = true;
+                }
+            });
+        });
+    </script>
+
+</body></html>

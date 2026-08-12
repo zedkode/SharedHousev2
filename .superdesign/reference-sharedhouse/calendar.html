@@ -1,0 +1,301 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar View - SharedHouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-warm: #F7F2EA;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --text-main: #3A332C;
+            --text-muted: #7A6F63;
+            --accent-terracotta: #C1673F;
+            --accent-sage: #7C8B6F;
+            --accent-ochre: #C99A3A;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-warm);
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(58, 51, 44, 0.04);
+            border-radius: 24px;
+        }
+
+        .organic-blob {
+            position: absolute;
+            filter: blur(60px);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .event-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .active-day {
+            background-color: var(--accent-terracotta);
+            color: white;
+            box-shadow: 0 4px 12px rgba(193, 103, 63, 0.2);
+        }
+
+        /* Hide scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full h-screen flex flex-col relative overflow-hidden bg-[#F7F2EA]" data-sd-id="1">
+        
+        <!-- Background Decor -->
+        <div class="organic-blob w-72 h-72 bg-[#C1673F] -top-20 -right-20 rounded-full" data-sd-id="2"></div>
+        <div class="organic-blob w-80 h-80 bg-[#7C8B6F] bottom-1/4 -left-20 rounded-full" data-sd-id="3"></div>
+
+        <!-- Shared Household Header -->
+        <sd-component componentid="d43d5b33-1cd7-4250-be95-8c682aa360a4" name="HouseholdHeader"></sd-component>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto px-5 z-10 space-y-6 pb-20 no-scrollbar" data-sd-id="4">
+            
+            <!-- Calendar Header & View Switch -->
+            <div class="flex items-center justify-between mt-4" data-sd-id="5">
+                <h2 class="text-2xl font-bold tracking-tight" data-sd-id="6">Calendar</h2>
+                <div class="flex bg-stone-200/50 p-1 rounded-xl" data-sd-id="7">
+                    <button id="week-view-btn" class="px-4 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm transition-all" data-sd-id="8">WEEK</button>
+                    <button id="month-view-btn" class="px-4 py-1.5 text-xs font-bold rounded-lg text-stone-500 transition-all" data-sd-id="9">MONTH</button>
+                </div>
+            </div>
+
+            <!-- Month Navigator -->
+            <div class="flex items-center justify-between px-1" data-sd-id="10">
+                <button class="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center hover:bg-white/60 transition-colors" data-sd-id="11">
+                    <iconify-icon icon="lucide:chevron-left" class="text-lg"></iconify-icon>
+                </button>
+                <span class="text-sm font-bold uppercase tracking-widest text-[#7A6F63]" data-sd-id="12">October 2023</span>
+                <button class="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center hover:bg-white/60 transition-colors" data-sd-id="13">
+                    <iconify-icon icon="lucide:chevron-right" class="text-lg"></iconify-icon>
+                </button>
+            </div>
+
+            <!-- Calendar Grid (Month View Mock) -->
+            <div class="glass-card p-4" data-sd-id="14">
+                <div class="calendar-grid text-center mb-4" data-sd-id="15">
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="16">MON</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="17">TUE</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="18">WED</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="19">THU</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="20">FRI</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="21">SAT</span>
+                    <span class="text-[10px] font-bold text-stone-400" data-sd-id="22">SUN</span>
+                </div>
+                <div class="calendar-grid" data-sd-id="23">
+                    <!-- Week 1 placeholders -->
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="24">25</span>
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="25">26</span>
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="26">27</span>
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="27">28</span>
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="28">29</span>
+                    <span class="h-10 flex items-center justify-center text-xs text-stone-300" data-sd-id="29">30</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="30">1</span>
+
+                    <!-- Current Month Sample -->
+                    <span class="h-10 flex flex-col items-center justify-center text-xs font-semibold" data-sd-id="31">2</span>
+                    <div class="h-10 flex flex-col items-center justify-center relative" data-sd-id="32">
+                        <span class="text-xs font-semibold" data-sd-id="33">3</span>
+                        <div class="flex gap-0.5 mt-1" data-sd-id="34">
+                            <div class="event-dot bg-[#C1673F]" data-sd-id="35"></div>
+                        </div>
+                    </div>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="36">4</span>
+                    <div class="h-10 flex flex-col items-center justify-center relative" data-sd-id="37">
+                        <span class="text-xs font-semibold" data-sd-id="38">5</span>
+                        <div class="flex gap-0.5 mt-1" data-sd-id="39">
+                            <div class="event-dot bg-[#7C8B6F]" data-sd-id="40"></div>
+                            <div class="event-dot bg-[#C99A3A]" data-sd-id="41"></div>
+                        </div>
+                    </div>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="42">6</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="43">7</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="44">8</span>
+
+                    <!-- Today Highlight -->
+                    <div class="h-10 flex flex-col items-center justify-center relative" data-sd-id="45">
+                        <span class="w-8 h-8 flex items-center justify-center rounded-xl active-day text-xs font-bold" data-sd-id="46">9</span>
+                    </div>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="47">10</span>
+                    <div class="h-10 flex flex-col items-center justify-center relative" data-sd-id="48">
+                        <span class="text-xs font-semibold text-[#B5533A]" data-sd-id="49">11</span>
+                        <div class="flex gap-0.5 mt-1" data-sd-id="50">
+                            <div class="event-dot bg-[#B5533A]" data-sd-id="51"></div>
+                        </div>
+                    </div>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="52">12</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="53">13</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="54">14</span>
+                    <span class="h-10 flex items-center justify-center text-xs font-semibold" data-sd-id="55">15</span>
+                </div>
+            </div>
+
+            <!-- Agenda for Selected Day -->
+            <div class="space-y-4" data-sd-id="56">
+                <div class="flex items-center justify-between px-1" data-sd-id="57">
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-[#7A6F63]" data-sd-id="58">Agenda • Today</h3>
+                    <button class="text-xs font-bold text-[#C1673F]" data-sd-id="59">+ Add Event</button>
+                </div>
+
+                <!-- Event Chip: Bill -->
+                <a href="https://draft-a8d9d763-5250-4884-8a64-db5f8d90a239.preview.superdesign.dev" id="event-bill-link" class="block glass-card p-4 border-l-4 border-[#C1673F]" data-sd-id="60">
+                    <div class="flex justify-between items-start" data-sd-id="61">
+                        <div class="flex gap-3" data-sd-id="62">
+                            <div class="w-10 h-10 rounded-xl bg-[#C1673F]/10 flex items-center justify-center text-[#C1673F]" data-sd-id="63">
+                                <iconify-icon icon="lucide:receipt" class="text-xl"></iconify-icon>
+                            </div>
+                            <div data-sd-id="64">
+                                <h4 class="text-sm font-bold" data-sd-id="65">Rent Payment</h4>
+                                <p class="text-[11px] text-[#7A6F63] flex items-center gap-1" data-sd-id="66">
+                                    <iconify-icon icon="lucide:repeat" class="text-[10px]"></iconify-icon>
+                                    Recurring Monthly
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-2" data-sd-id="67">
+                            <span class="text-sm font-bold" data-sd-id="68">£850.00</span>
+                            <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;:&quot;dueSoon&quot;,&quot;daysCount&quot;:1}"></sd-component>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- Event Chip: Task -->
+                <a href="https://draft-568089be-461a-42e3-af60-9de71d50dcda.preview.superdesign.dev" id="event-task-link" class="block glass-card p-4 border-l-4 border-[#7C8B6F]" data-sd-id="69">
+                    <div class="flex justify-between items-start" data-sd-id="70">
+                        <div class="flex gap-3" data-sd-id="71">
+                            <div class="w-10 h-10 rounded-xl bg-[#7C8B6F]/10 flex items-center justify-center text-[#7C8B6F]" data-sd-id="72">
+                                <iconify-icon icon="lucide:check-square" class="text-xl"></iconify-icon>
+                            </div>
+                            <div data-sd-id="73">
+                                <h4 class="text-sm font-bold" data-sd-id="74">Garden Maintenance</h4>
+                                <p class="text-[11px] text-[#7A6F63]" data-sd-id="75">Assigned to Oscar</p>
+                            </div>
+                        </div>
+                        <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;:&quot;scheduled&quot;}"></sd-component>
+                    </div>
+                </a>
+
+                <!-- Event Chip: Household Event -->
+                <div class="glass-card p-4 border-l-4 border-[#C99A3A]" data-sd-id="76">
+                    <div class="flex justify-between items-start" data-sd-id="77">
+                        <div class="flex gap-3" data-sd-id="78">
+                            <div class="w-10 h-10 rounded-xl bg-[#C99A3A]/10 flex items-center justify-center text-[#C99A3A]" data-sd-id="79">
+                                <iconify-icon icon="lucide:users" class="text-xl"></iconify-icon>
+                            </div>
+                            <div data-sd-id="80">
+                                <h4 class="text-sm font-bold" data-sd-id="81">Housewarming Party</h4>
+                                <p class="text-[11px] text-[#7A6F63]" data-sd-id="82">Starts @ 7:00 PM</p>
+                            </div>
+                        </div>
+                        <div class="flex -space-x-2" data-sd-id="83">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-6 h-6 rounded-full border border-white" alt="" data-sd-id="84">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Luna" class="w-6 h-6 rounded-full border border-white" alt="" data-sd-id="85">
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oscar" class="w-6 h-6 rounded-full border border-white" alt="" data-sd-id="86">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overdue Alert -->
+                <a href="https://draft-a8d9d763-5250-4884-8a64-db5f8d90a239.preview.superdesign.dev" id="overdue-alert-link" class="block glass-card p-4 border-l-4 border-[#B5533A] bg-[#B5533A]/5" data-sd-id="87">
+                    <div class="flex justify-between items-center" data-sd-id="88">
+                        <div class="flex items-center gap-3" data-sd-id="89">
+                            <iconify-icon icon="lucide:alert-circle" class="text-xl text-[#B5533A]"></iconify-icon>
+                            <div data-sd-id="90">
+                                <h4 class="text-sm font-bold" data-sd-id="91">Water Bill Overdue</h4>
+                                <p class="text-[10px] text-[#B5533A] font-bold" data-sd-id="92">ACTION REQUIRED</p>
+                            </div>
+                        </div>
+                        <sd-component componentid="4ac9d5f6-5df9-42c7-bd9e-6ac6354be327" name="StatusBadge" props="{&quot;status&quot;:&quot;overdue&quot;}"></sd-component>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Empty State Mock (Hidden in this layout) -->
+            <div class="hidden glass-card p-8 flex flex-col items-center text-center opacity-80" data-sd-id="93">
+                <div class="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center mb-4 text-[#7A6F63]" data-sd-id="94">
+                    <iconify-icon icon="lucide:calendar-x" class="text-3xl"></iconify-icon>
+                </div>
+                <h4 class="text-sm font-bold mb-1" data-sd-id="95">No events scheduled</h4>
+                <p class="text-xs text-[#7A6F63] mb-5" data-sd-id="96">Relax! Your schedule is completely clear for the next few days.</p>
+                <button class="px-6 py-2 bg-white/60 border border-white/50 rounded-full text-xs font-bold text-[#3A332C]" data-sd-id="97">ADD NEW</button>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <sd-component componentid="011a1bb3-065f-4d2a-9035-58d4869ef34f" name="NavigationBar" props="{
+                &quot;activeItem&quot;: &quot;tasks&quot;,
+                &quot;homeHref&quot;: &quot;https://draft-107e906e-6ff5-45bc-930d-e07eebaf6f5a.preview.superdesign.dev&quot;,
+                &quot;moneyHref&quot;: &quot;https://draft-aeb3e7ee-1de2-49d4-9c41-c491e219e4ce.preview.superdesign.dev&quot;,
+                &quot;tasksHref&quot;: &quot;https://draft-21e34654-ed12-4721-8fed-3dacc4ef4c1e.preview.superdesign.dev&quot;,
+                &quot;settingsHref&quot;: &quot;https://draft-009bf933-604d-4fb6-bc7b-a4e8d51ba7e1.preview.superdesign.dev&quot;
+            }">
+        </sd-component>
+
+    </div>
+
+    <script>
+        // Tab switching simulation
+        const weekBtn = document.getElementById('week-view-btn');
+        const monthBtn = document.getElementById('month-view-btn');
+
+        weekBtn.addEventListener('click', () => {
+            weekBtn.classList.add('bg-white', 'shadow-sm');
+            weekBtn.classList.remove('text-stone-500');
+            monthBtn.classList.remove('bg-white', 'shadow-sm');
+            monthBtn.classList.add('text-stone-500');
+        });
+
+        monthBtn.addEventListener('click', () => {
+            monthBtn.classList.add('bg-white', 'shadow-sm');
+            monthBtn.classList.remove('text-stone-500');
+            weekBtn.classList.remove('bg-white', 'shadow-sm');
+            weekBtn.classList.add('text-stone-500');
+        });
+
+        // Simple scroll interaction for header
+        const main = document.querySelector('main');
+        main.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (main.scrollTop > 20) {
+                header.classList.add('bg-[#F7F2EA]/80', 'backdrop-blur-md');
+            } else {
+                header.classList.remove('bg-[#F7F2EA]/80', 'backdrop-blur-md');
+            }
+        });
+    </script>
+
+</body></html>

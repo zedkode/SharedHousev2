@@ -19,6 +19,7 @@ import type {
   HouseholdTaskActionRequest,
   HouseholdTaskConfiguration,
   HouseholdTaskPriority,
+  HouseholdTaskRecurrenceCadence,
   RefreshSessionRequest,
   ResendEmailVerificationRequest,
   RegisterRequest,
@@ -335,6 +336,7 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
   const body = readObject(value);
   assertAllowedKeys(body, [
     'title',
+    'supplierName',
     'category',
     'customCategoryName',
     'amount',
@@ -343,6 +345,13 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
   ]);
   const violations: FieldViolation[] = [];
   const title = readString(body.title, 'title', 1, 120, violations, true);
+  const supplierName = readOptionalNullableString(
+    body.supplierName,
+    'supplierName',
+    1,
+    120,
+    violations,
+  );
   const category = readExpenseCategory(body.category, violations);
   const customCategoryName = readOptionalNullableString(
     body.customCategoryName,
@@ -387,12 +396,37 @@ export function parseExpenseConfiguration(value: unknown): ExpenseConfiguration 
   throwIfViolations(violations);
   return {
     title,
+    ...(supplierName === undefined ? {} : { supplierName }),
     category,
     customCategoryName: category === 'custom' ? (customCategoryName ?? null) : null,
     amount: { minorUnits, currency },
     dueDate,
     ...(notes === undefined ? {} : { notes }),
   };
+}
+
+export function parseReviseExpenseRequest(value: unknown): {
+  readonly configuration: ExpenseConfiguration;
+  readonly reason: string;
+} {
+  const body = readObject(value);
+  assertAllowedKeys(body, [
+    'title',
+    'supplierName',
+    'category',
+    'customCategoryName',
+    'amount',
+    'dueDate',
+    'notes',
+    'reason',
+  ]);
+  const violations: FieldViolation[] = [];
+  const reason = readString(body.reason, 'reason', 3, 500, violations, true);
+  throwIfViolations(violations);
+  const configuration = Object.fromEntries(
+    Object.entries(body).filter(([key]) => key !== 'reason'),
+  );
+  return { configuration: parseExpenseConfiguration(configuration), reason };
 }
 
 export function parseBillingRosterUpdate(value: unknown): UpdateBillingRosterRequest {
@@ -471,6 +505,8 @@ export function parseHouseholdTaskConfiguration(value: unknown): HouseholdTaskCo
     'dueTime',
     'estimatedMinutes',
     'assigneeMembershipId',
+    'recurrenceCadence',
+    'recurrenceEndsOn',
   ]);
   const violations: FieldViolation[] = [];
   const title = readString(body.title, 'title', 1, 120, violations, true);
@@ -507,6 +543,47 @@ export function parseHouseholdTaskConfiguration(value: unknown): HouseholdTaskCo
       field: 'assigneeMembershipId',
       message: 'Use a valid active membership identifier.',
     });
+  const recurrenceCadence = readOptionalNullableString(
+    body.recurrenceCadence,
+    'recurrenceCadence',
+    6,
+    16,
+    violations,
+  );
+  if (
+    recurrenceCadence != null &&
+    !['weekly', 'fortnightly', 'monthly'].includes(recurrenceCadence)
+  ) {
+    violations.push({
+      field: 'recurrenceCadence',
+      message: 'Choose weekly, every two weeks, or monthly.',
+    });
+  }
+  const recurrenceEndsOn = readOptionalNullableString(
+    body.recurrenceEndsOn,
+    'recurrenceEndsOn',
+    10,
+    10,
+    violations,
+  );
+  if (recurrenceEndsOn != null && !isIsoDate(recurrenceEndsOn)) {
+    violations.push({
+      field: 'recurrenceEndsOn',
+      message: 'Use a valid date in YYYY-MM-DD format.',
+    });
+  }
+  if (recurrenceEndsOn != null && isIsoDate(dueDate) && recurrenceEndsOn < dueDate) {
+    violations.push({
+      field: 'recurrenceEndsOn',
+      message: 'The final date cannot be before the first task.',
+    });
+  }
+  if (recurrenceCadence == null && recurrenceEndsOn != null) {
+    violations.push({
+      field: 'recurrenceEndsOn',
+      message: 'Choose a recurrence before setting its final date.',
+    });
+  }
   throwIfViolations(violations);
   return {
     title,
@@ -517,6 +594,12 @@ export function parseHouseholdTaskConfiguration(value: unknown): HouseholdTaskCo
     ...(dueTime === undefined ? {} : { dueTime }),
     ...(estimatedMinutes === undefined ? {} : { estimatedMinutes }),
     assigneeMembershipId,
+    ...(recurrenceCadence === undefined
+      ? {}
+      : {
+          recurrenceCadence: recurrenceCadence as HouseholdTaskRecurrenceCadence | null,
+        }),
+    ...(recurrenceEndsOn === undefined ? {} : { recurrenceEndsOn }),
   };
 }
 
@@ -536,6 +619,7 @@ export function parseHouseholdTaskAction(value: unknown): HouseholdTaskActionReq
     'complete',
     'reopen',
     'cancel',
+    'stop_recurrence',
     'request_help',
     'request_swap',
     'request_postpone',
@@ -583,6 +667,7 @@ export function parseHouseholdTaskAction(value: unknown): HouseholdTaskActionReq
     [
       'complete',
       'cancel',
+      'stop_recurrence',
       'request_help',
       'request_swap',
       'request_postpone',
@@ -625,6 +710,7 @@ export function parseExpenseTemplateConfiguration(value: unknown): ExpenseTempla
     'amount',
     'cadence',
     'nextDueDate',
+    'endsOn',
     'notes',
   ]);
   const violations: FieldViolation[] = [];
@@ -667,6 +753,15 @@ export function parseExpenseTemplateConfiguration(value: unknown): ExpenseTempla
   if (!isIsoDate(nextDueDate)) {
     violations.push({ field: 'nextDueDate', message: 'Use a valid date in YYYY-MM-DD format.' });
   }
+  const endsOn = readOptionalNullableString(body.endsOn, 'endsOn', 10, 10, violations);
+  if (endsOn != null && !isIsoDate(endsOn)) {
+    violations.push({ field: 'endsOn', message: 'Use a valid date in YYYY-MM-DD format.' });
+  } else if (endsOn != null && isIsoDate(nextDueDate) && endsOn < nextDueDate) {
+    violations.push({
+      field: 'endsOn',
+      message: 'The final date cannot be before the first due date.',
+    });
+  }
   const notes = readOptionalNullableString(body.notes, 'notes', 1, 1000, violations);
   throwIfViolations(violations);
   return {
@@ -676,6 +771,7 @@ export function parseExpenseTemplateConfiguration(value: unknown): ExpenseTempla
     amount: { minorUnits, currency },
     cadence,
     nextDueDate,
+    ...(endsOn === undefined ? {} : { endsOn }),
     ...(notes === undefined ? {} : { notes }),
   };
 }
@@ -889,7 +985,10 @@ function readExpenseTemplateCadence(
   ) {
     return value as ExpenseTemplateCadence;
   }
-  violations.push({ field: 'cadence', message: 'Choose weekly, monthly, quarterly, or yearly.' });
+  violations.push({
+    field: 'cadence',
+    message: 'Choose weekly, every two weeks, monthly, quarterly, or yearly.',
+  });
   return 'monthly';
 }
 

@@ -1,5 +1,6 @@
 package com.sharedhouse.android.ui.calendar
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,26 +13,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.SegmentedButton
+import com.sharedhouse.android.ui.atmosphere.SegmentedButtonDefaults
+import com.sharedhouse.android.ui.atmosphere.SingleChoiceSegmentedButtonRow
+import com.sharedhouse.android.ui.atmosphere.SnackbarHost
+import com.sharedhouse.android.ui.atmosphere.SnackbarHostState
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,13 +44,13 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
+import com.sharedhouse.android.ui.icons.SharedHouseIcons
 import java.time.LocalDate
 
 /**
- * Material 3 calendar surface. It owns only transient overlay state; all calendar data and
+ * custom atmospheric calendar surface. It owns only transient overlay state; all calendar data and
  * mutations flow through [CalendarUiState] and [CalendarAction].
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
     state: CalendarUiState,
@@ -99,7 +96,7 @@ fun CalendarScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -107,7 +104,7 @@ fun CalendarScreen(
                     Column {
                         Text(
                             text = stringResource(R.string.calendar_title),
-                            style = MaterialTheme.typography.titleLarge,
+                            style = AtmosphereTheme.typography.headlineMedium,
                         )
                         Text(
                             text = calendarPeriodTitle(
@@ -115,27 +112,22 @@ fun CalendarScreen(
                                 anchorDate = state.anchorDate,
                                 firstDayOfWeek = state.firstDayOfWeek,
                             ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.labelMedium,
                         )
                     }
                 },
+                actions = {
+                    if (state.content is CalendarContent.Ready && state.canCreateEvents) {
+                        IconButton(onClick = {
+                            editorDateIso = state.selectedDate.toString()
+                            editorEventId = null
+                        }) {
+                            Icon(SharedHouseIcons.Add, stringResource(R.string.calendar_add_event))
+                        }
+                    }
+                },
             )
-        },
-        floatingActionButton = {
-            if (state.content is CalendarContent.Ready && state.canCreateEvents) {
-                FloatingActionButton(
-                    onClick = {
-                        editorDateIso = state.selectedDate.toString()
-                        editorEventId = null
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = stringResource(R.string.calendar_add_event),
-                    )
-                }
-            }
         },
     ) { innerPadding ->
         Column(
@@ -260,7 +252,6 @@ fun CalendarScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarControls(
     state: CalendarUiState,
@@ -269,8 +260,8 @@ private fun CalendarControls(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             CalendarView.entries.forEachIndexed { index, view ->
@@ -309,7 +300,7 @@ private fun CalendarControls(
             }
             TextButton(onClick = { onAction(CalendarAction.GoToToday) }) {
                 Icon(
-                    imageVector = Icons.Outlined.CalendarToday,
+                    imageVector = SharedHouseIcons.Calendar,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -343,7 +334,7 @@ private fun CalendarLoadingState() {
             CircularProgressIndicator()
             Text(
                 text = stringResource(R.string.calendar_loading),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -361,9 +352,9 @@ private fun CalendarErrorState(
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-            shape = MaterialTheme.shapes.large,
+            color = AtmosphereTheme.colorScheme.errorContainer,
+            contentColor = AtmosphereTheme.colorScheme.onErrorContainer,
+            shape = AtmosphereTheme.shapes.large,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -373,12 +364,12 @@ private fun CalendarErrorState(
                 Text(
                     text = stringResource(R.string.calendar_error_title),
                     modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AtmosphereTheme.typography.titleMedium,
                 )
                 Text(
                     text = message?.takeIf(String::isNotBlank)
                         ?: stringResource(R.string.calendar_error_description),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
                 Button(onClick = onRetry) {
                     Text(stringResource(R.string.calendar_retry))
@@ -401,12 +392,68 @@ private fun CalendarReadyContent(
                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
             )
         }
-        CalendarPeriodView(
-            state = state,
-            events = events,
-            onDateSelected = onDateSelected,
-            modifier = Modifier.weight(1f),
-        )
+        if (state.view == CalendarView.MONTH) {
+            CalendarPeriodView(
+                state = state,
+                events = events,
+                onDateSelected = onDateSelected,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SelectedDayPreview(
+                date = state.selectedDate,
+                events = events.filter { it.occursOn(state.selectedDate) }.sortedWith(calendarEventOrdering),
+                onClick = { onDateSelected(state.selectedDate) },
+            )
+        } else {
+            CalendarPeriodView(
+                state = state,
+                events = events,
+                onDateSelected = onDateSelected,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectedDayPreview(
+    date: LocalDate,
+    events: List<CalendarEventUi>,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        color = AtmosphereTheme.colorScheme.surfaceContainerHigh,
+        shape = AtmosphereTheme.shapes.medium,
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
+        shadowElevation = 8.dp,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = AtmosphereTheme.colorScheme.primaryContainer,
+                contentColor = AtmosphereTheme.colorScheme.primary,
+                shape = AtmosphereTheme.shapes.small,
+            ) {
+                Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
+                    Icon(SharedHouseIcons.Calendar, contentDescription = null, Modifier.size(20.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(localizedDate(date, java.time.format.FormatStyle.MEDIUM), style = AtmosphereTheme.typography.titleSmall)
+                Text(
+                    events.take(2).joinToString(" · ") { it.title }.ifEmpty { stringResource(R.string.calendar_day_no_events) },
+                    style = AtmosphereTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
+            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = stringResource(R.string.calendar_day_agenda), Modifier.size(20.dp))
+        }
     }
 }
 
@@ -417,8 +464,8 @@ private fun CalendarEmptyBanner(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.large,
+        color = AtmosphereTheme.colorScheme.surfaceVariant,
+        shape = AtmosphereTheme.shapes.large,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -426,7 +473,7 @@ private fun CalendarEmptyBanner(
         ) {
             Text(
                 text = stringResource(R.string.calendar_empty_title),
-                style = MaterialTheme.typography.titleSmall,
+                style = AtmosphereTheme.typography.titleSmall,
             )
             Text(
                 text = stringResource(
@@ -436,8 +483,8 @@ private fun CalendarEmptyBanner(
                         R.string.calendar_empty_read_only_description
                     },
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
             )
         }
     }

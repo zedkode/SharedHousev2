@@ -5,12 +5,14 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import com.sharedhouse.android.R
+import com.sharedhouse.android.MainActivity
 import com.sharedhouse.android.preferences.NotificationCategory
 import com.sharedhouse.android.preferences.NotificationPreferences
 
@@ -29,6 +31,7 @@ enum class LocalTestNotificationResult {
 }
 
 object SharedHouseNotifications {
+    const val CHANNEL_CHAT = "sharedhouse.chat"
     const val CHANNEL_MONEY = "sharedhouse.money"
     const val CHANNEL_TASKS = "sharedhouse.tasks"
     const val CHANNEL_REQUESTS = "sharedhouse.requests"
@@ -38,6 +41,7 @@ object SharedHouseNotifications {
 
     private const val CHANNEL_GROUP = "sharedhouse.household_activity"
     private const val LOCAL_TEST_NOTIFICATION_ID = 71_001
+    private const val CHAT_NOTIFICATION_ID = 72_001
 
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -49,6 +53,13 @@ object SharedHouseNotifications {
         )
         manager.createNotificationChannels(
             listOf(
+                channel(
+                    context,
+                    CHANNEL_CHAT,
+                    R.string.notification_channel_chat,
+                    R.string.notification_channel_chat_description,
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ),
                 channel(
                     context,
                     CHANNEL_MONEY,
@@ -148,7 +159,42 @@ object SharedHouseNotifications {
         context.startActivity(intent)
     }
 
+    fun postChatMessage(context: Context, preferences: NotificationPreferences): Boolean {
+        if (!preferences.isEnabled(NotificationCategory.CHAT) || permissionStatus(context) != NotificationPermissionStatus.GRANTED) return false
+        ensureChannels(context)
+        val manager = context.getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(CHANNEL_CHAT)?.importance == NotificationManager.IMPORTANCE_NONE) return false
+        val intent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        manager.notify(
+            CHAT_NOTIFICATION_ID,
+            Notification.Builder(context, CHANNEL_CHAT)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(context.getString(R.string.notification_chat_title))
+                .setContentText(context.getString(R.string.notification_chat_body))
+                .setPublicVersion(
+                    Notification.Builder(context, CHANNEL_CHAT)
+                        .setSmallIcon(R.drawable.ic_notification)
+                        .setContentTitle(context.getString(R.string.app_name))
+                        .setContentText(context.getString(R.string.notification_public_body))
+                        .build(),
+                )
+                .setContentIntent(intent)
+                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setVisibility(Notification.VISIBILITY_PRIVATE)
+                .setOnlyAlertOnce(false)
+                .setAutoCancel(true)
+                .build(),
+        )
+        return true
+    }
+
     fun channelId(category: NotificationCategory): String = when (category) {
+        NotificationCategory.CHAT -> CHANNEL_CHAT
         NotificationCategory.MONEY -> CHANNEL_MONEY
         NotificationCategory.TASKS -> CHANNEL_TASKS
         NotificationCategory.REQUESTS -> CHANNEL_REQUESTS

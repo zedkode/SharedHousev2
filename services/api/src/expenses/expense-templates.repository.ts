@@ -24,6 +24,7 @@ interface TemplateRow {
   readonly currency: string;
   readonly cadence: ExpenseTemplateSummary['cadence'];
   readonly next_due_date: Date | string;
+  readonly schedule_ends_on: Date | string | null;
   readonly notes: string | null;
   readonly status: ExpenseTemplateSummary['status'];
   readonly version: number;
@@ -93,6 +94,7 @@ export class ExpenseTemplatesRepository {
         ...input.configuration,
         customCategoryName: input.configuration.customCategoryName ?? null,
         notes: input.configuration.notes ?? null,
+        endsOn: input.configuration.endsOn ?? null,
         status: 'active',
         canManage: true,
         version: 1,
@@ -127,9 +129,9 @@ export class ExpenseTemplatesRepository {
         `INSERT INTO expense_templates (
            id, household_id, created_by_membership_id, title, category, custom_category_name,
            amount_minor, currency, cadence, next_due_date, schedule_anchor_day,
-           schedule_anchor_month, notes, status, version, created_at, updated_at
+           schedule_anchor_month, schedule_ends_on, notes, status, version, created_at, updated_at
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-           EXTRACT(DAY FROM $10::date), EXTRACT(MONTH FROM $10::date), $11, 'active', 1, $12, $12)`,
+           EXTRACT(DAY FROM $10::date), EXTRACT(MONTH FROM $10::date), $11, $12, 'active', 1, $13, $13)`,
         [
           template.id,
           template.householdId,
@@ -141,6 +143,7 @@ export class ExpenseTemplatesRepository {
           template.amount.currency,
           template.cadence,
           template.nextDueDate,
+          template.endsOn,
           template.notes,
           input.occurredAt,
         ],
@@ -188,7 +191,8 @@ export class ExpenseTemplatesRepository {
       if (current.status !== 'active') return { status: 'status_conflict' };
       await transaction.query(
         `UPDATE expense_templates SET title = $4, category = $5, custom_category_name = $6,
-           amount_minor = $7, currency = $8, cadence = $9, next_due_date = $10, notes = $11,
+           amount_minor = $7, currency = $8, cadence = $9, next_due_date = $10,
+           schedule_ends_on = $11, notes = $12,
            schedule_anchor_day = CASE
              WHEN cadence = $9::varchar AND next_due_date = $10::date THEN schedule_anchor_day
              ELSE EXTRACT(DAY FROM $10::date)::smallint
@@ -197,7 +201,7 @@ export class ExpenseTemplatesRepository {
              WHEN cadence = $9::varchar AND next_due_date = $10::date THEN schedule_anchor_month
              ELSE EXTRACT(MONTH FROM $10::date)::smallint
            END,
-           version = version + 1, updated_at = $12
+           version = version + 1, updated_at = $13
          WHERE id = $1 AND household_id = $2 AND version = $3`,
         [
           input.templateId,
@@ -210,6 +214,7 @@ export class ExpenseTemplatesRepository {
           input.configuration.amount.currency,
           input.configuration.cadence,
           input.configuration.nextDueDate,
+          input.configuration.endsOn ?? null,
           input.configuration.notes ?? null,
           input.occurredAt,
         ],
@@ -301,7 +306,7 @@ async function findMembership(
 
 function templateSelect(): string {
   return `SELECT t.id, t.household_id, t.title, t.category, t.custom_category_name,
-    t.amount_minor, t.currency, t.cadence, t.next_due_date, t.notes, t.status,
+    t.amount_minor, t.currency, t.cadence, t.next_due_date, t.schedule_ends_on, t.notes, t.status,
     t.version, t.created_at, t.updated_at FROM expense_templates t`;
 }
 
@@ -315,6 +320,7 @@ function mapTemplate(row: TemplateRow, canManage: boolean): ExpenseTemplateSumma
     amount: { minorUnits: toSafeNumber(row.amount_minor), currency: row.currency },
     cadence: row.cadence,
     nextDueDate: toDate(row.next_due_date),
+    endsOn: row.schedule_ends_on === null ? null : toDate(row.schedule_ends_on),
     notes: row.notes,
     status: row.status,
     canManage,

@@ -16,15 +16,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,14 +100,14 @@ fun StatusMessage(
     modifier: Modifier = Modifier,
 ) {
     val container = if (isError) {
-        MaterialTheme.colorScheme.errorContainer
+        AtmosphereTheme.colorScheme.errorContainer
     } else {
-        MaterialTheme.colorScheme.primaryContainer
+        AtmosphereTheme.colorScheme.primaryContainer
     }
     val content = if (isError) {
-        MaterialTheme.colorScheme.onErrorContainer
+        AtmosphereTheme.colorScheme.onErrorContainer
     } else {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        AtmosphereTheme.colorScheme.onPrimaryContainer
     }
     Card(
         modifier = modifier
@@ -126,19 +125,18 @@ fun StatusMessage(
                 contentDescription = null,
                 tint = content,
             )
-            Text(text = message.localized(), color = content, style = MaterialTheme.typography.bodyMedium)
+            Text(text = message.localized(), color = content, style = AtmosphereTheme.typography.bodyMedium)
             if (!correlationId.isNullOrBlank()) {
                 Text(
                     text = stringResource(R.string.support_reference, correlationId),
                     color = content,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = AtmosphereTheme.typography.labelMedium,
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormScreenScaffold(
     @StringRes title: Int,
@@ -150,7 +148,7 @@ fun FormScreenScaffold(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(R.string.app_name)) },
@@ -184,13 +182,13 @@ fun FormScreenScaffold(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = stringResource(title),
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = AtmosphereTheme.typography.headlineLarge,
                             modifier = Modifier.semantics { heading() },
                         )
                         Text(
                             text = stringResource(description),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodyLarge,
                         )
                         header?.invoke(this)
                     }
@@ -207,21 +205,21 @@ fun FormScreenScaffold(
 fun GlassCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
-    borderColor: Color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+    containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer,
+    borderColor: Color = AtmosphereTheme.colorScheme.outlineVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (onClick != null) {
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = MaterialTheme.shapes.large,
+            shape = AtmosphereTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = containerColor,
             ),
             border = BorderStroke(1.dp, borderColor),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 3.dp,
+                defaultElevation = 5.dp,
                 pressedElevation = 1.dp,
             ),
         ) {
@@ -236,13 +234,13 @@ fun GlassCard(
     } else {
         Card(
             modifier = modifier,
-            shape = MaterialTheme.shapes.large,
+            shape = AtmosphereTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = containerColor,
             ),
             border = BorderStroke(1.dp, borderColor),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 3.dp,
+                defaultElevation = 5.dp,
             ),
         ) {
             Column(
@@ -255,5 +253,4 @@ fun GlassCard(
         }
     }
 }
-
 

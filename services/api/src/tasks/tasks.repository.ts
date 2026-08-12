@@ -5,6 +5,7 @@ import type {
   HouseholdTaskConfiguration,
   HouseholdTaskMemberSummary,
   HouseholdTaskRequestSummary,
+  HouseholdTaskRecurrenceCadence,
   HouseholdTaskStatus,
   HouseholdTaskSummary,
 } from '@sharedhouse/contracts';
@@ -31,6 +32,11 @@ interface TaskRow {
   readonly due_date: Date | string;
   readonly due_time: string | null;
   readonly estimated_minutes: number | null;
+  readonly recurrence_cadence: HouseholdTaskRecurrenceCadence | null;
+  readonly recurrence_ends_on: Date | string | null;
+  readonly series_id: string | null;
+  readonly occurrence_date: Date | string | null;
+  readonly recurrence_completed: boolean;
   readonly status: HouseholdTaskStatus;
   readonly completion_note: string | null;
   readonly completed_by_user_id: string | null;
@@ -51,9 +57,15 @@ interface RequestRow {
   readonly created_by_membership_id: string;
   readonly created_by_display_name: string;
   readonly resolved_by_user_id: string | null;
+  readonly resolved_by_display_name: string | null;
   readonly resolution_note: string | null;
   readonly resolved_at: Date | string | null;
   readonly created_at: Date | string;
+}
+interface FutureSeriesTaskRow {
+  readonly id: string;
+  readonly status: HouseholdTaskStatus;
+  readonly version: number;
 }
 interface StoredResponse {
   readonly request_hash: string;
@@ -134,9 +146,11 @@ export class TasksRepository {
       if (replay.status === 'conflict') return { status: 'idempotency_conflict' };
       if (replay.status === 'found') return { status: 'replayed', task: replay.task };
       const id = newUuidV7(Date.parse(input.occurredAt));
+      const recurring = input.configuration.recurrenceCadence != null;
       await tx.query(
-        `INSERT INTO household_tasks (id, household_id, created_by_user_id, assignee_membership_id, title, instructions, zone, priority, due_date, due_time, estimated_minutes, status, version, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open',1,$12,$12)`,
+        `INSERT INTO household_tasks (id, household_id, created_by_user_id, assignee_membership_id, title, instructions, zone, priority, due_date, due_time, estimated_minutes, recurrence_cadence, recurrence_ends_on, recurrence_anchor_day, series_id, occurrence_date, status, version, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+           'open',1,$17,$17)`,
         [
           id,
           input.householdId,
@@ -149,6 +163,11 @@ export class TasksRepository {
           input.configuration.dueDate,
           input.configuration.dueTime ?? null,
           input.configuration.estimatedMinutes ?? null,
+          input.configuration.recurrenceCadence ?? null,
+          input.configuration.recurrenceEndsOn ?? null,
+          recurring ? Number(input.configuration.dueDate.slice(8, 10)) : null,
+          recurring ? id : null,
+          recurring ? input.configuration.dueDate : null,
           input.occurredAt,
         ],
       );
@@ -205,6 +224,83 @@ export class TasksRepository {
       if (current === undefined) return { status: 'not_found' };
       if (current.version !== input.expectedVersion) return { status: 'version_conflict' };
       const manager = isManager(actor.role);
+      if (input.action.action === 'stop_recurrence') {
+        if (!manager) return { status: 'forbidden' };
+        if (
+          current.series_id === null ||
+          current.occurrence_date === null ||
+          current.recurrence_completed
+        )
+          return { status: 'invalid_transition' };
+        const future = await tx.query<FutureSeriesTaskRow>(
+          `SELECT id,status,version FROM household_tasks
+           WHERE household_id=$1 AND series_id=$2 AND occurrence_date>$3
+             AND status IN ('open','in_progress')
+           ORDER BY occurrence_date,id FOR UPDATE`,
+          [input.householdId, current.series_id, toDate(current.occurrence_date)],
+        );
+        await tx.query(
+          `UPDATE household_tasks SET recurrence_completed=true,updated_at=$3
+           WHERE household_id=$1 AND series_id=$2 AND recurrence_completed=false`,
+          [input.householdId, current.series_id, input.occurredAt],
+        );
+        for (const task of future) {
+          await tx.query(
+            `UPDATE household_tasks SET status='cancelled',completion_note=NULL,
+               completed_by_user_id=NULL,completed_at=NULL,version=version+1,updated_at=$3
+             WHERE id=$1 AND version=$2`,
+            [task.id, task.version, input.occurredAt],
+          );
+          await writeHistoryAndEvidence(tx, {
+            taskId: task.id,
+            householdId: input.householdId,
+            actorUserId: input.userId,
+            eventType: 'series_stopped',
+            fromStatus: task.status,
+            toStatus: 'cancelled',
+            details: {
+              ...input.action,
+              seriesId: current.series_id,
+              requestedFromTaskId: current.id,
+            },
+            occurredAt: input.occurredAt,
+          });
+        }
+        const updated = await tx.query<{ readonly id: string }>(
+          `UPDATE household_tasks SET version=version+1,updated_at=$4
+           WHERE id=$1 AND household_id=$2 AND version=$3 RETURNING id`,
+          [input.taskId, input.householdId, input.expectedVersion, input.occurredAt],
+        );
+        if (updated.length === 0) return { status: 'version_conflict' };
+        await writeHistoryAndEvidence(tx, {
+          taskId: input.taskId,
+          householdId: input.householdId,
+          actorUserId: input.userId,
+          eventType: 'series_stopped',
+          fromStatus: current.status,
+          toStatus: current.status,
+          details: {
+            ...input.action,
+            seriesId: current.series_id,
+            cancelledFutureCount: future.length,
+          },
+          occurredAt: input.occurredAt,
+        });
+        const row = await getTask(tx, input.householdId, input.taskId);
+        if (row === undefined) throw new Error('Stopped recurring task could not be read.');
+        const requests = await listRequests(tx, [input.taskId]);
+        const task = mapTask(row, requests, actor);
+        await storeReplay(
+          tx,
+          input.userId,
+          'household_tasks.action',
+          input.idempotencyKey,
+          input.requestHash,
+          task,
+          input.occurredAt,
+        );
+        return { status: 'ok', task };
+      }
       const assignee = actor.membership_id === current.assignee_membership_id;
       let eventType: string = input.action.action;
       let nextStatus = current.status;
@@ -401,10 +497,10 @@ async function getTask(
   return rows[0];
 }
 function taskSelect(): string {
-  return `SELECT t.id,t.household_id,t.created_by_user_id,t.assignee_membership_id,p.display_name assignee_display_name,t.title,t.instructions,t.zone,t.priority,t.due_date,t.due_time,t.estimated_minutes,t.status,t.completion_note,t.completed_by_user_id,t.completed_at,t.version,t.created_at,t.updated_at FROM household_tasks t JOIN household_memberships m ON m.id=t.assignee_membership_id JOIN user_profiles p ON p.user_id=m.user_id`;
+  return `SELECT t.id,t.household_id,t.created_by_user_id,t.assignee_membership_id,p.display_name assignee_display_name,t.title,t.instructions,t.zone,t.priority,t.due_date,t.due_time,t.estimated_minutes,t.recurrence_cadence,t.recurrence_ends_on,t.series_id,t.occurrence_date,t.recurrence_completed,t.status,t.completion_note,t.completed_by_user_id,t.completed_at,t.version,t.created_at,t.updated_at FROM household_tasks t JOIN household_memberships m ON m.id=t.assignee_membership_id JOIN user_profiles p ON p.user_id=m.user_id`;
 }
 function requestSelect(): string {
-  return `SELECT r.id,r.task_id,r.request_type,r.status,r.reason,r.requested_assignee_membership_id,r.requested_due_date,r.requested_due_time,r.created_by_membership_id,p.display_name created_by_display_name,r.resolved_by_user_id,r.resolution_note,r.resolved_at,r.created_at FROM household_task_requests r JOIN household_memberships m ON m.id=r.created_by_membership_id JOIN user_profiles p ON p.user_id=m.user_id`;
+  return `SELECT r.id,r.task_id,r.request_type,r.status,r.reason,r.requested_assignee_membership_id,r.requested_due_date,r.requested_due_time,r.created_by_membership_id,p.display_name created_by_display_name,r.resolved_by_user_id,(SELECT resolver.display_name FROM user_profiles resolver WHERE resolver.user_id=r.resolved_by_user_id) resolved_by_display_name,r.resolution_note,r.resolved_at,r.created_at FROM household_task_requests r JOIN household_memberships m ON m.id=r.created_by_membership_id JOIN user_profiles p ON p.user_id=m.user_id`;
 }
 async function listRequests(
   tx: SqlExecutor,
@@ -445,6 +541,11 @@ function mapTask(
     estimatedMinutes: row.estimated_minutes,
     assigneeMembershipId: row.assignee_membership_id,
     assigneeDisplayName: row.assignee_display_name,
+    recurrenceCadence: row.recurrence_cadence,
+    recurrenceEndsOn: row.recurrence_ends_on === null ? null : toDate(row.recurrence_ends_on),
+    seriesId: row.series_id,
+    occurrenceDate: row.occurrence_date === null ? null : toDate(row.occurrence_date),
+    recurrenceActive: row.recurrence_cadence !== null && !row.recurrence_completed,
     status: row.status,
     completionNote: row.completion_note,
     completedByUserId: row.completed_by_user_id,
@@ -471,6 +572,7 @@ function mapRequest(row: RequestRow): HouseholdTaskRequestSummary {
     createdByMembershipId: row.created_by_membership_id,
     createdByDisplayName: row.created_by_display_name,
     resolvedByUserId: row.resolved_by_user_id,
+    resolvedByDisplayName: row.resolved_by_display_name,
     resolutionNote: row.resolution_note,
     resolvedAt: row.resolved_at === null ? null : toInstant(row.resolved_at),
     createdAt: toInstant(row.created_at),

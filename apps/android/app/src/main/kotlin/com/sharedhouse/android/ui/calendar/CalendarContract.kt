@@ -62,10 +62,13 @@ enum class CalendarEventType {
     MAINTENANCE,
     APPOINTMENT,
     SHOPPING,
+    MONEY,
+    TASK,
     OTHER,
     ;
 
     val wireValue: String get() = name.lowercase()
+    val userCreatable: Boolean get() = this != MONEY && this != TASK
 
     companion object {
         fun fromWireValue(value: String): CalendarEventType =

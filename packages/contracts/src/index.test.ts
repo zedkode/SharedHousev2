@@ -70,7 +70,13 @@ describe('public contracts', () => {
 
   it('supports reusable and user-defined household cost vocabulary', () => {
     expect(EXPENSE_CATEGORIES).toContain('custom');
-    expect(EXPENSE_TEMPLATE_CADENCES).toEqual(['weekly', 'monthly', 'quarterly', 'yearly']);
+    expect(EXPENSE_TEMPLATE_CADENCES).toEqual([
+      'weekly',
+      'fortnightly',
+      'monthly',
+      'quarterly',
+      'yearly',
+    ]);
   });
 
   it('distinguishes generated ledger occurrences from manual expenses', () => {

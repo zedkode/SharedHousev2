@@ -102,6 +102,7 @@ class AppPreferencesRepository(
         val HIGH_CONTRAST = booleanPreferencesKey("high_contrast")
         val TEXT_SCALE = stringPreferencesKey("text_scale")
         val NOTIFICATION_MONEY = booleanPreferencesKey("notification_money")
+        val NOTIFICATION_CHAT = booleanPreferencesKey("notification_chat")
         val NOTIFICATION_TASKS = booleanPreferencesKey("notification_tasks")
         val NOTIFICATION_REQUESTS = booleanPreferencesKey("notification_requests")
         val NOTIFICATION_ANNOUNCEMENTS = booleanPreferencesKey("notification_announcements")
@@ -118,6 +119,7 @@ class AppPreferencesRepository(
         val ADS_ENABLED = booleanPreferencesKey("privacy_ads_enabled")
 
         fun notificationCategory(category: NotificationCategory): Preferences.Key<Boolean> = when (category) {
+            NotificationCategory.CHAT -> NOTIFICATION_CHAT
             NotificationCategory.MONEY -> NOTIFICATION_MONEY
             NotificationCategory.TASKS -> NOTIFICATION_TASKS
             NotificationCategory.REQUESTS -> NOTIFICATION_REQUESTS
@@ -144,6 +146,7 @@ class AppPreferencesRepository(
                 highContrast = preferences[Keys.HIGH_CONTRAST] ?: false,
                 textScale = TextScale.fromStorage(preferences[Keys.TEXT_SCALE]),
                 notifications = NotificationPreferences(
+                    chat = preferences[Keys.NOTIFICATION_CHAT] ?: true,
                     money = preferences[Keys.NOTIFICATION_MONEY] ?: true,
                     tasks = preferences[Keys.NOTIFICATION_TASKS] ?: true,
                     requests = preferences[Keys.NOTIFICATION_REQUESTS] ?: true,

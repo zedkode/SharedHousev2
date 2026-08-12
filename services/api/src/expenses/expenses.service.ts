@@ -74,6 +74,67 @@ export class ExpensesService {
     return this.transition(userId, householdId, expenseId, expectedVersion, 'reverse', reason);
   }
 
+  async revise(
+    userId: string,
+    householdId: string,
+    expenseId: string,
+    expectedVersion: number,
+    configuration: ExpenseConfiguration,
+    reason: string,
+    idempotencyKey: string,
+  ): Promise<ExpenseSummary> {
+    const requestHash = createHash('sha256')
+      .update(JSON.stringify({ householdId, expenseId, configuration, reason }), 'utf8')
+      .digest('hex');
+    const result = await this.repository.revise({
+      userId,
+      householdId,
+      expenseId,
+      expectedVersion,
+      configuration,
+      reason,
+      idempotencyKey,
+      requestHash,
+      occurredAt: new Date().toISOString(),
+    });
+    if (result.status === 'created' || result.status === 'replayed') return result.expense;
+    if (result.status === 'not_found') throw expenseNotFound();
+    if (result.status === 'forbidden') throw writeForbidden();
+    if (result.status === 'currency_mismatch') {
+      throw new ApiProblemException({
+        status: 409,
+        code: 'EXPENSE_CURRENCY_MISMATCH',
+        title: 'Use the household settlement currency for this expense.',
+      });
+    }
+    if (result.status === 'version_conflict') {
+      throw new ApiProblemException({
+        status: 412,
+        code: 'EXPENSE_VERSION_CONFLICT',
+        title: 'The expense changed. Reload it before continuing.',
+      });
+    }
+    if (result.status === 'payment_conflict') {
+      throw new ApiProblemException({
+        status: 409,
+        code: 'EXPENSE_ACTIVE_PAYMENT_CONFLICT',
+        title: 'Reverse active payment declarations before revising this expense.',
+      });
+    }
+    if (result.status === 'idempotency_conflict') {
+      throw new ApiProblemException({
+        status: 409,
+        code: 'IDEMPOTENCY_KEY_REUSED',
+        title: 'This idempotency key was already used for another request.',
+      });
+    }
+    throw new ApiProblemException({
+      status: 409,
+      code: 'EXPENSE_STATUS_CONFLICT',
+      title: 'This expense cannot be revised.',
+    });
+  }
+
   private async transition(
     userId: string,
     householdId: string,

@@ -24,6 +24,19 @@ Push content should be privacy-minimised by default, for example “A household 
 
 Use WebSocket or Server-Sent Events for foreground household updates only after authentication and membership authorisation. Events contain resource IDs, versions and minimal changed fields; the client fetches authoritative details. Push notification remains the background wake/awareness channel.
 
+Calendar, money, tasks and members use an authenticated five-second foreground refresh while a
+household is open. Android preserves the last ready projection during a transient failure and never
+runs over an in-flight mutation/load, so those surfaces no longer require closing and reopening the
+app. They remain bounded foreground polling rather than background push.
+
+Household chat uses an authenticated Server-Sent Events stream. The API re-checks active account,
+household and membership state on every incremental database read; tenant outsiders receive the
+same not-found response used by normal household reads. Messages are append-only and the stream
+contains the authorised message DTO only. Privacy-safe heartbeats keep the connection open. Android
+tracks the last message identifier, deduplicates replayed events, reconnects after interruption and
+performs an incremental authoritative read before continuing. Provider-backed FCM/APNs delivery is
+still required to alert a device while the app is not active.
+
 ## 4. Event ordering
 
 Per aggregate, event versions are monotonic. Clients discard older versions and request a resync when a version gap cannot be filled. Cross-aggregate ordering is not guaranteed, so calendar and summary endpoints expose an `asOf` cursor.

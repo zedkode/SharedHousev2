@@ -184,6 +184,10 @@
     <string name="calendar_new_event_title">Eveniment nou în locuință</string>
     <string name="calendar_edit_event_title">Editează evenimentul locuinței</string>
     <string name="calendar_event_form_description">Creează un eveniment unic. Acesta nu este salvat până când serviciul SharedHouse nu confirmă modificarea.</string>
+    <string name="calendar_event_details_section">Ce va vedea gospodăria</string>
+    <string name="calendar_event_preview">Previzualizarea evenimentului</string>
+    <string name="calendar_event_preview_value">%1$s · %2$s · %3$s · %4$s</string>
+    <string name="calendar_event_preview_help">După salvare, evenimentul este partajat și inclus în actualizarea live. Banii și sarcinile provin din propriile înregistrări.</string>
     <string name="calendar_event_title_label">Titlu</string>
     <string name="calendar_event_description_label">Descriere (opțională)</string>
     <string name="calendar_event_type_label">Tip</string>
@@ -192,6 +196,8 @@
     <string name="calendar_type_maintenance">Mentenanță</string>
     <string name="calendar_type_appointment">Programare</string>
     <string name="calendar_type_shopping">Cumpărături</string>
+    <string name="calendar_type_money">Plată scadentă</string>
+    <string name="calendar_type_task">Sarcină a locuinței</string>
     <string name="calendar_type_other">Altele</string>
     <string name="calendar_all_day">Toată ziua</string>
     <string name="calendar_all_day_support">Nu se trimit ore de început sau de sfârșit.</string>
@@ -228,13 +234,86 @@
     <string name="dashboard_greeting_generic">Bine ai revenit</string>
     <string name="dashboard_household_context">Spațiul comun pentru %1$s</string>
     <string name="dashboard_household_name_unavailable">Numele locuinței nu este disponibil</string>
-    <string name="dashboard_configured_household_badge">Locuință configurată</string>
     <string name="dashboard_quick_actions_title">Acțiuni rapide</string>
     <string name="dashboard_quick_actions_supporting">Deschide zonele folosite cel mai des fără să cauți prin meniuri.</string>
     <string name="dashboard_action_calendar">Calendar</string>
-    <string name="dashboard_action_edit_household">Editează locuința</string>
     <string name="dashboard_action_guides">Ghiduri</string>
-    <string name="dashboard_action_settings">Setări</string>
+    <string name="dashboard_action_add_expense">Adaugă cheltuială</string>
+    <string name="dashboard_action_record_payment">Înregistrează plata</string>
+    <string name="dashboard_action_add_bill">Adaugă factură recurentă</string>
+    <string name="dashboard_action_add_task">Adaugă sarcină</string>
+    <string name="dashboard_action_household_settings">Setările locuinței</string>
+    <string name="dashboard_metric_due">De achitat</string>
+    <string name="dashboard_metric_tasks">Sarcini</string>
+    <string name="dashboard_metric_events">Evenimente</string>
+    <string name="dashboard_metric_requests">Cereri</string>
+    <string name="dashboard_chat_live">Chatul locuinței · live</string>
+    <string name="dashboard_chat_open">Deschide chatul locuinței</string>
+    <string name="dashboard_chat_message">%1$s: %2$s</string>
+    <string name="dashboard_chat_empty">Pornește conversația locuinței</string>
+    <string name="chat_title">Chatul locuinței</string>
+    <string name="chat_connecting">Se conectează…</string>
+    <string name="chat_live">Live</string>
+    <string name="chat_reconnecting">Se reconectează…</string>
+    <string name="chat_offline">Offline</string>
+    <string name="chat_connecting_description">Se deschide fluxul live al locuinței.</string>
+    <string name="chat_load_failed_title">Conversația nu este disponibilă</string>
+    <string name="chat_load_failed">Conversația nu a putut fi încărcată. Verifică rețeaua și încearcă din nou.</string>
+    <string name="chat_send_failed">Mesajul nu a fost trimis. Ciorna ta este păstrată. Reconectează-te, apoi trimite din nou.</string>
+    <string name="chat_reconnect">Reconectează</string>
+    <string name="chat_empty_title">Chatul locuinței este pregătit</string>
+    <string name="chat_empty_description">Mesajele membrilor locuinței vor apărea aici.</string>
+    <string name="chat_message_hint">Scrie locuinței</string>
+    <string name="chat_read_only_hint">Rolul tău poate citi acest chat</string>
+    <string name="chat_read_only_description">Poți urmări conversația, dar rolul tău în locuință nu poate trimite mesaje.</string>
+    <string name="chat_sending">Se trimite…</string>
+    <string name="chat_draft_preserved">Ciorna este păstrată — reconectează-te înainte să trimiți din nou.</string>
+    <string name="chat_character_count">%1$d / %2$d</string>
+    <string name="chat_today">Astăzi</string>
+    <string name="chat_yesterday">Ieri</string>
+    <string name="chat_sender_you">%1$s · Tu</string>
+    <string name="chat_message_accessibility">%1$s a scris: %2$s. Trimis la %3$s.</string>
+    <string name="chat_send">Trimite mesajul</string>
+    <string name="notification_channel_chat">Chatul locuinței</string>
+    <string name="notification_channel_chat_description">Mesaje noi din locuința activă.</string>
+    <string name="notification_category_chat">Chatul locuinței</string>
+    <string name="notification_category_chat_description">Notifică-mă despre mesajele noi. Textul mesajului rămâne ascuns pe ecranul public blocat.</string>
+    <string name="notification_chat_title">Mesaj nou în locuință</string>
+    <string name="notification_chat_body">Deschide SharedHouse pentru a citi conversația.</string>
+    <string name="notification_public_body">Deschide SharedHouse pentru a vedea această actualizare a locuinței.</string>
+    <string name="settings_atmospheric_theme_description">Un sistem premium fix violet, roz și albastru păstrează toate ecranele SharedHouse coerente în modul întunecat.</string>
+    <string name="settings_atmospheric_theme_note">Sensul stărilor folosește mereu iconiță și etichetă, nu doar culoare. Mărirea textului, contrastul ridicat și reducerea mișcării rămân independente.</string>
+    <string name="settings_appearance_system">Sistem</string>
+    <string name="settings_appearance_light">Luminos</string>
+    <string name="settings_appearance_dark">Întunecat</string>
+    <string name="settings_dynamic_colour">Accentul dispozitivului</string>
+    <string name="settings_dynamic_colour_description">Folosește accentul dispozitivului Android pentru acțiuni, păstrând fixe culorile de stare SharedHouse.</string>
+    <string name="household_settings_title">Setările creatorului locuinței</string>
+    <string name="household_settings_snapshot">Regulile curente ale gospodăriei</string>
+    <string name="household_settings_locale_value">Regiune: %1$s · Fus orar: %2$s</string>
+    <string name="household_settings_money_value">Decontare: %1$s · Ciclu: %2$s din %3$s</string>
+    <string name="household_settings_week_value">Prima zi a săptămânii: ziua ISO %1$d</string>
+    <string name="household_settings_snapshot_help">Schimbările afectează programările și afișarea viitoare; istoricul financiar și al sarcinilor se păstrează.</string>
+    <string name="household_settings_section_identity">Identitate, regiune și ciclu</string>
+    <string name="household_settings_section_access">Persoane, roluri și invitații</string>
+    <string name="household_settings_section_automation">Finanțe și automatizarea casei</string>
+    <string name="household_settings_section_communication">Comunicare și mementouri</string>
+    <string name="household_settings_description">Controlează membrii, programările și regulile comune. Fiecare acțiune este verificată după rolul tău curent.</string>
+    <string name="household_settings_denied">Doar proprietarul sau un administrator poate modifica setările comune ale locuinței.</string>
+    <string name="household_settings_identity">Identitatea și ciclul locuinței</string>
+    <string name="household_settings_identity_description">Nume, fus orar, monedă, prima zi a săptămânii și ancora ciclului financiar.</string>
+    <string name="household_settings_members">Membri și roluri</string>
+    <string name="household_settings_members_description">Verifică accesul, deleagă administrarea, suspendă sau elimină membri și transferă proprietatea în siguranță.</string>
+    <string name="household_settings_invitations">Invitații</string>
+    <string name="household_settings_invitations_description">Creează invitații cu expirare, atribuie roluri și revocă accesul nefolosit.</string>
+    <string name="household_settings_finance">Finanțe și facturi recurente</string>
+    <string name="household_settings_finance_description">Administrează lista de plată, chiria și facturile, frecvența, datele exacte și seriile finite sau nelimitate.</string>
+    <string name="household_settings_chores">Programul de curățenie și sarcini</string>
+    <string name="household_settings_chores_description">Creează sarcini atribuite cu recurență săptămânală, la două săptămâni sau lunară în calendar.</string>
+    <string name="household_settings_calendar">Calendarul locuinței</string>
+    <string name="household_settings_calendar_description">Vezi aparițiile generate pentru chirie, facturi și sarcini alături de evenimentele locuinței.</string>
+    <string name="household_settings_notifications">Controale pentru notificări</string>
+    <string name="household_settings_notifications_description">Deschide canalele tale, orele de liniște și opțiunile de confidențialitate. Fiecare membru își păstrează consimțământul personal.</string>
     <string name="dashboard_calendar_title">Calendarul locuinței</string>
     <string name="dashboard_calendar_loading_short">Se verifică evenimentele confirmate</string>
     <string name="dashboard_calendar_error_short">Evenimentele nu au putut fi confirmate</string>
@@ -262,8 +341,17 @@
     <string name="dashboard_tasks_title">Sarcini</string>
     <string name="dashboard_requests_title">Cereri</string>
     <string name="dashboard_money_unavailable">Registrul financiar nu este conectat, deci nu este afișat niciun sold sau statut de plată.</string>
-    <string name="dashboard_tasks_unavailable">Serviciul de sarcini nu este conectat, deci nu este afișată nicio atribuire sau finalizare.</string>
     <string name="dashboard_requests_unavailable">Serviciul de cereri nu este conectat, deci nu este afișat niciun număr de cereri în așteptare.</string>
+    <string name="dashboard_money_loading">Se conectează la registrul financiar al casei…</string>
+    <string name="dashboard_money_error">Registrul nu a putut fi actualizat. Deschide Bani pentru a reîncerca.</string>
+    <string name="dashboard_money_ready">%1$s de achitat în %2$d elemente deschise.</string>
+    <string name="dashboard_requests_loading">Se conectează la cererile casei…</string>
+    <string name="dashboard_requests_error">Cererile nu au putut fi actualizate. Deschide Cereri pentru a reîncerca.</string>
+    <plurals name="dashboard_requests_ready">
+        <item quantity="one">%d cerere în așteptare necesită atenție.</item>
+        <item quantity="few">%d cereri în așteptare necesită atenție.</item>
+        <item quantity="other">%d de cereri în așteptare necesită atenție.</item>
+    </plurals>
     <string name="dashboard_not_connected_badge">Neconectat</string>
     <string name="dashboard_feature_learn_more">Vezi îndrumările</string>
     <string name="dashboard_guidance_title">Ai nevoie de o orientare rapidă?</string>
@@ -284,6 +372,8 @@
     <string name="househub_actions_supporting">Editează configurația comună, ajustează acest dispozitiv sau deschide ajutorul practic.</string>
     <string name="househub_edit">Editează configurația locuinței</string>
     <string name="househub_settings">Setările aplicației</string>
+    <string name="househub_manage_costs">Administrează chiria și facturile recurente</string>
+    <string name="househub_schedule_tasks">Programează curățenia și sarcinile locuinței</string>
     <string name="househub_guides">Ghiduri și ajutor</string>
     <string name="househub_account_title">Cont autentificat</string>
     <string name="househub_account_name_unavailable">Numele contului nu este disponibil</string>
@@ -315,6 +405,7 @@
     <string name="house_members_current">Tu</string>
     <string name="house_members_joined">S-a alăturat la %1$s</string>
     <string name="house_members_change_role">Schimbă rolul</string>
+    <string name="house_members_more_actions">Mai multe acțiuni pentru %1$s</string>
     <string name="house_members_suspend">Suspendă accesul</string>
     <string name="house_members_reactivate">Reactivează</string>
     <string name="house_members_remove">Elimină</string>
@@ -417,9 +508,29 @@
     <string name="money_due_value">Scadentă la %1$s</string>
     <string name="money_your_share_value">Partea ta: %1$s</string>
     <string name="money_new_expense">Cheltuială nouă a gospodăriei</string>
+    <string name="money_edit_expense">Modifică cheltuiala</string>
+    <string name="money_section_details">Detaliile cheltuielii</string>
+    <string name="money_section_schedule">Sumă și scadență</string>
+    <string name="money_section_revision">Motiv pentru audit</string>
+    <string name="money_supplier_optional">Furnizor sau prestator (opțional)</string>
+    <string name="money_supplier_help">De exemplu, proprietarul, compania de energie sau magazinul.</string>
+    <string name="money_supplier_value">Furnizor: %1$s</string>
+    <string name="money_revision_reason">De ce modifici această cheltuială?</string>
+    <string name="money_revision_explanation">Salvarea creează o înlocuire legată și anulează înregistrarea veche. Nimic nu este suprascris în tăcere.</string>
+    <string name="money_revised_entry">Această înregistrare înlocuiește o cheltuială anterioară; originalul rămâne în Anulate.</string>
     <string name="money_equal_split_explanation">Suma se împarte egal pentru fiecare persoană care locuiește în gospodărie, inclusiv un partener fără acces la aplicație. Un cuplu primește o singură sumă combinată pentru două cote. Orice diferență de un penny este alocată determinist.</string>
     <string name="money_split_household_title">Persoane incluse în împărțire</string>
-    <string name="money_split_household_summary">%1$d rezidenți · %2$d unități de plată</string>
+    <string name="money_split_household_summary">%1$s · %2$s</string>
+    <plurals name="money_residents_count">
+        <item quantity="one">%1$d rezident</item>
+        <item quantity="few">%1$d rezidenți</item>
+        <item quantity="other">%1$d de rezidenți</item>
+    </plurals>
+    <plurals name="money_payment_units_count">
+        <item quantity="one">%1$d unitate de plată</item>
+        <item quantity="few">%1$d unități de plată</item>
+        <item quantity="other">%1$d de unități de plată</item>
+    </plurals>
     <string name="money_split_household_explanation">Accesul la aplicație și participarea la cheltuieli sunt lucruri separate. Telefonul unui rezident nu îi schimbă partea, iar un partener fără acces la aplicație poate fi adăugat după nume.</string>
     <string name="money_configure">Configurează</string>
     <string name="money_configure_people_couples">Configurează persoanele și cuplurile</string>
@@ -434,7 +545,11 @@
     <string name="money_choose_responsible_member">Cine va administra suma combinată a acestui cuplu?</string>
     <string name="money_no_partner_member_available">Nu mai există alt membru cu cont care să fie liber. Alege în schimb un partener fără cont.</string>
     <string name="money_partner_name">Numele partenerului</string>
-    <string name="money_couple_combined_share">Sumă combinată pentru un cuplu de %1$d persoane</string>
+    <plurals name="money_couple_combined_share">
+        <item quantity="one">Sumă combinată pentru un cuplu de %1$d persoană</item>
+        <item quantity="few">Sumă combinată pentru un cuplu de %1$d persoane</item>
+        <item quantity="other">Sumă combinată pentru un cuplu de %1$d de persoane</item>
+    </plurals>
     <string name="money_billing_roster_error">Configurația persoanelor și cuplurilor nu a fost salvată. Lista actuală de pe server a fost reîncărcată.</string>
     <string name="money_expense_title">Pentru ce este?</string>
     <string name="money_category">Categorie</string>
@@ -451,14 +566,26 @@
     <string name="money_you_name">%1$s (tu)</string>
     <string name="money_rounding_note">O ajustare de o unitate monetară minimă a fost atribuită după ordinea stabilă a membrilor, astfel încât împărțirea să fie exactă.</string>
     <string name="money_approve">Aprobă propunerea</string>
-    <string name="money_reverse">Anulează înregistrarea contabilă</string>
-    <string name="money_reverse_title">Anulezi această cheltuială?</string>
+    <string name="money_reverse">Elimină cheltuiala (păstrează istoricul)</string>
+    <string name="money_remove_expense">Elimină cheltuiala</string>
+    <string name="money_remove_history_notice">Eliminarea creează o anulare auditată. Cheltuiala originală și istoricul plăților rămân disponibile.</string>
+    <string name="money_remove_blocked_title">Corectează mai întâi istoricul plăților</string>
+    <plurals name="money_remove_blocked_payments">
+        <item quantity="one">Această cheltuială are %1$d declarație de plată activă. Corecteaz-o mai jos, apoi elimină cheltuiala.</item>
+        <item quantity="few">Această cheltuială are %1$d declarații de plată active. Corectează-le mai jos, apoi elimină cheltuiala.</item>
+        <item quantity="other">Această cheltuială are %1$d de declarații de plată active. Corectează-le mai jos, apoi elimină cheltuiala.</item>
+    </plurals>
+    <string name="money_remove_blocked_notice">Acțiunea de eliminare se activează după corectarea tuturor declarațiilor de plată active și confirmarea registrului actualizat.</string>
+    <string name="money_reverse_title">Elimini această cheltuială?</string>
+    <string name="money_reverse_explanation">SharedHouse va crea o anulare auditată, fără să șteargă înregistrarea din registru. Cheltuiala originală și toate declarațiile de plată rămân în istoric.</string>
     <string name="money_reverse_reason">Motivul anulării</string>
+    <string name="money_reverse_reason_help">Obligatoriu · introdu cel puțin 3 caractere</string>
     <string name="money_confirm_reverse">Confirmă anularea</string>
     <string name="money_load_error">Cheltuielile nu au putut fi confirmate de serviciu.</string>
     <string name="money_create_error">Cheltuiala nu a fost salvată. Verifică detaliile și încearcă din nou.</string>
     <string name="money_approve_error">Propunerea nu a putut fi aprobată.</string>
     <string name="money_reverse_error">Înregistrarea nu a putut fi anulată.</string>
+    <string name="money_revise_error">Cheltuiala nu a putut fi modificată. Anulează mai întâi declarațiile de plată active, apoi reîncearcă.</string>
     <string name="money_version_conflict">Cheltuiala a fost schimbată pe alt dispozitiv. Registrul actual a fost reîncărcat.</string>
     <string name="money_status_proposed">Propusă</string>
     <string name="money_status_approved">Aprobată</string>
@@ -481,7 +608,11 @@
     <string name="money_planned_costs_description">Programările active generează câte un cost aprobat în registru la fiecare scadență. Acesta reprezintă o obligație, nu o plată.</string>
     <string name="money_template_schedule">%1$s · următoarea scadență %2$s</string>
     <string name="money_use_template">Adaugă extra</string>
-    <string name="money_more_templates">Încă %1$d costuri configurate</string>
+    <plurals name="money_more_templates">
+        <item quantity="one">Încă %1$d cost configurat</item>
+        <item quantity="few">Încă %1$d costuri configurate</item>
+        <item quantity="other">Încă %1$d de costuri configurate</item>
+    </plurals>
     <string name="money_admin_title">Administrare financiară</string>
     <string name="money_admin_description">Setează prețuri standard pentru chirie, facturi sau orice cost personalizat. Folosirea unui șablon deschide o cheltuială reală pentru confirmare; nu declară că o plată a avut loc.</string>
     <string name="money_add_household_cost">Adaugă un cost al gospodăriei</string>
@@ -500,9 +631,13 @@
     <string name="money_archive_reason">Motivul arhivării</string>
     <string name="money_archive_confirm">Arhivează costul</string>
     <string name="money_cadence_weekly">Săptămânal</string>
+    <string name="money_cadence_fortnightly">La fiecare două săptămâni</string>
     <string name="money_cadence_monthly">Lunar</string>
     <string name="money_cadence_quarterly">Trimestrial</string>
     <string name="money_cadence_yearly">Anual</string>
+    <string name="money_schedule_ends_on">Ultima apariție</string>
+    <string name="money_no_end_date">Fără dată de încheiere</string>
+    <string name="action_clear">Șterge</string>
     <string name="money_template_error">Costul gospodăriei nu a putut fi salvat. Reîncarcă și încearcă din nou.</string>
     <string name="money_generated_cost">Cost al gospodăriei generat</string>
     <string name="money_generated_cost_details">Creat automat din programul gospodăriei pentru %1$s. Nu a fost transferată nicio plată.</string>
@@ -519,6 +654,8 @@
     <string name="money_payment_status_confirmed">Confirmată de alt membru</string>
     <string name="money_payment_status_disputed">Contestată · necesită verificare</string>
     <string name="money_payment_status_reversed">Corectată / anulată</string>
+    <string name="money_payment_status_by">%1$s de %2$s</string>
+    <string name="money_payment_declared_by">Declarată de %1$s</string>
     <string name="money_payment_method_bank_transfer">Transfer bancar</string>
     <string name="money_payment_method_cash">Numerar</string>
     <string name="money_payment_method_card">Card</string>
@@ -564,10 +701,18 @@
     <string name="tasks_empty_title">Nu există elemente în această vedere</string>
     <string name="tasks_empty_admin">Adaugă o responsabilitate reală a locuinței când ești gata.</string>
     <string name="tasks_empty_member">Atribuirile noi și deciziile confirmate vor apărea aici.</string>
-    <string name="tasks_pending_count" formatted="true">%1$d cereri în așteptare</string>
+    <plurals name="tasks_pending_count">
+        <item quantity="one">%1$d cerere în așteptare</item>
+        <item quantity="few">%1$d cereri în așteptare</item>
+        <item quantity="other">%1$d de cereri în așteptare</item>
+    </plurals>
     <string name="tasks_assigned_to" formatted="true">Responsabil: %1$s</string>
     <string name="tasks_zone" formatted="true">Zonă: %1$s</string>
-    <string name="tasks_estimate" formatted="true">Durată estimată: %1$d minute</string>
+    <plurals name="tasks_estimate">
+        <item quantity="one">Durată estimată: %1$d minut</item>
+        <item quantity="few">Durată estimată: %1$d minute</item>
+        <item quantity="other">Durată estimată: %1$d de minute</item>
+    </plurals>
     <string name="tasks_start">Începe</string>
     <string name="tasks_complete">Finalizează</string>
     <string name="tasks_help">Cere ajutor</string>
@@ -576,9 +721,11 @@
     <string name="tasks_issue">Raportează problemă</string>
     <string name="tasks_reopen">Redeschide</string>
     <string name="tasks_cancel">Anulează sarcina</string>
+    <string name="tasks_stop_recurrence">Oprește programul</string>
     <string name="tasks_completion_note">Notă de finalizare</string>
     <string name="tasks_requests_title">Istoricul cererilor</string>
     <string name="tasks_requested_by" formatted="true">Solicitat de %1$s</string>
+    <string name="tasks_request_decision_by">%1$s de %2$s</string>
     <string name="tasks_swap_to" formatted="true">Responsabil propus: %1$s</string>
     <string name="tasks_postpone_to" formatted="true">Dată solicitată: %1$s %2$s</string>
     <string name="tasks_member_unavailable">Membru indisponibil</string>
@@ -593,6 +740,12 @@
     <string name="tasks_field_minutes">Minute</string>
     <string name="tasks_choose_member">Alege persoana responsabilă</string>
     <string name="tasks_create_action">Creează sarcina</string>
+    <string name="tasks_recurrence_once">O singură dată</string>
+    <string name="tasks_recurrence_weekly">Repetă săptămânal</string>
+    <string name="tasks_recurrence_fortnightly">Repetă la două săptămâni</string>
+    <string name="tasks_recurrence_monthly">Repetă lunar</string>
+    <string name="tasks_recurrence_end_optional">Data ultimei sarcini (opțional)</string>
+    <string name="tasks_recurrence_infinite_hint">AAAA-LL-ZZ sau gol pentru continuare până la arhivare</string>
     <string name="tasks_field_reason">Motiv sau notă de finalizare</string>
     <string name="tasks_confirm_action">Confirmă acțiunea</string>
     <string name="tasks_field_decision_note">Nota deciziei</string>
@@ -619,6 +772,8 @@
     <string name="tasks_reopen_explanation">Finalizarea anterioară rămâne în audit, iar sarcina redevine activă.</string>
     <string name="tasks_cancel_title">Anulezi această sarcină?</string>
     <string name="tasks_cancel_explanation">Explică de ce nu mai este necesară. Sarcina rămâne vizibilă în istoric.</string>
+    <string name="tasks_stop_recurrence_title">Oprești acest program recurent?</string>
+    <string name="tasks_stop_recurrence_explanation">Explică de ce se încheie programul. Istoricul existent este păstrat, iar aparițiile active ulterioare sunt anulate.</string>
     <string name="tasks_help_title">Cere ajutor</string>
     <string name="tasks_help_explanation">Rămâi responsabil, dar soliciți sprijinul unei alte persoane din locuință.</string>
     <string name="tasks_swap_title">Cere un schimb</string>
@@ -630,6 +785,11 @@
     <string name="dashboard_connected_badge">Activ</string>
     <string name="dashboard_tasks_loading">Se încarcă sarcinile confirmate ale locuinței…</string>
     <string name="dashboard_tasks_error">Datele despre sarcini nu au putut fi încărcate. Deschide Sarcini pentru reîncercare.</string>
-    <string name="dashboard_tasks_next" formatted="true">Următoarea ta sarcină: %1$s · %2$d active · %3$d cereri în așteptare</string>
-    <string name="dashboard_tasks_ready" formatted="true">%1$d sarcini active · %2$d cereri în așteptare</string>
+    <plurals name="dashboard_active_tasks_count">
+        <item quantity="one">%1$d sarcină activă</item>
+        <item quantity="few">%1$d sarcini active</item>
+        <item quantity="other">%1$d de sarcini active</item>
+    </plurals>
+    <string name="dashboard_tasks_next">Următoarea ta sarcină: %1$s · %2$s · %3$s</string>
+    <string name="dashboard_tasks_ready">%1$s · %2$s</string>
 </resources>

@@ -13,8 +13,8 @@ if (contract?.openapi !== '3.1.0') {
   failures.push('The contract must use OpenAPI 3.1.0.');
 }
 
-if (contract?.info?.version !== '1.11.0') {
-  failures.push('The v1 contract must declare info.version 1.11.0.');
+if (contract?.info?.version !== '1.13.0') {
+  failures.push('The v1 contract must declare info.version 1.13.0.');
 }
 
 for (const requiredPath of [
@@ -36,6 +36,8 @@ for (const requiredPath of [
   '/v1/households/{householdId}/expense-templates/{templateId}/archive',
   '/v1/households/{householdId}/tasks',
   '/v1/households/{householdId}/tasks/{taskId}/actions',
+  '/v1/households/{householdId}/chat/messages',
+  '/v1/households/{householdId}/chat/messages/stream',
 ]) {
   if (contract?.paths?.[requiredPath] === undefined) {
     failures.push(`Missing required path: ${requiredPath}`);

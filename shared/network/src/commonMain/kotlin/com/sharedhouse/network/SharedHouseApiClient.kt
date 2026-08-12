@@ -4,8 +4,10 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
@@ -14,16 +16,21 @@ import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.readLine
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 
 private val SharedHouseJson = Json {
@@ -327,6 +334,83 @@ class SharedHouseApiClient(
         client.get("$baseUrl/v1/households/$householdId/tasks") { bearerAuth(accessToken) }
     }
 
+    suspend fun listHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String? = null,
+        limit: Int = 100,
+    ): ApiResult<HouseholdChatPageDto> = execute {
+        client.get("$baseUrl/v1/households/$householdId/chat/messages") {
+            bearerAuth(accessToken)
+            after?.let { parameter("after", it) }
+            parameter("limit", limit)
+        }
+    }
+
+    suspend fun createHouseholdChatMessage(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        body: String,
+    ): ApiResult<HouseholdChatMessageDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/chat/messages") {
+            bearerAuth(accessToken)
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(CreateHouseholdChatMessageDto(body))
+        }
+    }
+
+    fun streamHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ): Flow<ApiResult<HouseholdChatMessageDto>> = flow {
+        try {
+            client.prepareGet("$baseUrl/v1/households/$householdId/chat/messages/stream") {
+                bearerAuth(accessToken)
+                after?.let { parameter("after", it) }
+                accept(ContentType.Text.EventStream)
+                timeout {
+                    requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+                    socketTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+                }
+            }.execute { response ->
+                if (!response.status.isSuccess()) {
+                    emit(response.toFailure())
+                    return@execute
+                }
+                val channel = response.bodyAsChannel()
+                var eventType: String? = null
+                val data = StringBuilder()
+                while (!channel.isClosedForRead) {
+                    val line = channel.readLine() ?: break
+                    when {
+                        line.startsWith("event:") -> eventType = line.substringAfter(':').trim()
+                        line.startsWith("data:") -> data.append(line.substringAfter(':').trim())
+                        line.isEmpty() -> {
+                            if (eventType == "message" && data.isNotEmpty()) {
+                                emit(
+                                    ApiResult.Success(
+                                        SharedHouseJson.decodeFromString<HouseholdChatMessageDto>(
+                                            data.toString(),
+                                        ),
+                                    ),
+                                )
+                            }
+                            eventType = null
+                            data.clear()
+                        }
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emit(networkFailure())
+        }
+    }
+
     suspend fun createHouseholdTask(
         accessToken: String,
         householdId: String,
@@ -381,6 +465,23 @@ class SharedHouseApiClient(
         client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/approve") {
             bearerAuth(accessToken)
             header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+        }
+    }
+
+    suspend fun reviseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        payload: ReviseExpensePayload,
+    ): ApiResult<ExpenseDto> = execute {
+        client.post("$baseUrl/v1/households/$householdId/expenses/$expenseId/revise") {
+            bearerAuth(accessToken)
+            header(HttpHeaders.IfMatch, "\"$expectedVersion\"")
+            header("Idempotency-Key", idempotencyKey)
+            contentType(ContentType.Application.Json)
+            setBody(payload)
         }
     }
 

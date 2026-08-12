@@ -2,6 +2,7 @@ package com.sharedhouse.android.ui.money
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,44 +11,46 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Groups
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.ButtonDefaults
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.DatePicker
+import com.sharedhouse.android.ui.atmosphere.DatePickerDialog
+import com.sharedhouse.android.ui.atmosphere.DropdownMenu
+import com.sharedhouse.android.ui.atmosphere.DropdownMenuItem
+import com.sharedhouse.android.ui.atmosphere.FilterChip
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.ModalBottomSheet
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.atmosphere.PremiumHeroCard
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.SnackbarHost
+import com.sharedhouse.android.ui.atmosphere.SnackbarHostState
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
+import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,12 +60,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
+import com.sharedhouse.android.ui.icons.SharedHouseIcons
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.NumberFormat
@@ -74,7 +81,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Currency
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoneyScreen(
     state: MoneyUiState,
@@ -85,6 +91,7 @@ fun MoneyScreen(
     var filterName by rememberSaveable { mutableStateOf(MoneyFilter.ACTIVE.name) }
     var createOpen by rememberSaveable { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editId by rememberSaveable { mutableStateOf<String?>(null) }
     var templatePrefillId by rememberSaveable { mutableStateOf<String?>(null) }
     var templateAdminOpen by rememberSaveable { mutableStateOf(false) }
     var templateEditorId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -104,6 +111,7 @@ fun MoneyScreen(
         }
     }
     val selected = selectedId?.let { id -> expenses.firstOrNull { it.id == id } }
+    val editing = editId?.let { id -> expenses.firstOrNull { it.id == id } }
     val templatePrefill = templatePrefillId?.let { id -> state.templates.firstOrNull { it.id == id } }
     val approved = expenses.filter { it.status == ExpenseStatus.APPROVED }
     val householdTotal = approved.sumOf { it.amountMinor }
@@ -119,15 +127,24 @@ fun MoneyScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.money_title))
+                        Text(
+                            stringResource(R.string.money_title),
+                            style = AtmosphereTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
                         Text(
                             stringResource(R.string.money_subtitle),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.labelMedium,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
                 actions = {
+                    if (state.canCreate && state.content is MoneyContent.Ready) {
+                        IconButton(onClick = { createOpen = true }) {
+                            Icon(SharedHouseIcons.Add, stringResource(R.string.money_add_expense))
+                        }
+                    }
                     if (state.canManageTemplates) {
                         IconButton(onClick = { templateAdminOpen = true }) {
                             Icon(Icons.Outlined.Settings, stringResource(R.string.money_manage_costs))
@@ -137,15 +154,6 @@ fun MoneyScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
-        floatingActionButton = {
-            if (state.canCreate && state.content is MoneyContent.Ready) {
-                ExtendedFloatingActionButton(
-                    onClick = { createOpen = true },
-                    icon = { Icon(Icons.Outlined.Add, null) },
-                    text = { Text(stringResource(R.string.money_add_expense)) },
-                )
-            }
-        },
     ) { padding ->
         when (state.content) {
             MoneyContent.Loading -> Column(
@@ -161,44 +169,53 @@ fun MoneyScreen(
 
             is MoneyContent.Ready -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 104.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SummaryCard(
-                            icon = Icons.Outlined.AccountBalanceWallet,
+                            icon = SharedHouseIcons.Money,
                             label = stringResource(R.string.money_your_outstanding),
                             value = formatMoney(personalTotal, state.currency),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
+                            prominent = true,
                         )
                         SummaryCard(
-                            icon = Icons.Outlined.Groups,
+                            icon = SharedHouseIcons.People,
                             label = stringResource(R.string.money_household_total),
                             value = formatMoney(householdTotal, state.currency),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                state.billingRoster?.let { roster ->
+                val activeTemplates = state.templates.filter { it.active }
+                if (state.billingRoster != null || activeTemplates.isNotEmpty()) {
                     item {
-                        BillingRosterOverview(
-                            roster = roster,
-                            onManage = { billingRosterOpen = true },
-                        )
-                    }
-                }
-                if (state.templates.any { it.active }) {
-                    item {
-                        TemplateOverview(
-                            templates = state.templates.filter { it.active },
-                            canManage = state.canManageTemplates,
-                            onUse = { template ->
-                                templatePrefillId = template.id
-                                createOpen = true
-                            },
-                            onManage = { templateAdminOpen = true },
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            state.billingRoster?.let { roster ->
+                                BillingRosterOverview(
+                                    roster = roster,
+                                    onManage = { billingRosterOpen = true },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (activeTemplates.isNotEmpty()) {
+                                TemplateOverview(
+                                    templates = activeTemplates,
+                                    canManage = state.canManageTemplates,
+                                    onUse = { template ->
+                                        templatePrefillId = template.id
+                                        createOpen = true
+                                    },
+                                    onManage = { templateAdminOpen = true },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
                     }
                 }
                 item {
@@ -233,10 +250,23 @@ fun MoneyScreen(
             initialTemplate = templatePrefill,
             busy = state.isMutationInProgress,
             onDismiss = { createOpen = false; templatePrefillId = null },
-            onSubmit = {
-                onAction(MoneyAction.Create(it))
+            onSubmit = { draft, _ ->
+                onAction(MoneyAction.Create(draft))
                 createOpen = false
                 templatePrefillId = null
+            },
+        )
+    }
+    if (editing != null) {
+        ExpenseEditor(
+            currency = state.currency,
+            roster = state.billingRoster,
+            initialExpense = editing,
+            busy = state.isMutationInProgress,
+            onDismiss = { editId = null },
+            onSubmit = { draft, reason ->
+                onAction(MoneyAction.Revise(editing.id, editing.version, draft, requireNotNull(reason)))
+                editId = null
             },
         )
     }
@@ -246,6 +276,7 @@ fun MoneyScreen(
             busy = state.isMutationInProgress,
             onDismiss = { selectedId = null },
             onApprove = { onAction(MoneyAction.Approve(selected.id, selected.version)) },
+            onEdit = { editId = selected.id; selectedId = null },
             onReverse = { reason ->
                 onAction(MoneyAction.Reverse(selected.id, selected.version, reason))
                 selectedId = null
@@ -339,84 +370,208 @@ fun MoneyScreen(
 }
 
 @Composable
-private fun BillingRosterOverview(roster: BillingRosterUi, onManage: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Groups, null)
-                Spacer(Modifier.width(8.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.money_split_household_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        stringResource(
-                            R.string.money_split_household_summary,
-                            roster.residentCount,
-                            roster.billingUnitCount,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (roster.canManage) {
-                    TextButton(onClick = onManage) { Text(stringResource(R.string.money_configure)) }
+private fun BillingRosterOverview(
+    roster: BillingRosterUi,
+    onManage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        onClick = onManage,
+        enabled = roster.canManage,
+        modifier = modifier.height(96.dp),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = AtmosphereTheme.shapes.small,
+                color = AtmosphereTheme.colorScheme.primary.copy(alpha = .16f),
+                contentColor = AtmosphereTheme.colorScheme.primary,
+            ) {
+                Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                    Icon(SharedHouseIcons.People, null, Modifier.size(19.dp))
                 }
             }
-            Text(
-                stringResource(R.string.money_split_household_explanation),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(R.string.money_split_household_title),
+                    style = AtmosphereTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(
+                        R.string.money_split_household_summary,
+                        pluralStringResource(
+                            R.plurals.money_residents_count,
+                            roster.residentCount,
+                            roster.residentCount,
+                        ),
+                        pluralStringResource(
+                            R.plurals.money_payment_units_count,
+                            roster.billingUnitCount,
+                            roster.billingUnitCount,
+                        ),
+                    ),
+                    style = AtmosphereTheme.typography.labelSmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (roster.canManage) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowForward,
+                    contentDescription = stringResource(R.string.money_configure),
+                    modifier = Modifier.size(18.dp),
+                    tint = AtmosphereTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SummaryCard(icon: ImageVector, label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+private fun SummaryCard(icon: ImageVector, label: String, value: String, modifier: Modifier = Modifier, prominent: Boolean = false) {
+    if (prominent) {
+        PremiumHeroCard(modifier = modifier) {
+            SummaryCardContent(icon = icon, label = label, value = value, hero = true)
+        }
+    } else {
+        Card(
+            modifier,
+            colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        ) {
+            SummaryCardContent(icon = icon, label = label, value = value, hero = false)
+        }
+    }
+}
+
+@Composable
+private fun SummaryCardContent(icon: ImageVector, label: String, value: String, hero: Boolean) {
+    val contentColor = if (hero) Color.White else AtmosphereTheme.colorScheme.onSurface
+    val valueStyle = when {
+        !hero -> AtmosphereTheme.typography.titleMedium
+        value.length <= 8 -> AtmosphereTheme.typography.displayMedium
+        else -> AtmosphereTheme.typography.displaySmall
+    }
+    Row(
+        Modifier.padding(if (hero) 4.dp else 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = AtmosphereTheme.shapes.small,
+            color = if (hero) Color.White.copy(alpha = .14f) else AtmosphereTheme.colorScheme.secondary.copy(alpha = .16f),
+            contentColor = if (hero) Color.White else AtmosphereTheme.colorScheme.secondary,
+        ) {
+            Box(Modifier.size(if (hero) 46.dp else 34.dp), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(if (hero) 24.dp else 19.dp))
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                value,
+                style = valueStyle,
+                fontWeight = if (hero) FontWeight.ExtraBold else FontWeight.Bold,
+                color = contentColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                label,
+                style = AtmosphereTheme.typography.labelSmall,
+                color = if (hero) Color.White.copy(alpha = .75f) else AtmosphereTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
         }
     }
 }
 
 @Composable
 private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = AtmosphereTheme.shapes.small,
+                    color = AtmosphereTheme.colorScheme.secondaryContainer,
+                    contentColor = AtmosphereTheme.colorScheme.secondary,
+                ) { Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) { Icon(expense.category.icon(), null, Modifier.size(21.dp)) } }
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(expense.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(expense.category.displayName(expense.customCategoryName), style = MaterialTheme.typography.bodySmall)
+                    Text(expense.title, style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(expense.category.displayName(expense.customCategoryName), style = AtmosphereTheme.typography.bodySmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (expense.sourceTemplateId != null) {
                         Text(
                             stringResource(R.string.money_generated_cost),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = AtmosphereTheme.typography.labelSmall,
+                            color = AtmosphereTheme.colorScheme.primary,
                         )
                     }
                 }
-                Text(formatMoney(expense.amountMinor, expense.currency), style = MaterialTheme.typography.titleMedium)
-                Icon(Icons.Outlined.MoreVert, null)
+                Text(formatMoney(expense.amountMinor, expense.currency), style = AtmosphereTheme.typography.titleMedium, maxLines = 1)
+                Surface(shape = AtmosphereTheme.shapes.small, color = AtmosphereTheme.colorScheme.surfaceVariant) {
+                    Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Icon(SharedHouseIcons.More, stringResource(R.string.money_section_details), Modifier.size(17.dp)) }
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.height(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.money_due_value, expense.dueDate.toString()), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.money_due_value, expense.dueDate.toString()), style = AtmosphereTheme.typography.bodySmall)
                 Spacer(Modifier.weight(1f))
-                Text(stringResource(expense.status.labelResource), style = MaterialTheme.typography.labelLarge, color = expense.status.color())
+                ExpenseStatusBadge(expense.status)
             }
             HorizontalDivider()
             Text(
                 stringResource(R.string.money_your_share_value, formatMoney(expense.currentUserShareMinor, expense.currency)),
-                style = MaterialTheme.typography.bodyMedium,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
         }
     }
+}
+
+private fun ExpenseCategory.icon(): ImageVector = when (this) {
+    ExpenseCategory.RENT, ExpenseCategory.COUNCIL_TAX -> SharedHouseIcons.Rent
+    ExpenseCategory.ELECTRICITY, ExpenseCategory.GAS, ExpenseCategory.WATER, ExpenseCategory.INTERNET -> SharedHouseIcons.Utilities
+    ExpenseCategory.MAINTENANCE -> SharedHouseIcons.Maintenance
+    ExpenseCategory.GROCERIES, ExpenseCategory.HOUSEHOLD_SUPPLIES -> SharedHouseIcons.Cleaning
+    ExpenseCategory.OTHER, ExpenseCategory.CUSTOM -> SharedHouseIcons.Money
+}
+
+@Composable
+private fun ExpenseStatusBadge(status: ExpenseStatus) {
+    val color = status.color()
+    Surface(
+        shape = AtmosphereTheme.shapes.extraSmall,
+        color = color.copy(alpha = .14f),
+        contentColor = color,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(status.icon(), null, Modifier.size(14.dp))
+            Text(
+                stringResource(status.labelResource),
+                style = AtmosphereTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+private fun ExpenseStatus.icon(): ImageVector = when (this) {
+    ExpenseStatus.PROPOSED -> SharedHouseIcons.Pending
+    ExpenseStatus.APPROVED -> SharedHouseIcons.Approved
+    ExpenseStatus.REVERSED -> SharedHouseIcons.Reversed
 }
 
 @Composable
@@ -425,39 +580,58 @@ private fun TemplateOverview(
     canManage: Boolean,
     onUse: (ExpenseTemplateUi) -> Unit,
     onManage: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.money_planned_costs), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(stringResource(R.string.money_planned_costs_description), style = MaterialTheme.typography.bodySmall)
-                }
-                if (canManage) TextButton(onClick = onManage) { Text(stringResource(R.string.money_manage)) }
-            }
-            templates.take(3).forEach { template ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(template.title, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            stringResource(
-                                R.string.money_template_schedule,
-                                stringResource(template.cadence.labelResource),
-                                template.nextDueDate.toString(),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Text(formatMoney(template.amountMinor, template.currency))
-                    TextButton(onClick = { onUse(template) }) { Text(stringResource(R.string.money_use_template)) }
+    val next = templates.minByOrNull(ExpenseTemplateUi::nextDueDate) ?: return
+    Card(
+        onClick = { if (canManage) onManage() else onUse(next) },
+        modifier = modifier.height(96.dp),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = AtmosphereTheme.shapes.small,
+                color = AtmosphereTheme.colorScheme.secondary.copy(alpha = .16f),
+                contentColor = AtmosphereTheme.colorScheme.secondary,
+            ) {
+                Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                    Icon(SharedHouseIcons.Rent, null, Modifier.size(19.dp))
                 }
             }
-            if (templates.size > 3) Text(stringResource(R.string.money_more_templates, templates.size - 3), style = MaterialTheme.typography.labelMedium)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(R.string.money_planned_costs),
+                    style = AtmosphereTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(
+                        R.string.money_template_schedule,
+                        stringResource(next.cadence.labelResource),
+                        next.nextDueDate.toString(),
+                    ),
+                    style = AtmosphereTheme.typography.labelSmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = stringResource(if (canManage) R.string.money_manage else R.string.money_use_template),
+                modifier = Modifier.size(18.dp),
+                tint = AtmosphereTheme.colorScheme.primary,
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseTemplateAdminSheet(
     templates: List<ExpenseTemplateUi>,
@@ -476,11 +650,11 @@ private fun ExpenseTemplateAdminSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text(stringResource(R.string.money_admin_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(stringResource(R.string.money_admin_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.money_admin_title), style = AtmosphereTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.money_admin_description), color = AtmosphereTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = onAdd, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Outlined.Add, null)
+                    Icon(SharedHouseIcons.Add, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.money_add_household_cost))
                 }
@@ -490,7 +664,7 @@ private fun ExpenseTemplateAdminSheet(
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Outlined.Groups, null)
+                        Icon(SharedHouseIcons.People, null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.money_configure_people_couples))
                     }
@@ -500,20 +674,20 @@ private fun ExpenseTemplateAdminSheet(
                 item { Text(stringResource(R.string.money_no_templates), modifier = Modifier.padding(vertical = 24.dp)) }
             } else {
                 items(templates, key = ExpenseTemplateUi::id) { template ->
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainer)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(Modifier.fillMaxWidth()) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(template.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                    Text(template.category.displayName(template.customCategoryName), style = MaterialTheme.typography.bodySmall)
+                                    Text(template.title, style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(template.category.displayName(template.customCategoryName), style = AtmosphereTheme.typography.bodySmall)
                                 }
-                                Text(formatMoney(template.amountMinor, template.currency), style = MaterialTheme.typography.titleMedium)
+                                Text(formatMoney(template.amountMinor, template.currency), style = AtmosphereTheme.typography.titleMedium)
                             }
                             Text(stringResource(R.string.money_template_schedule, stringResource(template.cadence.labelResource), template.nextDueDate.toString()))
                             Text(
                                 stringResource(if (template.active) R.string.money_template_active else R.string.money_template_archived),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (template.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                style = AtmosphereTheme.typography.labelLarge,
+                                color = if (template.active) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.outline,
                             )
                             if (template.active) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                 TextButton(onClick = { onUse(template) }, enabled = !busy) { Text(stringResource(R.string.money_use_template)) }
@@ -528,7 +702,6 @@ private fun ExpenseTemplateAdminSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BillingRosterSheet(
     roster: BillingRosterUi,
@@ -557,16 +730,16 @@ private fun BillingRosterSheet(
             item {
                 Text(
                     stringResource(R.string.money_billing_roster_title),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = AtmosphereTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
                     stringResource(R.string.money_billing_roster_description),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
             }
             items(drafts, key = { "${it.primaryMembershipId}:${it.partnerMembershipId}:${it.partnerDisplayName}" }) { draft ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainer)) {
                     Row(
                         Modifier.fillMaxWidth().padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -586,7 +759,7 @@ private fun BillingRosterSheet(
                                         R.string.money_partner_with_account
                                     },
                                 ),
-                                style = MaterialTheme.typography.bodySmall,
+                                style = AtmosphereTheme.typography.bodySmall,
                             )
                         }
                         TextButton(onClick = { drafts = drafts - draft }, enabled = !busy) {
@@ -601,7 +774,7 @@ private fun BillingRosterSheet(
                     enabled = !busy && availableMemberIds(roster, drafts).isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Outlined.Add, null)
+                    Icon(SharedHouseIcons.Add, null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.money_add_couple))
                 }
@@ -612,8 +785,8 @@ private fun BillingRosterSheet(
                 ) { Text(stringResource(R.string.money_save_roster)) }
                 Text(
                     stringResource(R.string.money_roster_history_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -733,7 +906,6 @@ private fun availableMemberIds(
     return roster.members.map(BillingRosterMemberUi::membershipId).filterNot(used::contains).toSet()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseTemplateEditor(
     currency: String,
@@ -749,31 +921,34 @@ private fun ExpenseTemplateEditor(
     var customName by rememberSaveable(initial?.id) { mutableStateOf(initial?.customCategoryName.orEmpty()) }
     var cadenceName by rememberSaveable(initial?.id) { mutableStateOf((initial?.cadence ?: ExpenseTemplateCadence.MONTHLY).name) }
     var nextDue by rememberSaveable(initial?.id) { mutableStateOf((initial?.nextDueDate ?: LocalDate.now()).toString()) }
+    var endsOn by rememberSaveable(initial?.id) { mutableStateOf(initial?.endsOn?.toString().orEmpty()) }
     var notes by rememberSaveable(initial?.id) { mutableStateOf(initial?.notes.orEmpty()) }
     var categoriesOpen by remember { mutableStateOf(false) }
     var cadenceOpen by remember { mutableStateOf(false) }
     var dateOpen by remember { mutableStateOf(false) }
+    var endDateOpen by remember { mutableStateOf(false) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val category = ExpenseCategory.valueOf(categoryName)
     val cadence = ExpenseTemplateCadence.valueOf(cadenceName)
     val parsedAmount = parseMoney(amount, currency)
     val valid = title.trim().isNotEmpty() && parsedAmount != null && parsedAmount > 0 &&
-        (category != ExpenseCategory.CUSTOM || customName.trim().isNotEmpty())
+        (category != ExpenseCategory.CUSTOM || customName.trim().isNotEmpty()) &&
+        (endsOn.isEmpty() || runCatching { LocalDate.parse(endsOn) >= LocalDate.parse(nextDue) }.getOrDefault(false))
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item { Text(stringResource(if (initial == null) R.string.money_add_household_cost else R.string.money_edit_household_cost), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-            item { Text(stringResource(R.string.money_template_editor_explanation), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text(stringResource(if (initial == null) R.string.money_add_household_cost else R.string.money_edit_household_cost), style = AtmosphereTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+            item { Text(stringResource(R.string.money_template_editor_explanation), color = AtmosphereTheme.colorScheme.onSurfaceVariant) }
             item { OutlinedTextField(title, { title = it.take(120) }, label = { Text(stringResource(R.string.money_expense_title)) }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
             item {
                 OutlinedTextField(
                     value = category.displayName(customName.ifEmpty { null }),
                     onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.money_category)) },
-                    trailingIcon = { IconButton(onClick = { categoriesOpen = true }) { Icon(Icons.Outlined.MoreVert, null) } },
+                    trailingIcon = { IconButton(onClick = { categoriesOpen = true }) { Icon(SharedHouseIcons.More, null) } },
                 )
                 DropdownMenu(categoriesOpen, { categoriesOpen = false }) {
                     ExpenseCategory.entries.forEach { item ->
@@ -803,7 +978,7 @@ private fun ExpenseTemplateEditor(
                 OutlinedTextField(
                     value = stringResource(cadence.labelResource), onValueChange = {}, readOnly = true,
                     label = { Text(stringResource(R.string.money_cadence)) }, modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = { IconButton(onClick = { cadenceOpen = true }) { Icon(Icons.Outlined.MoreVert, null) } },
+                    trailingIcon = { IconButton(onClick = { cadenceOpen = true }) { Icon(SharedHouseIcons.More, null) } },
                 )
                 DropdownMenu(cadenceOpen, { cadenceOpen = false }) {
                     ExpenseTemplateCadence.entries.forEach { item ->
@@ -814,12 +989,32 @@ private fun ExpenseTemplateEditor(
             item {
                 OutlinedTextField(nextDue, {}, readOnly = true, label = { Text(stringResource(R.string.money_next_due_date)) }, modifier = Modifier.fillMaxWidth(), trailingIcon = { IconButton(onClick = { dateOpen = true }) { Icon(Icons.Outlined.CalendarMonth, null) } })
             }
+            item {
+                OutlinedTextField(
+                    value = endsOn.ifEmpty { stringResource(R.string.money_no_end_date) },
+                    onValueChange = {},
+                    readOnly = true,
+                    isError = attempted && !valid && endsOn.isNotEmpty(),
+                    label = { Text(stringResource(R.string.money_schedule_ends_on)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        Row {
+                            if (endsOn.isNotEmpty()) TextButton(onClick = { endsOn = "" }) {
+                                Text(stringResource(R.string.action_clear))
+                            }
+                            IconButton(onClick = { endDateOpen = true }) {
+                                Icon(Icons.Outlined.CalendarMonth, null)
+                            }
+                        }
+                    },
+                )
+            }
             item { OutlinedTextField(notes, { notes = it.take(1000) }, label = { Text(stringResource(R.string.money_notes_optional)) }, modifier = Modifier.fillMaxWidth(), minLines = 2) }
             item {
                 Button(
                     onClick = {
                         attempted = true
-                        if (valid) onSubmit(ExpenseTemplateDraft(title.trim(), category, customName.trim().ifEmpty { null }, requireNotNull(parsedAmount), cadence, LocalDate.parse(nextDue), notes.trim().ifEmpty { null }))
+                        if (valid) onSubmit(ExpenseTemplateDraft(title.trim(), category, customName.trim().ifEmpty { null }, requireNotNull(parsedAmount), cadence, LocalDate.parse(nextDue), endsOn.ifEmpty { null }?.let(LocalDate::parse), notes.trim().ifEmpty { null }))
                     },
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
@@ -828,11 +1023,20 @@ private fun ExpenseTemplateEditor(
         }
     }
     if (dateOpen) {
-        val picker = androidx.compose.material3.rememberDatePickerState(initialSelectedDateMillis = LocalDate.parse(nextDue).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+        val picker = com.sharedhouse.android.ui.atmosphere.rememberDatePickerState(initialSelectedDateMillis = LocalDate.parse(nextDue).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { dateOpen = false },
             confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let { nextDue = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }; dateOpen = false }) { Text(stringResource(R.string.action_confirm)) } },
             dismissButton = { TextButton(onClick = { dateOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
+        ) { DatePicker(picker) }
+    }
+    if (endDateOpen) {
+        val initialEnd = endsOn.ifEmpty { nextDue }
+        val picker = com.sharedhouse.android.ui.atmosphere.rememberDatePickerState(initialSelectedDateMillis = LocalDate.parse(initialEnd).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { endDateOpen = false },
+            confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let { endsOn = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString() }; endDateOpen = false }) { Text(stringResource(R.string.action_confirm)) } },
+            dismissButton = { TextButton(onClick = { endDateOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
         ) { DatePicker(picker) }
     }
 }
@@ -856,12 +1060,12 @@ private fun ArchiveTemplateDialog(template: ExpenseTemplateUi, onDismiss: () -> 
 
 @Composable
 private fun EmptyMoney(filter: MoneyFilter, canCreate: Boolean, onAdd: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.CheckCircle, null)
+            Icon(SharedHouseIcons.Approved, null)
             Spacer(Modifier.height(12.dp))
-            Text(stringResource(filter.emptyResource), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.money_empty_explanation), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(filter.emptyResource), style = AtmosphereTheme.typography.titleMedium)
+            Text(stringResource(R.string.money_empty_explanation), style = AtmosphereTheme.typography.bodyMedium)
             if (canCreate) TextButton(onClick = onAdd) { Text(stringResource(R.string.money_add_first)) }
         }
     }
@@ -870,42 +1074,68 @@ private fun EmptyMoney(filter: MoneyFilter, canCreate: Boolean, onAdd: () -> Uni
 @Composable
 private fun MoneyError(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(stringResource(R.string.money_load_error), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.money_load_error), style = AtmosphereTheme.typography.titleMedium)
         Button(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseEditor(
     currency: String,
     roster: BillingRosterUi?,
     initialTemplate: ExpenseTemplateUi? = null,
+    initialExpense: ExpenseUi? = null,
     busy: Boolean,
     onDismiss: () -> Unit,
-    onSubmit: (ExpenseDraft) -> Unit,
+    onSubmit: (ExpenseDraft, String?) -> Unit,
 ) {
-    var title by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.title.orEmpty()) }
-    var amount by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.let { editableMoney(it.amountMinor, currency) }.orEmpty()) }
-    var notes by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.notes.orEmpty()) }
-    var categoryName by rememberSaveable(initialTemplate?.id) { mutableStateOf((initialTemplate?.category ?: ExpenseCategory.GROCERIES).name) }
-    var customCategoryName by rememberSaveable(initialTemplate?.id) { mutableStateOf(initialTemplate?.customCategoryName.orEmpty()) }
-    var dueDate by rememberSaveable(initialTemplate?.id) { mutableStateOf((initialTemplate?.nextDueDate ?: LocalDate.now()).toString()) }
+    val identity = initialExpense?.id ?: initialTemplate?.id
+    var title by rememberSaveable(identity) { mutableStateOf(initialExpense?.title ?: initialTemplate?.title.orEmpty()) }
+    var supplierName by rememberSaveable(identity) { mutableStateOf(initialExpense?.supplierName.orEmpty()) }
+    var amount by rememberSaveable(identity) {
+        mutableStateOf(
+            (initialExpense?.amountMinor ?: initialTemplate?.amountMinor)
+                ?.let { editableMoney(it, currency) }.orEmpty(),
+        )
+    }
+    var notes by rememberSaveable(identity) { mutableStateOf(initialExpense?.notes ?: initialTemplate?.notes.orEmpty()) }
+    var categoryName by rememberSaveable(identity) {
+        mutableStateOf((initialExpense?.category ?: initialTemplate?.category ?: ExpenseCategory.GROCERIES).name)
+    }
+    var customCategoryName by rememberSaveable(identity) {
+        mutableStateOf(initialExpense?.customCategoryName ?: initialTemplate?.customCategoryName.orEmpty())
+    }
+    var dueDate by rememberSaveable(identity) {
+        mutableStateOf((initialExpense?.dueDate ?: initialTemplate?.nextDueDate ?: LocalDate.now()).toString())
+    }
+    var revisionReason by rememberSaveable(identity) { mutableStateOf("") }
     var categoriesOpen by remember { mutableStateOf(false) }
     var dateOpen by remember { mutableStateOf(false) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val category = ExpenseCategory.valueOf(categoryName)
     val parsedAmount = parseMoney(amount, currency)
     val valid = title.trim().isNotEmpty() && parsedAmount != null && parsedAmount > 0 &&
-        (category != ExpenseCategory.CUSTOM || customCategoryName.trim().isNotEmpty())
+        (category != ExpenseCategory.CUSTOM || customCategoryName.trim().isNotEmpty()) &&
+        (initialExpense == null || revisionReason.trim().length >= 3)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.money_new_expense)) },
+        title = { Text(stringResource(if (initialExpense == null) R.string.money_new_expense else R.string.money_edit_expense)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.money_equal_split_explanation), style = MaterialTheme.typography.bodySmall)
+            Column(
+                modifier = Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.money_equal_split_explanation), style = AtmosphereTheme.typography.bodySmall)
+                Text(stringResource(R.string.money_section_details), style = AtmosphereTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 OutlinedTextField(title, { title = it.take(100) }, label = { Text(stringResource(R.string.money_expense_title)) }, singleLine = true)
+                OutlinedTextField(
+                    supplierName,
+                    { supplierName = it.take(120) },
+                    label = { Text(stringResource(R.string.money_supplier_optional)) },
+                    supportingText = { Text(stringResource(R.string.money_supplier_help)) },
+                    singleLine = true,
+                )
                 Column {
                     OutlinedTextField(
                         value = stringResource(category.labelResource),
@@ -913,7 +1143,7 @@ private fun ExpenseEditor(
                         readOnly = true,
                         label = { Text(stringResource(R.string.money_category)) },
                         modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = { IconButton(onClick = { categoriesOpen = true }) { Icon(Icons.Outlined.MoreVert, null) } },
+                        trailingIcon = { IconButton(onClick = { categoriesOpen = true }) { Icon(SharedHouseIcons.More, null) } },
                     )
                     DropdownMenu(expanded = categoriesOpen, onDismissRequest = { categoriesOpen = false }) {
                         ExpenseCategory.entries.forEach { item ->
@@ -945,6 +1175,7 @@ private fun ExpenseEditor(
                 if (parsedAmount != null && parsedAmount > 0 && roster != null) {
                     BillingSplitPreview(parsedAmount, currency, roster)
                 }
+                Text(stringResource(R.string.money_section_schedule), style = AtmosphereTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     dueDate,
                     {},
@@ -953,6 +1184,17 @@ private fun ExpenseEditor(
                     trailingIcon = { IconButton(onClick = { dateOpen = true }) { Icon(Icons.Outlined.CalendarMonth, null) } },
                 )
                 OutlinedTextField(notes, { notes = it.take(500) }, label = { Text(stringResource(R.string.money_notes_optional)) }, minLines = 2)
+                if (initialExpense != null) {
+                    Text(stringResource(R.string.money_section_revision), style = AtmosphereTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.money_revision_explanation), style = AtmosphereTheme.typography.bodySmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(
+                        revisionReason,
+                        { revisionReason = it.take(500) },
+                        label = { Text(stringResource(R.string.money_revision_reason)) },
+                        minLines = 2,
+                        isError = attempted && revisionReason.trim().length < 3,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -962,19 +1204,20 @@ private fun ExpenseEditor(
                     attempted = true
                     if (valid) onSubmit(ExpenseDraft(
                         title = title.trim(),
+                        supplierName = supplierName.trim().ifEmpty { null },
                         category = category,
                         customCategoryName = customCategoryName.trim().ifEmpty { null },
                         amountMinor = requireNotNull(parsedAmount),
                         dueDate = LocalDate.parse(dueDate),
                         notes = notes.trim().ifEmpty { null },
-                    ))
+                    ), revisionReason.trim().ifEmpty { null })
                 },
             ) { Text(stringResource(R.string.money_save_expense)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
     if (dateOpen) {
-        val picker = androidx.compose.material3.rememberDatePickerState(
+        val picker = com.sharedhouse.android.ui.atmosphere.rememberDatePickerState(
             initialSelectedDateMillis = LocalDate.parse(dueDate).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
         )
         DatePickerDialog(
@@ -1004,17 +1247,17 @@ private fun BillingSplitPreview(
 ) {
     val lines = remember(totalMinor, roster) { billingPreviewLines(totalMinor, roster) }
     if (lines.isEmpty()) return
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(
                 stringResource(R.string.money_split_preview_title),
-                style = MaterialTheme.typography.titleSmall,
+                style = AtmosphereTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
             )
             lines.forEach { line ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(line.label, style = MaterialTheme.typography.bodyMedium)
+                        Text(line.label, style = AtmosphereTheme.typography.bodyMedium)
                         Text(
                             stringResource(
                                 if (line.participantCount == 2) {
@@ -1023,8 +1266,8 @@ private fun BillingSplitPreview(
                                     R.string.money_split_preview_person
                                 },
                             ),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.labelSmall,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(formatMoney(line.amountMinor, currency), fontWeight = FontWeight.SemiBold)
@@ -1032,8 +1275,8 @@ private fun BillingSplitPreview(
             }
             Text(
                 stringResource(R.string.money_split_preview_notice),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.labelSmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -1064,13 +1307,13 @@ private fun billingPreviewLines(totalMinor: Long, roster: BillingRosterUi): List
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseDetails(
     expense: ExpenseUi,
     busy: Boolean,
     onDismiss: () -> Unit,
     onApprove: () -> Unit,
+    onEdit: () -> Unit,
     onReverse: (String) -> Unit,
     onDeclarePayment: (ExpensePaymentDraft) -> Unit,
     onConfirmPayment: (ExpensePaymentUi) -> Unit,
@@ -1091,18 +1334,30 @@ private fun ExpenseDetails(
             item {
                 Text(
                     expense.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = AtmosphereTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
             }
-            item { Text(stringResource(expense.status.labelResource), color = expense.status.color()) }
+            item { ExpenseStatusBadge(expense.status) }
             item {
                 Text(
                     formatMoney(expense.amountMinor, expense.currency),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = AtmosphereTheme.typography.headlineMedium,
                 )
             }
             item { Text(stringResource(R.string.money_due_value, expense.dueDate.toString())) }
+            expense.supplierName?.let { supplier ->
+                item { Text(stringResource(R.string.money_supplier_value, supplier)) }
+            }
+            if (expense.revisionOfExpenseId != null) {
+                item {
+                    Text(
+                        stringResource(R.string.money_revised_entry),
+                        color = AtmosphereTheme.colorScheme.primary,
+                        style = AtmosphereTheme.typography.bodySmall,
+                    )
+                }
+            }
             if (expense.sourceTemplateId != null) {
                 item {
                     Text(
@@ -1110,19 +1365,34 @@ private fun ExpenseDetails(
                             R.string.money_generated_cost_details,
                             (expense.occurrenceDate ?: expense.dueDate).toString(),
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.primary,
                     )
                 }
             }
             expense.notes?.let { note ->
-                item { Text(note, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { Text(note, color = AtmosphereTheme.colorScheme.onSurfaceVariant) }
+            }
+            if (expense.canApprove || expense.canRevise || expense.canReverse) {
+                item {
+                    ExpenseActionPanel(
+                        canApprove = expense.canApprove,
+                        canRevise = expense.canRevise,
+                        canReverse = expense.canReverse,
+                        activePayments = payments.filter { it.status != ExpensePaymentStatus.REVERSED },
+                        busy = busy,
+                        onApprove = onApprove,
+                        onEdit = onEdit,
+                        onReverse = { reverseOpen = true },
+                        onCorrectPayment = { reversePaymentId = it.id },
+                    )
+                }
             }
             item { HorizontalDivider() }
             item {
                 Text(
                     stringResource(R.string.money_split_breakdown),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AtmosphereTheme.typography.titleMedium,
                 )
             }
             items(expense.allocations, key = ExpenseAllocationUi::membershipId) { allocation ->
@@ -1140,14 +1410,18 @@ private fun ExpenseDetails(
                     }
                     Text(
                         stringResource(allocation.status.labelResource),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = AtmosphereTheme.typography.labelMedium,
                         color = allocation.status.color(),
                     )
                     if (allocation.billingUnitType == BillingUnitType.COUPLE) {
                         Text(
-                            stringResource(R.string.money_couple_combined_share, allocation.participantCount),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            pluralStringResource(
+                                R.plurals.money_couple_combined_share,
+                                allocation.participantCount,
+                                allocation.participantCount,
+                            ),
+                            style = AtmosphereTheme.typography.bodySmall,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     if (allocation.canDeclarePayment) {
@@ -1165,8 +1439,8 @@ private fun ExpenseDetails(
                 item {
                     Text(
                         stringResource(R.string.money_rounding_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -1175,7 +1449,7 @@ private fun ExpenseDetails(
                 item {
                     Text(
                         stringResource(R.string.money_payment_history),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                 }
                 items(payments, key = ExpensePaymentUi::id) { payment ->
@@ -1186,24 +1460,6 @@ private fun ExpenseDetails(
                         onDispute = { disputePaymentId = payment.id },
                         onReverse = { reversePaymentId = payment.id },
                     )
-                }
-            }
-            if (expense.canApprove) {
-                item {
-                    Button(
-                        onClick = onApprove,
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.money_approve)) }
-                }
-            }
-            if (expense.canReverse) {
-                item {
-                    TextButton(
-                        onClick = { reverseOpen = true },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.money_reverse)) }
                 }
             }
         }
@@ -1269,10 +1525,144 @@ private fun ExpenseDetails(
         AlertDialog(
             onDismissRequest = { reverseOpen = false },
             title = { Text(stringResource(R.string.money_reverse_title)) },
-            text = { OutlinedTextField(reason, { reason = it.take(300) }, label = { Text(stringResource(R.string.money_reverse_reason)) }, minLines = 2) },
-            confirmButton = { Button(onClick = { onReverse(reason.trim()) }, enabled = reason.trim().length >= 3) { Text(stringResource(R.string.money_confirm_reverse)) } },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(R.string.money_reverse_explanation),
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it.take(300) },
+                        label = { Text(stringResource(R.string.money_reverse_reason)) },
+                        supportingText = {
+                            Text(
+                                stringResource(R.string.money_reverse_reason_help),
+                                style = AtmosphereTheme.typography.labelSmall,
+                                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        minLines = 2,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onReverse(reason.trim()) },
+                    enabled = reason.trim().length >= 3,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AtmosphereTheme.colorScheme.error,
+                        contentColor = AtmosphereTheme.colorScheme.onError,
+                    ),
+                ) { Text(stringResource(R.string.money_confirm_reverse)) }
+            },
             dismissButton = { TextButton(onClick = { reverseOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
+    }
+}
+
+@Composable
+private fun ExpenseActionPanel(
+    canApprove: Boolean,
+    canRevise: Boolean,
+    canReverse: Boolean,
+    activePayments: List<ExpensePaymentUi>,
+    busy: Boolean,
+    onApprove: () -> Unit,
+    onEdit: () -> Unit,
+    onReverse: () -> Unit,
+    onCorrectPayment: (ExpensePaymentUi) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (canReverse && activePayments.isNotEmpty()) {
+            Surface(
+                shape = AtmosphereTheme.shapes.medium,
+                color = AtmosphereTheme.colorScheme.errorContainer,
+                contentColor = AtmosphereTheme.colorScheme.onErrorContainer,
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.money_remove_blocked_title),
+                        style = AtmosphereTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        pluralStringResource(
+                            R.plurals.money_remove_blocked_payments,
+                            activePayments.size,
+                            activePayments.size,
+                        ),
+                        style = AtmosphereTheme.typography.bodySmall,
+                    )
+                    activePayments.forEach { payment ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(payment.payerDisplayName, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(payment.status.labelResource),
+                                    style = AtmosphereTheme.typography.labelSmall,
+                                )
+                            }
+                            TextButton(
+                                onClick = { onCorrectPayment(payment) },
+                                enabled = !busy && payment.canReverse,
+                            ) { Text(stringResource(R.string.money_reverse_payment)) }
+                        }
+                    }
+                }
+            }
+        }
+        if (canApprove) {
+            Button(
+                onClick = onApprove,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.money_approve)) }
+        }
+        if (canRevise || canReverse) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (canRevise) {
+                    OutlinedButton(
+                        onClick = onEdit,
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.money_edit_expense), maxLines = 1) }
+                }
+                if (canReverse) {
+                    Button(
+                        onClick = onReverse,
+                        enabled = !busy && activePayments.isEmpty(),
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AtmosphereTheme.colorScheme.error,
+                            contentColor = AtmosphereTheme.colorScheme.onError,
+                        ),
+                    ) { Text(stringResource(R.string.money_remove_expense), maxLines = 1) }
+                }
+            }
+        }
+        if (canReverse) {
+            Text(
+                stringResource(
+                    if (activePayments.isEmpty()) {
+                        R.string.money_remove_history_notice
+                    } else {
+                        R.string.money_remove_blocked_notice
+                    },
+                ),
+                style = AtmosphereTheme.typography.labelSmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -1284,29 +1674,47 @@ private fun PaymentHistoryCard(
     onDispute: () -> Unit,
     onReverse: () -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceVariant)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth()) {
                 Text(payment.payerDisplayName, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                 Text(formatMoney(payment.amountMinor, payment.currency), fontWeight = FontWeight.SemiBold)
             }
-            Text(
-                stringResource(payment.status.labelResource),
-                style = MaterialTheme.typography.labelMedium,
-                color = payment.status.color(),
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(payment.status.icon(), null, Modifier.size(15.dp), tint = payment.status.color())
+                Text(
+                    stringResource(
+                        R.string.money_payment_status_by,
+                        stringResource(payment.status.labelResource),
+                        payment.statusActorDisplayName(),
+                    ),
+                    style = AtmosphereTheme.typography.labelMedium,
+                    color = payment.status.color(),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            if (payment.status != ExpensePaymentStatus.DECLARED) {
+                Text(
+                    stringResource(R.string.money_payment_declared_by, payment.declaredByDisplayName),
+                    style = AtmosphereTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 stringResource(
                     R.string.money_payment_method_date,
                     stringResource(payment.method.labelResource),
                     formatPaymentTime(payment.paidAt),
                 ),
-                style = MaterialTheme.typography.bodySmall,
+                style = AtmosphereTheme.typography.bodySmall,
             )
             payment.reference?.let {
                 Text(stringResource(R.string.money_payment_reference_value, it))
             }
-            payment.note?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            payment.note?.let { Text(it, color = AtmosphereTheme.colorScheme.onSurfaceVariant) }
             payment.disputeReason?.let {
                 Text(stringResource(R.string.money_payment_dispute_reason_value, it))
             }
@@ -1337,6 +1745,19 @@ private fun PaymentHistoryCard(
             }
         }
     }
+}
+
+private fun ExpensePaymentUi.statusActorDisplayName(): String = when (status) {
+    ExpensePaymentStatus.DECLARED -> declaredByDisplayName
+    ExpensePaymentStatus.CONFIRMED -> confirmedByDisplayName ?: declaredByDisplayName
+    ExpensePaymentStatus.DISPUTED -> disputedByDisplayName ?: declaredByDisplayName
+    ExpensePaymentStatus.REVERSED -> reversedByDisplayName ?: declaredByDisplayName
+}
+
+private fun ExpensePaymentStatus.icon(): ImageVector = when (this) {
+    ExpensePaymentStatus.DECLARED -> SharedHouseIcons.Pending
+    ExpensePaymentStatus.CONFIRMED -> SharedHouseIcons.Approved
+    ExpensePaymentStatus.DISPUTED, ExpensePaymentStatus.REVERSED -> SharedHouseIcons.Reversed
 }
 
 @Composable
@@ -1389,8 +1810,8 @@ private fun PaymentDeclarationDialog(
                 )
                 Text(
                     stringResource(R.string.money_payment_declaration_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -1489,6 +1910,7 @@ private val ExpenseCategory.labelResource: Int @StringRes get() = when (this) {
 
 private val ExpenseTemplateCadence.labelResource: Int @StringRes get() = when (this) {
     ExpenseTemplateCadence.WEEKLY -> R.string.money_cadence_weekly
+    ExpenseTemplateCadence.FORTNIGHTLY -> R.string.money_cadence_fortnightly
     ExpenseTemplateCadence.MONTHLY -> R.string.money_cadence_monthly
     ExpenseTemplateCadence.QUARTERLY -> R.string.money_cadence_quarterly
     ExpenseTemplateCadence.YEARLY -> R.string.money_cadence_yearly
@@ -1523,23 +1945,23 @@ private val ExpensePaymentMethod.labelResource: Int @StringRes get() = when (thi
 }
 
 @Composable private fun ExpenseStatus.color() = when (this) {
-    ExpenseStatus.PROPOSED -> MaterialTheme.colorScheme.tertiary
-    ExpenseStatus.APPROVED -> MaterialTheme.colorScheme.primary
-    ExpenseStatus.REVERSED -> MaterialTheme.colorScheme.outline
+    ExpenseStatus.PROPOSED -> AtmosphereTheme.colorScheme.statusAttention
+    ExpenseStatus.APPROVED -> AtmosphereTheme.colorScheme.statusPositive
+    ExpenseStatus.REVERSED -> AtmosphereTheme.colorScheme.statusNeutral
 }
 
 @Composable private fun ExpenseAllocationStatus.color() = when (this) {
-    ExpenseAllocationStatus.OUTSTANDING -> MaterialTheme.colorScheme.onSurfaceVariant
-    ExpenseAllocationStatus.DECLARED -> MaterialTheme.colorScheme.tertiary
-    ExpenseAllocationStatus.PAID -> MaterialTheme.colorScheme.primary
-    ExpenseAllocationStatus.DISPUTED -> MaterialTheme.colorScheme.error
+    ExpenseAllocationStatus.OUTSTANDING -> AtmosphereTheme.colorScheme.statusAttention
+    ExpenseAllocationStatus.DECLARED -> AtmosphereTheme.colorScheme.statusAttention
+    ExpenseAllocationStatus.PAID -> AtmosphereTheme.colorScheme.statusPositive
+    ExpenseAllocationStatus.DISPUTED -> AtmosphereTheme.colorScheme.statusNegative
 }
 
 @Composable private fun ExpensePaymentStatus.color() = when (this) {
-    ExpensePaymentStatus.DECLARED -> MaterialTheme.colorScheme.tertiary
-    ExpensePaymentStatus.CONFIRMED -> MaterialTheme.colorScheme.primary
-    ExpensePaymentStatus.DISPUTED -> MaterialTheme.colorScheme.error
-    ExpensePaymentStatus.REVERSED -> MaterialTheme.colorScheme.outline
+    ExpensePaymentStatus.DECLARED -> AtmosphereTheme.colorScheme.statusAttention
+    ExpensePaymentStatus.CONFIRMED -> AtmosphereTheme.colorScheme.statusPositive
+    ExpensePaymentStatus.DISPUTED -> AtmosphereTheme.colorScheme.statusNegative
+    ExpensePaymentStatus.REVERSED -> AtmosphereTheme.colorScheme.statusNeutral
 }
 
 private val MoneyFilter.labelResource: Int @StringRes get() = when (this) {
@@ -1559,6 +1981,7 @@ private val MoneyProblem.messageResource: Int @StringRes get() = when (this) {
     MoneyProblem.CREATE_FAILED -> R.string.money_create_error
     MoneyProblem.APPROVE_FAILED -> R.string.money_approve_error
     MoneyProblem.REVERSE_FAILED -> R.string.money_reverse_error
+    MoneyProblem.REVISE_FAILED -> R.string.money_revise_error
     MoneyProblem.TEMPLATE_FAILED -> R.string.money_template_error
     MoneyProblem.PAYMENT_DECLARE_FAILED -> R.string.money_payment_declare_error
     MoneyProblem.PAYMENT_CONFIRM_FAILED -> R.string.money_payment_confirm_error

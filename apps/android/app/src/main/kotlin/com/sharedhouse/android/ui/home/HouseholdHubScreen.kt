@@ -2,6 +2,7 @@ package com.sharedhouse.android.ui.home
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,15 +13,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.AdminPanelSettings
@@ -35,18 +36,22 @@ import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.FilledTonalButton
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.DropdownMenu
+import com.sharedhouse.android.ui.atmosphere.DropdownMenuItem
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.PremiumHeroCard
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
+import com.sharedhouse.android.ui.atmosphere.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -54,6 +59,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -63,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
+import com.sharedhouse.android.ui.icons.SharedHouseIcons
 import java.time.LocalDate
 import java.time.Instant
 import java.time.ZoneId
@@ -79,9 +87,12 @@ fun HouseholdHubScreen(
     model: HouseholdHubUiModel,
     onEditHousehold: () -> Unit,
     onManageInvitations: () -> Unit,
+    onManageCosts: () -> Unit,
+    onScheduleTasks: () -> Unit,
     onJoinHousehold: () -> Unit,
     onSelectHousehold: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHouseholdSettings: () -> Unit,
     onOpenGuides: () -> Unit,
     onSignOut: () -> Unit,
     onRetryMembers: () -> Unit,
@@ -91,17 +102,15 @@ fun HouseholdHubScreen(
     var roleTarget by remember { mutableStateOf<HouseholdMemberUi?>(null) }
     var pendingAction by remember { mutableStateOf<PendingMemberAction?>(null) }
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 960.dp),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item { HouseholdHubHeader(model) }
             item {
@@ -156,8 +165,11 @@ fun HouseholdHubScreen(
                         model.householdRole == "admin",
                     onEditHousehold = onEditHousehold,
                     onManageInvitations = onManageInvitations,
+                    onManageCosts = onManageCosts,
+                    onScheduleTasks = onScheduleTasks,
                     onJoinHousehold = onJoinHousehold,
                     onOpenSettings = onOpenSettings,
+                    onOpenHouseholdSettings = onOpenHouseholdSettings,
                     onOpenGuides = onOpenGuides,
                 )
             }
@@ -209,8 +221,8 @@ private fun HouseholdMembersPanel(
     when (val content = state.content) {
         HouseholdMembersContent.Loading -> Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = MaterialTheme.shapes.extraLarge,
+            color = AtmosphereTheme.colorScheme.surfaceContainerLow,
+            shape = AtmosphereTheme.shapes.extraLarge,
         ) {
             Row(
                 modifier = Modifier.padding(24.dp),
@@ -223,12 +235,12 @@ private fun HouseholdMembersPanel(
         }
         HouseholdMembersContent.Error -> Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.errorContainer),
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     stringResource(R.string.house_members_load_error),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    color = AtmosphereTheme.colorScheme.onErrorContainer,
                 )
                 FilledTonalButton(onClick = onRetry) {
                     Icon(Icons.Outlined.Refresh, contentDescription = null)
@@ -236,12 +248,12 @@ private fun HouseholdMembersPanel(
                 }
             }
         }
-        is HouseholdMembersContent.Ready -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        is HouseholdMembersContent.Ready -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             state.problem?.let { problem ->
                 Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    shape = MaterialTheme.shapes.large,
+                    color = AtmosphereTheme.colorScheme.errorContainer,
+                    contentColor = AtmosphereTheme.colorScheme.onErrorContainer,
+                    shape = AtmosphereTheme.shapes.large,
                 ) {
                     Text(
                         stringResource(
@@ -278,70 +290,134 @@ private fun MemberCard(
 ) {
     val roleLabel = localizedRole(member.role)
     val statusLabel = localizedMembershipStatus(member.status)
+    var menuExpanded by remember(member.membershipId) { mutableStateOf(false) }
+    val hasActions = member.canChangeRole || member.canSuspend || member.canReactivate ||
+        member.canRemove || member.canTransferOwnership
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (member.isCurrentUser) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surface,
+            containerColor = AtmosphereTheme.colorScheme.surfaceContainerLow,
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(
+            if (member.isCurrentUser) 2.dp else 1.dp,
+            if (member.isCurrentUser) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.outlineVariant,
+        ),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = if (member.role == "owner" || member.role == "admin") MaterialTheme.colorScheme.tertiaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Icon(
-                        if (member.role == "owner" || member.role == "admin") Icons.Outlined.AdminPanelSettings else Icons.Outlined.Person,
-                        contentDescription = null,
-                        modifier = Modifier.padding(12.dp),
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(member.displayName, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        buildString {
-                            append(roleLabel)
-                            append(" · ")
-                            append(statusLabel)
-                        },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        stringResource(R.string.house_members_joined, localizedMemberDate(member.joinedAt)),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                if (member.isCurrentUser) HubStatusPill(Icons.Outlined.AccountCircle, stringResource(R.string.house_members_current))
-                if (busy) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HouseholdMemberAvatar(member)
+            Column(Modifier.weight(1f)) {
+                Text(member.displayName, style = AtmosphereTheme.typography.titleMedium)
+                Text(
+                    "$roleLabel · $statusLabel",
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
+                )
+                Text(
+                    stringResource(R.string.house_members_joined, localizedMemberDate(member.joinedAt)),
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.labelSmall,
+                )
             }
-            if (!busy && (member.canChangeRole || member.canSuspend || member.canReactivate || member.canRemove || member.canTransferOwnership)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (member.canChangeRole) OutlinedButton(onClick = onChangeRole, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.house_members_change_role))
+            if (member.isCurrentUser) {
+                Text(
+                    stringResource(R.string.house_members_current),
+                    color = AtmosphereTheme.colorScheme.primary,
+                    style = AtmosphereTheme.typography.labelSmall,
+                )
+            }
+            if (busy) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+            } else if (hasActions) {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            SharedHouseIcons.More,
+                            contentDescription = stringResource(R.string.house_members_more_actions, member.displayName),
+                        )
                     }
-                    if (member.canReactivate) Button(
-                        onClick = { onDirectAction(member.command("reactivate")) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.house_members_reactivate)) }
-                    if (member.canSuspend) TextButton(
-                        onClick = { onConfirm(member.command("suspend")) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.house_members_suspend)) }
-                    if (member.canTransferOwnership) OutlinedButton(
-                        onClick = { onConfirm(member.command("transfer_ownership")) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.house_members_transfer)) }
-                    if (member.canRemove) TextButton(
-                        onClick = { onConfirm(member.command("remove")) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.house_members_remove), color = MaterialTheme.colorScheme.error) }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        if (member.canChangeRole) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.house_members_change_role)) },
+                            onClick = { menuExpanded = false; onChangeRole() },
+                        )
+                        if (member.canReactivate) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.house_members_reactivate)) },
+                            onClick = { menuExpanded = false; onDirectAction(member.command("reactivate")) },
+                        )
+                        if (member.canSuspend) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.house_members_suspend)) },
+                            onClick = { menuExpanded = false; onConfirm(member.command("suspend")) },
+                        )
+                        if (member.canTransferOwnership) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.house_members_transfer)) },
+                            onClick = { menuExpanded = false; onConfirm(member.command("transfer_ownership")) },
+                        )
+                        if (member.canRemove) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.house_members_remove), color = AtmosphereTheme.colorScheme.error) },
+                            onClick = { menuExpanded = false; onConfirm(member.command("remove")) },
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HouseholdMemberAvatar(member: HouseholdMemberUi) {
+    val gradients = listOf(
+        listOf(Color(0xFF7C3AED), Color(0xFFEC4899)),
+        listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6)),
+        listOf(Color(0xFFEC4899), Color(0xFFF97316)),
+        listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6)),
+    )
+    val colors = gradients[(member.membershipId.hashCode() and Int.MAX_VALUE) % gradients.size]
+    val initials = member.displayName
+        .trim()
+        .split(Regex("\\s+"))
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercase() }
+        .joinToString("")
+        .ifBlank { "?" }
+    val ringPadding = if (member.isCurrentUser) 2.dp else 0.dp
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .background(
+                brush = if (member.isCurrentUser) {
+                    Brush.linearGradient(listOf(Color(0xFF7C3AED), Color(0xFFA855F7), Color(0xFFEC4899)))
+                } else {
+                    Brush.linearGradient(colors)
+                },
+                shape = CircleShape,
+            )
+            .padding(ringPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    color = if (member.isCurrentUser) AtmosphereTheme.colorScheme.background else Color.Transparent,
+                    shape = CircleShape,
+                )
+                .padding(if (member.isCurrentUser) 2.dp else 0.dp)
+                .background(Brush.linearGradient(colors), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                style = AtmosphereTheme.typography.labelLarge,
+            )
         }
     }
 }
@@ -376,7 +452,7 @@ private fun RoleOption(role: String, @StringRes title: Int, @StringRes help: Int
     OutlinedButton(onClick = { onRole(role) }, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
             Text(stringResource(title))
-            Text(stringResource(help), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(help), style = AtmosphereTheme.typography.bodySmall)
         }
     }
 }
@@ -419,12 +495,12 @@ private fun HouseholdSwitcherCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (household.selected) {
-                MaterialTheme.colorScheme.primaryContainer
+                AtmosphereTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.surface
+                AtmosphereTheme.colorScheme.surface
             },
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(18.dp),
@@ -433,17 +509,17 @@ private fun HouseholdSwitcherCard(
         ) {
             Icon(Icons.Outlined.Groups, contentDescription = null)
             Column(modifier = Modifier.weight(1f)) {
-                Text(household.name, style = MaterialTheme.typography.titleMedium)
+                Text(household.name, style = AtmosphereTheme.typography.titleMedium)
                 Text(
                     localizedRole(household.role),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodyMedium,
                 )
             }
             if (household.selected) {
                 Text(
                     stringResource(R.string.household_switcher_current),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = AtmosphereTheme.typography.labelLarge,
                 )
             }
         }
@@ -454,46 +530,48 @@ private fun HouseholdSwitcherCard(
 private fun HouseholdHubHeader(model: HouseholdHubUiModel) {
     val name = model.householdName.takeIf(String::isNotBlank)
         ?: stringResource(R.string.househub_name_unavailable)
-    Surface(
+    PremiumHeroCard(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        shape = MaterialTheme.shapes.extraLarge,
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary,
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Groups, contentDescription = null)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = Color.White.copy(alpha = .14f),
+                    contentColor = Color.White,
+                    shape = AtmosphereTheme.shapes.medium,
+                ) {
+                    Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                        Icon(SharedHouseIcons.House, contentDescription = null, Modifier.size(23.dp))
+                    }
                 }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Text(
-                    text = stringResource(R.string.househub_subtitle),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = name,
+                        style = AtmosphereTheme.typography.headlineMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(
+                        text = stringResource(R.string.househub_subtitle),
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = .75f),
+                        maxLines = 2,
+                    )
+                }
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HubStatusPill(
-                    icon = Icons.Outlined.Badge,
+                    icon = SharedHouseIcons.People,
                     text = localizedRole(model.householdRole),
                 )
                 HubStatusPill(
-                    icon = Icons.Outlined.AccountCircle,
+                    icon = SharedHouseIcons.Approved,
                     text = localizedMembershipStatus(model.membershipStatus),
                 )
             }
@@ -504,17 +582,17 @@ private fun HouseholdHubHeader(model: HouseholdHubUiModel) {
 @Composable
 private fun HubStatusPill(icon: ImageVector, text: String) {
     Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.extraLarge,
+        color = Color.White.copy(alpha = .14f),
+        contentColor = Color.White,
+        shape = AtmosphereTheme.shapes.extraLarge,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(text = text, style = MaterialTheme.typography.labelMedium)
+            Text(text = text, style = AtmosphereTheme.typography.labelMedium)
         }
     }
 }
@@ -524,13 +602,13 @@ private fun HubSectionTitle(title: String, supporting: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = AtmosphereTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
         Text(
             text = supporting,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
     }
 }
@@ -560,7 +638,7 @@ private fun HouseholdConfigurationGrid(model: HouseholdHubUiModel) {
                 )
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ConfigurationCard(
                     title = R.string.househub_country,
                     value = localizedCountry(model.countryCode),
@@ -590,25 +668,21 @@ private fun ConfigurationCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text(
-                text = stringResource(title),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Surface(color = AtmosphereTheme.colorScheme.primaryContainer, contentColor = AtmosphereTheme.colorScheme.primary, shape = AtmosphereTheme.shapes.small) {
+                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, Modifier.size(19.dp)) }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(text = stringResource(title), color = AtmosphereTheme.colorScheme.onSurfaceVariant, style = AtmosphereTheme.typography.labelSmall)
+                Text(text = value, style = AtmosphereTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -617,13 +691,13 @@ private fun ConfigurationCard(
 private fun HouseholdCycleCard(model: HouseholdHubUiModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -631,23 +705,23 @@ private fun HouseholdCycleCard(model: HouseholdHubUiModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = MaterialTheme.shapes.large,
+                    color = AtmosphereTheme.colorScheme.primaryContainer,
+                    contentColor = AtmosphereTheme.colorScheme.onPrimaryContainer,
+                    shape = AtmosphereTheme.shapes.medium,
                 ) {
-                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
+                    Box(modifier = Modifier.size(38.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null, Modifier.size(20.dp))
                     }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.househub_cycle_title),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                     Text(
                         text = localizedCycle(model.cycleType),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyMedium,
                     )
                 }
             }
@@ -661,8 +735,8 @@ private fun HouseholdCycleCard(model: HouseholdHubUiModel) {
             )
             Text(
                 text = stringResource(R.string.househub_cycle_guidance),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
             )
         }
     }
@@ -678,13 +752,13 @@ private fun CycleValueRow(label: String, value: String) {
         Text(
             text = label,
             modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
         Text(
             text = value,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = AtmosphereTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
         )
     }
 }
@@ -694,20 +768,27 @@ private fun HouseholdActionPanel(
     canManageHousehold: Boolean,
     onEditHousehold: () -> Unit,
     onManageInvitations: () -> Unit,
+    onManageCosts: () -> Unit,
+    onScheduleTasks: () -> Unit,
     onJoinHousehold: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHouseholdSettings: () -> Unit,
     onOpenGuides: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (canManageHousehold) {
+                Button(onClick = onOpenHouseholdSettings, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Settings, contentDescription = null)
+                    Text(text = stringResource(R.string.household_settings_title), modifier = Modifier.padding(start = 8.dp))
+                }
                 Button(onClick = onEditHousehold, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Outlined.Edit, contentDescription = null)
                     Text(
@@ -719,6 +800,20 @@ private fun HouseholdActionPanel(
                     Icon(Icons.Outlined.GroupAdd, contentDescription = null)
                     Text(
                         text = stringResource(R.string.invitation_manage_action),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                OutlinedButton(onClick = onManageCosts, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.MonetizationOn, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.househub_manage_costs),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                OutlinedButton(onClick = onScheduleTasks, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.Checklist, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.househub_schedule_tasks),
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
@@ -758,8 +853,8 @@ private fun HouseholdActionPanel(
 private fun AccountPanel(displayName: String, onSignOut: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+        color = AtmosphereTheme.colorScheme.surfaceContainer,
+        shape = AtmosphereTheme.shapes.extraLarge,
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -773,20 +868,20 @@ private fun AccountPanel(displayName: String, onSignOut: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.househub_account_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                     Text(
                         text = displayName.takeIf(String::isNotBlank)
                             ?: stringResource(R.string.househub_account_name_unavailable),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        style = AtmosphereTheme.typography.bodyMedium,
                     )
                 }
             }
             Text(
                 text = stringResource(R.string.househub_signout_guidance),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodySmall,
             )
             TextButton(onClick = onSignOut, modifier = Modifier.align(Alignment.End)) {
                 Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null)

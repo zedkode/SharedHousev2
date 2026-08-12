@@ -13,13 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -66,12 +66,12 @@ fun NotificationPermissionExplainer(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (isGranted) {
-                MaterialTheme.colorScheme.primaryContainer
+                AtmosphereTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.secondaryContainer
+                AtmosphereTheme.colorScheme.secondaryContainer
             },
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -97,7 +97,7 @@ fun NotificationPermissionExplainer(
                             R.string.notification_permission_title
                         },
                     ),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AtmosphereTheme.typography.titleMedium,
                 )
             }
             Text(
@@ -108,8 +108,8 @@ fun NotificationPermissionExplainer(
                         R.string.notification_permission_description
                     },
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
             if (status == NotificationPermissionStatus.NOT_GRANTED && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Button(

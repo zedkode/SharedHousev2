@@ -1,4 +1,4 @@
-export type ExpenseCadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type ExpenseCadence = 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly';
 
 export function nextOccurrenceDate(
   currentDate: string,
@@ -10,8 +10,9 @@ export function nextOccurrenceDate(
   assertIntegerInRange(anchorDay, 1, 31, 'anchorDay');
   assertIntegerInRange(anchorMonth, 1, 12, 'anchorMonth');
 
-  if (cadence === 'weekly') {
-    const value = new Date(Date.UTC(current.year, current.month - 1, current.day + 7));
+  if (cadence === 'weekly' || cadence === 'fortnightly') {
+    const days = cadence === 'fortnightly' ? 14 : 7;
+    const value = new Date(Date.UTC(current.year, current.month - 1, current.day + days));
     return formatDate(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate());
   }
 

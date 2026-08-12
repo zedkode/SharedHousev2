@@ -6,12 +6,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,9 +33,9 @@ import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
 import com.sharedhouse.android.platform.google.GoogleServicesCoordinator
 import com.sharedhouse.android.platform.security.AndroidKeystoreSessionStore
 import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.preferences.AppearanceMode
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
-import com.sharedhouse.android.preferences.AppearanceMode
 import com.sharedhouse.android.ui.app.ApiSharedHouseGateway
 import com.sharedhouse.android.ui.app.HouseholdFormState
 import com.sharedhouse.android.ui.app.SharedHouseApp
@@ -77,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                 SharedHouseTheme {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background,
+                        color = AtmosphereTheme.colorScheme.background,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
@@ -88,13 +91,13 @@ class MainActivity : AppCompatActivity() {
             }
 
             val preferences = requireNotNull(preferenceSnapshot)
-            val googleServicesStatus by googleServicesCoordinator.status.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
             val useDarkTheme = when (preferences.appearanceMode) {
                 AppearanceMode.SYSTEM -> systemDark
                 AppearanceMode.LIGHT -> false
                 AppearanceMode.DARK -> true
             }
+            val googleServicesStatus by googleServicesCoordinator.status.collectAsStateWithLifecycle()
             val systemDensity = LocalDensity.current
             val scaledDensity = remember(systemDensity, preferences.textScale) {
                 Density(
@@ -115,28 +118,35 @@ class MainActivity : AppCompatActivity() {
                     darkTheme = useDarkTheme,
                     dynamicColor = preferences.dynamicColor,
                     highContrast = preferences.highContrast,
+                    reducedMotion = preferences.reducedMotion,
                 ) {
-                    if (!preferences.tutorialCompleted) {
-                        TutorialRoute(
-                            repository = preferencesRepository,
-                            onFinished = {},
-                        )
-                    } else {
-                        val appViewModel: SharedHouseViewModel = viewModel(
-                            factory = sharedHouseViewModelFactory(),
-                        )
-                        val locale = LocalConfiguration.current.locales[0]
-                        LaunchedEffect(locale.language) {
-                            appViewModel.updatePreferredLocale(locale.language)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(WindowInsets.safeDrawing),
+                    ) {
+                        if (!preferences.tutorialCompleted) {
+                            TutorialRoute(
+                                repository = preferencesRepository,
+                                onFinished = {},
+                            )
+                        } else {
+                            val appViewModel: SharedHouseViewModel = viewModel(
+                                factory = sharedHouseViewModelFactory(),
+                            )
+                            val locale = LocalConfiguration.current.locales[0]
+                            LaunchedEffect(locale.language) {
+                                appViewModel.updatePreferredLocale(locale.language)
+                            }
+                            SharedHouseApp(
+                                viewModel = appViewModel,
+                                preferencesRepository = preferencesRepository,
+                                appPreferences = preferences,
+                                googleServicesStatus = googleServicesStatus,
+                                onShowAdPrivacyOptions = googleServicesCoordinator::showPrivacyOptions,
+                                onLanguageChanged = ::applyAppLanguage,
+                            )
                         }
-                        SharedHouseApp(
-                            viewModel = appViewModel,
-                            preferencesRepository = preferencesRepository,
-                            appPreferences = preferences,
-                            googleServicesStatus = googleServicesStatus,
-                            onShowAdPrivacyOptions = googleServicesCoordinator::showPrivacyOptions,
-                            onLanguageChanged = ::applyAppLanguage,
-                        )
                     }
                 }
             }

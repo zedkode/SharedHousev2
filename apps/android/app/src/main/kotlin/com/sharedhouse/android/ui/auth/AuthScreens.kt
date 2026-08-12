@@ -23,22 +23,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.Checkbox
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.FilledTonalButton
+import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.IconButton
+import com.sharedhouse.android.ui.atmosphere.LinearProgressIndicator
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.atmosphere.Scaffold
+import com.sharedhouse.android.ui.atmosphere.Surface
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,7 +76,7 @@ fun WelcomeScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = AtmosphereTheme.colorScheme.background,
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -102,13 +102,13 @@ fun WelcomeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             text = stringResource(R.string.welcome_title),
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = AtmosphereTheme.typography.headlineLarge,
                             modifier = Modifier.semantics { heading() },
                         )
                         Text(
                             text = stringResource(R.string.welcome_description),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
+                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                            style = AtmosphereTheme.typography.bodyLarge,
                         )
                     }
                 }
@@ -128,8 +128,8 @@ fun WelcomeScreen(
                 }
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -139,12 +139,12 @@ fun WelcomeScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Lock,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = AtmosphereTheme.colorScheme.primary,
                             )
                             Text(
                             text = stringResource(R.string.session_secure_notice),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
+                                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                                style = AtmosphereTheme.typography.bodyMedium,
                             )
                         }
                     }
@@ -277,15 +277,15 @@ fun VerifyEmailScreen(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             Text(
                 text = stringResource(R.string.verification_sent_to, state.auth.email),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                style = AtmosphereTheme.typography.bodyMedium,
             )
         },
     ) {
         ScreenMessages(state)
         state.developmentVerificationCode?.let { code ->
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.secondaryContainer),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -293,13 +293,13 @@ fun VerifyEmailScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.development_code_label),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = AtmosphereTheme.typography.labelLarge,
                     )
-                    Text(text = code, style = MaterialTheme.typography.titleLarge)
+                    Text(text = code, style = AtmosphereTheme.typography.titleLarge)
                     Text(
                         text = stringResource(R.string.development_code_notice),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        style = MaterialTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSecondaryContainer,
+                        style = AtmosphereTheme.typography.bodySmall,
                     )
                 }
             }
@@ -392,7 +392,7 @@ fun HouseholdGateScreen(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             Text(
                 text = stringResource(R.string.contacting_service),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
         ScreenMessages(state)
@@ -436,8 +436,8 @@ fun HouseholdChoiceScreen(
         }
         Text(
             text = stringResource(R.string.household_choice_guidance),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            style = AtmosphereTheme.typography.bodyMedium,
         )
         OutlinedButton(
             onClick = onSignOut,
@@ -544,13 +544,13 @@ private fun ConsentRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
-            Text(text = text, modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+            Text(text = text, modifier = Modifier.padding(start = 8.dp), style = AtmosphereTheme.typography.bodyMedium)
         }
         error?.let {
             Text(
                 text = it.localized(),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
+                color = AtmosphereTheme.colorScheme.error,
+                style = AtmosphereTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 48.dp),
             )
         }
@@ -577,7 +577,7 @@ private fun SubmitButton(
         if (loading) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = AtmosphereTheme.colorScheme.onPrimary,
                 strokeWidth = 2.dp,
             )
             Spacer(modifier = Modifier.size(10.dp))

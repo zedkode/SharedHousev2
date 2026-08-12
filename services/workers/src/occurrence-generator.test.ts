@@ -7,6 +7,8 @@ class FakeDatabase implements WorkerDatabase, SqlExecutor {
   readonly calls: { readonly sql: string; readonly parameters: readonly unknown[] }[] = [];
   dueReads = 0;
   insertSucceeds = true;
+  cadence: 'monthly' | 'fortnightly' = 'monthly';
+  scheduleEndsOn: string | null = null;
 
   async transaction<T>(work: (executor: SqlExecutor) => Promise<T>): Promise<T> {
     return work(this);
@@ -27,10 +29,11 @@ class FakeDatabase implements WorkerDatabase, SqlExecutor {
           custom_category_name: null,
           amount_minor: '1001',
           currency: 'GBP',
-          cadence: 'monthly',
+          cadence: this.cadence,
           next_due_date: '2027-01-31',
           schedule_anchor_day: 31,
           schedule_anchor_month: 1,
+          schedule_ends_on: this.scheduleEndsOn,
           notes: null,
         },
       ] as unknown as readonly T[]);
@@ -102,5 +105,21 @@ describe('recurring expense generation', () => {
       database.calls.some((call) => call.sql.includes('INSERT INTO expense_allocations')),
     ).toBe(false);
     expect(database.calls.some((call) => call.sql.includes('UPDATE expense_templates'))).toBe(true);
+  });
+
+  it('archives a finite series after generating its inclusive final occurrence', async () => {
+    const database = new FakeDatabase();
+    database.cadence = 'fortnightly';
+    database.scheduleEndsOn = '2027-01-31';
+
+    await generateDueExpenseOccurrences(database, new Date('2027-01-31T12:00:00.000Z'), 10);
+
+    const advance = database.calls.find((call) => call.sql.includes('UPDATE expense_templates'));
+    expect(advance?.parameters).toEqual(expect.arrayContaining(['2027-02-14', true]));
+    expect(
+      database.calls.some((call) =>
+        call.sql.includes('Scheduled series reached its configured final occurrence'),
+      ),
+    ).toBe(true);
   });
 });

@@ -18,6 +18,7 @@ import com.sharedhouse.android.platform.notifications.LocalTestNotificationResul
 import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
 import com.sharedhouse.android.platform.google.GoogleServicesStatus
 import com.sharedhouse.android.preferences.AppLanguage
+import com.sharedhouse.android.preferences.AppearanceMode
 import com.sharedhouse.android.ui.app.UiMessage
 import com.sharedhouse.network.AccountExportDto
 import com.sharedhouse.android.preferences.AppPreferences
@@ -103,14 +104,14 @@ fun SettingsRoute(
         preferences = preferences,
         notice = notice,
         onBack = onBack,
-        onAppearanceModeChanged = { mode -> persist { repository.setAppearanceMode(mode) } },
-        onDynamicColorChanged = { enabled -> persist { repository.setDynamicColor(enabled) } },
         onLanguageChanged = { language ->
             persist {
                 repository.setLanguage(language)
                 onLanguageChanged(language)
             }
         },
+        onAppearanceChanged = { mode -> persist { repository.setAppearanceMode(mode) } },
+        onDynamicColorChanged = { enabled -> persist { repository.setDynamicColor(enabled) } },
         onReducedMotionChanged = { enabled -> persist { repository.setReducedMotion(enabled) } },
         onHighContrastChanged = { enabled -> persist { repository.setHighContrast(enabled) } },
         onTextScaleChanged = { scale -> persist { repository.setTextScale(scale) } },

@@ -183,6 +183,10 @@
     <string name="calendar_new_event_title">New household event</string>
     <string name="calendar_edit_event_title">Edit household event</string>
     <string name="calendar_event_form_description">Create a one-off event. It is not saved until the SharedHouse service confirms the change.</string>
+    <string name="calendar_event_details_section">What the household will see</string>
+    <string name="calendar_event_preview">Event preview</string>
+    <string name="calendar_event_preview_value">%1$s · %2$s · %3$s · %4$s</string>
+    <string name="calendar_event_preview_help">After saving, the event is shared and included in live refresh. Money and task entries come from their own records.</string>
     <string name="calendar_event_title_label">Title</string>
     <string name="calendar_event_description_label">Description (optional)</string>
     <string name="calendar_event_type_label">Type</string>
@@ -191,6 +195,8 @@
     <string name="calendar_type_maintenance">Maintenance</string>
     <string name="calendar_type_appointment">Appointment</string>
     <string name="calendar_type_shopping">Shopping</string>
+    <string name="calendar_type_money">Money due</string>
+    <string name="calendar_type_task">Household task</string>
     <string name="calendar_type_other">Other</string>
     <string name="calendar_all_day">All day</string>
     <string name="calendar_all_day_support">No start or end time is sent.</string>
@@ -227,13 +233,86 @@
     <string name="dashboard_greeting_generic">Welcome back</string>
     <string name="dashboard_household_context">Your shared space for %1$s</string>
     <string name="dashboard_household_name_unavailable">Household name unavailable</string>
-    <string name="dashboard_configured_household_badge">Configured household</string>
     <string name="dashboard_quick_actions_title">Quick actions</string>
     <string name="dashboard_quick_actions_supporting">Open the places you use most without hunting through menus.</string>
     <string name="dashboard_action_calendar">Calendar</string>
-    <string name="dashboard_action_edit_household">Edit household</string>
     <string name="dashboard_action_guides">Guides</string>
-    <string name="dashboard_action_settings">Settings</string>
+    <string name="dashboard_action_add_expense">Add expense</string>
+    <string name="dashboard_action_record_payment">Record payment</string>
+    <string name="dashboard_action_add_bill">Add recurring bill</string>
+    <string name="dashboard_action_add_task">Add task</string>
+    <string name="dashboard_action_household_settings">Household settings</string>
+    <string name="dashboard_metric_due">Due</string>
+    <string name="dashboard_metric_tasks">Tasks</string>
+    <string name="dashboard_metric_events">Events</string>
+    <string name="dashboard_metric_requests">Requests</string>
+    <string name="dashboard_chat_live">Household chat · live</string>
+    <string name="dashboard_chat_open">Open household chat</string>
+    <string name="dashboard_chat_message">%1$s: %2$s</string>
+    <string name="dashboard_chat_empty">Start the household conversation</string>
+    <string name="chat_title">Household chat</string>
+    <string name="chat_connecting">Connecting…</string>
+    <string name="chat_live">Live</string>
+    <string name="chat_reconnecting">Reconnecting…</string>
+    <string name="chat_offline">Offline</string>
+    <string name="chat_connecting_description">Opening the live household stream.</string>
+    <string name="chat_load_failed_title">Conversation unavailable</string>
+    <string name="chat_load_failed">We couldn’t load this conversation. Check your connection and try again.</string>
+    <string name="chat_send_failed">Message not sent. Your draft is safe. Reconnect, then send it again.</string>
+    <string name="chat_reconnect">Reconnect</string>
+    <string name="chat_empty_title">Your household chat is ready</string>
+    <string name="chat_empty_description">Messages from household members will appear here.</string>
+    <string name="chat_message_hint">Message your household</string>
+    <string name="chat_read_only_hint">Your role can read this chat</string>
+    <string name="chat_read_only_description">You can follow this conversation, but your household role cannot send messages.</string>
+    <string name="chat_sending">Sending…</string>
+    <string name="chat_draft_preserved">Draft kept — reconnect before sending again.</string>
+    <string name="chat_character_count">%1$d / %2$d</string>
+    <string name="chat_today">Today</string>
+    <string name="chat_yesterday">Yesterday</string>
+    <string name="chat_sender_you">%1$s · You</string>
+    <string name="chat_message_accessibility">%1$s said: %2$s. Sent at %3$s.</string>
+    <string name="chat_send">Send message</string>
+    <string name="notification_channel_chat">Household chat</string>
+    <string name="notification_channel_chat_description">New messages from your active household.</string>
+    <string name="notification_category_chat">Household chat</string>
+    <string name="notification_category_chat_description">Notify me about new household messages. Message text stays hidden on the public lock screen.</string>
+    <string name="notification_chat_title">New household message</string>
+    <string name="notification_chat_body">Open SharedHouse to read the conversation.</string>
+    <string name="notification_public_body">Open SharedHouse to view this household update.</string>
+    <string name="settings_atmospheric_theme_description">A fixed premium violet, pink and blue system keeps every SharedHouse screen consistent in dark mode.</string>
+    <string name="settings_atmospheric_theme_note">Status meaning always uses an icon and label as well as colour. Text scaling, high contrast and reduced motion remain independent.</string>
+    <string name="settings_appearance_system">System</string>
+    <string name="settings_appearance_light">Light</string>
+    <string name="settings_appearance_dark">Dark</string>
+    <string name="settings_dynamic_colour">Device accent</string>
+    <string name="settings_dynamic_colour_description">Use the Android device accent for actions while keeping SharedHouse status colours fixed.</string>
+    <string name="household_settings_title">Household creator settings</string>
+    <string name="household_settings_snapshot">Current household rules</string>
+    <string name="household_settings_locale_value">Region: %1$s · Timezone: %2$s</string>
+    <string name="household_settings_money_value">Settlement: %1$s · Cycle: %2$s from %3$s</string>
+    <string name="household_settings_week_value">First day of week: ISO day %1$d</string>
+    <string name="household_settings_snapshot_help">Changes affect future scheduling and presentation; existing financial and task history is preserved.</string>
+    <string name="household_settings_section_identity">Identity, locale and cycle</string>
+    <string name="household_settings_section_access">People, roles and invitations</string>
+    <string name="household_settings_section_automation">Finance and household automation</string>
+    <string name="household_settings_section_communication">Communication and reminders</string>
+    <string name="household_settings_description">Control this household’s members, schedules and shared rules. Every action is checked against your current role.</string>
+    <string name="household_settings_denied">Only the household owner or an administrator can change shared household controls.</string>
+    <string name="household_settings_identity">Household identity and cycle</string>
+    <string name="household_settings_identity_description">Name, timezone, currency, first day of week and billing-cycle anchor.</string>
+    <string name="household_settings_members">Members and roles</string>
+    <string name="household_settings_members_description">Review access, delegate admin capability, suspend or remove membership and transfer ownership safely.</string>
+    <string name="household_settings_invitations">Invitations</string>
+    <string name="household_settings_invitations_description">Create expiring invitations, assign roles and revoke unused access.</string>
+    <string name="household_settings_finance">Finance and recurring bills</string>
+    <string name="household_settings_finance_description">Manage the billing roster, rent and bills, cadence, exact dates and open-ended or finite schedules.</string>
+    <string name="household_settings_chores">Cleaning and chore schedules</string>
+    <string name="household_settings_chores_description">Create assigned chores with weekly, fortnightly or monthly calendar recurrence.</string>
+    <string name="household_settings_calendar">Household calendar</string>
+    <string name="household_settings_calendar_description">Review generated rent, bill and chore occurrences beside household events.</string>
+    <string name="household_settings_notifications">Notification controls</string>
+    <string name="household_settings_notifications_description">Open your notification channels, quiet hours and privacy controls. Each member retains personal consent.</string>
     <string name="dashboard_calendar_title">Household calendar</string>
     <string name="dashboard_calendar_loading_short">Checking confirmed events</string>
     <string name="dashboard_calendar_error_short">Events could not be confirmed</string>
@@ -259,8 +338,16 @@
     <string name="dashboard_tasks_title">Tasks</string>
     <string name="dashboard_requests_title">Requests</string>
     <string name="dashboard_money_unavailable">The ledger is not connected, so no balance or payment status is displayed.</string>
-    <string name="dashboard_tasks_unavailable">The task service is not connected, so no assignment or completion is displayed.</string>
     <string name="dashboard_requests_unavailable">The requests service is not connected, so no pending count is displayed.</string>
+    <string name="dashboard_money_loading">Connecting to the household ledger…</string>
+    <string name="dashboard_money_error">The ledger could not refresh. Open Money to retry.</string>
+    <string name="dashboard_money_ready">%1$s due across %2$d open items.</string>
+    <string name="dashboard_requests_loading">Connecting to household requests…</string>
+    <string name="dashboard_requests_error">Requests could not refresh. Open Requests to retry.</string>
+    <plurals name="dashboard_requests_ready">
+        <item quantity="one">%d pending request needs attention.</item>
+        <item quantity="other">%d pending requests need attention.</item>
+    </plurals>
     <string name="dashboard_not_connected_badge">Not connected</string>
     <string name="dashboard_feature_learn_more">View guidance</string>
     <string name="dashboard_guidance_title">Need a quick orientation?</string>
@@ -281,6 +368,8 @@
     <string name="househub_actions_supporting">Edit shared configuration, tune this device or open practical help.</string>
     <string name="househub_edit">Edit household configuration</string>
     <string name="househub_settings">App settings</string>
+    <string name="househub_manage_costs">Manage rent and recurring bills</string>
+    <string name="househub_schedule_tasks">Schedule cleaning and household tasks</string>
     <string name="househub_guides">Guides and help</string>
     <string name="househub_account_title">Signed-in account</string>
     <string name="househub_account_name_unavailable">Account name unavailable</string>
@@ -312,6 +401,7 @@
     <string name="house_members_current">You</string>
     <string name="house_members_joined">Joined %1$s</string>
     <string name="house_members_change_role">Change role</string>
+    <string name="house_members_more_actions">More actions for %1$s</string>
     <string name="house_members_suspend">Suspend access</string>
     <string name="house_members_reactivate">Reactivate</string>
     <string name="house_members_remove">Remove</string>
@@ -413,9 +503,27 @@
     <string name="money_due_value">Due %1$s</string>
     <string name="money_your_share_value">Your share: %1$s</string>
     <string name="money_new_expense">New household expense</string>
+    <string name="money_edit_expense">Edit expense</string>
+    <string name="money_section_details">Expense details</string>
+    <string name="money_section_schedule">Amount and due date</string>
+    <string name="money_section_revision">Audit reason</string>
+    <string name="money_supplier_optional">Supplier or provider (optional)</string>
+    <string name="money_supplier_help">For example, a landlord, energy company or shop.</string>
+    <string name="money_supplier_value">Supplier: %1$s</string>
+    <string name="money_revision_reason">Why are you changing this expense?</string>
+    <string name="money_revision_explanation">Saving creates a linked replacement and reverses the old entry. Nothing is silently overwritten.</string>
+    <string name="money_revised_entry">This entry replaces an earlier expense; the original remains in Reversed.</string>
     <string name="money_equal_split_explanation">The amount is split equally per resident, including a named partner without app access. A couple receives one combined allocation for two person shares. Any penny remainder is assigned deterministically.</string>
     <string name="money_split_household_title">People included in the split</string>
-    <string name="money_split_household_summary">%1$d residents · %2$d payment units</string>
+    <string name="money_split_household_summary">%1$s · %2$s</string>
+    <plurals name="money_residents_count">
+        <item quantity="one">%1$d resident</item>
+        <item quantity="other">%1$d residents</item>
+    </plurals>
+    <plurals name="money_payment_units_count">
+        <item quantity="one">%1$d payment unit</item>
+        <item quantity="other">%1$d payment units</item>
+    </plurals>
     <string name="money_split_household_explanation">App access and financial participation are separate. A resident’s phone does not change their share, and a partner without app access can be added by name.</string>
     <string name="money_configure">Configure</string>
     <string name="money_configure_people_couples">Configure people and couples</string>
@@ -430,7 +538,10 @@
     <string name="money_choose_responsible_member">Who will manage this couple’s combined share?</string>
     <string name="money_no_partner_member_available">No other unpaired account member is available. Choose a partner without an account instead.</string>
     <string name="money_partner_name">Partner’s name</string>
-    <string name="money_couple_combined_share">Combined couple allocation for %1$d people</string>
+    <plurals name="money_couple_combined_share">
+        <item quantity="one">Combined couple allocation for %1$d person</item>
+        <item quantity="other">Combined couple allocation for %1$d people</item>
+    </plurals>
     <string name="money_billing_roster_error">The people and couples configuration was not saved. The current server roster was reloaded.</string>
     <string name="money_expense_title">What is this for?</string>
     <string name="money_category">Category</string>
@@ -447,14 +558,25 @@
     <string name="money_you_name">%1$s (you)</string>
     <string name="money_rounding_note">A one-minor-unit rounding adjustment was assigned using stable membership order so the split matches the total exactly.</string>
     <string name="money_approve">Approve proposal</string>
-    <string name="money_reverse">Reverse ledger entry</string>
-    <string name="money_reverse_title">Reverse this expense?</string>
+    <string name="money_reverse">Remove expense (keep history)</string>
+    <string name="money_remove_expense">Remove expense</string>
+    <string name="money_remove_history_notice">Removal creates an audited reversal. The original expense and payment history remain available.</string>
+    <string name="money_remove_blocked_title">Payment history must be corrected first</string>
+    <plurals name="money_remove_blocked_payments">
+        <item quantity="one">This expense has %1$d active payment declaration. Correct it below, then remove the expense.</item>
+        <item quantity="other">This expense has %1$d active payment declarations. Correct them below, then remove the expense.</item>
+    </plurals>
+    <string name="money_remove_blocked_notice">The remove action unlocks after every active payment declaration is corrected and the refreshed ledger confirms it.</string>
+    <string name="money_reverse_title">Remove this expense?</string>
+    <string name="money_reverse_explanation">SharedHouse will create an audited reversal instead of erasing the ledger entry. The original expense and all payment declarations remain in history.</string>
     <string name="money_reverse_reason">Reason for reversal</string>
+    <string name="money_reverse_reason_help">Required · enter at least 3 characters</string>
     <string name="money_confirm_reverse">Confirm reversal</string>
     <string name="money_load_error">Expenses could not be confirmed by the service.</string>
     <string name="money_create_error">The expense was not saved. Review the details and retry.</string>
     <string name="money_approve_error">The proposal could not be approved.</string>
     <string name="money_reverse_error">The ledger entry could not be reversed.</string>
+    <string name="money_revise_error">The expense could not be revised. Reverse active payment declarations first, then retry.</string>
     <string name="money_version_conflict">This expense changed on another device. The latest ledger was loaded.</string>
     <string name="money_status_proposed">Proposed</string>
     <string name="money_status_approved">Approved</string>
@@ -477,7 +599,10 @@
     <string name="money_planned_costs_description">Active schedules generate one approved ledger cost on each due date. This records an obligation, not a payment.</string>
     <string name="money_template_schedule">%1$s · next due %2$s</string>
     <string name="money_use_template">Add extra</string>
-    <string name="money_more_templates">+%1$d more configured costs</string>
+    <plurals name="money_more_templates">
+        <item quantity="one">+%1$d more configured cost</item>
+        <item quantity="other">+%1$d more configured costs</item>
+    </plurals>
     <string name="money_admin_title">Money administration</string>
     <string name="money_admin_description">Set standard prices for rent, bills or any custom household cost. Using a template opens a real expense for confirmation; it does not claim a payment occurred.</string>
     <string name="money_add_household_cost">Add household cost</string>
@@ -496,9 +621,13 @@
     <string name="money_archive_reason">Reason for archiving</string>
     <string name="money_archive_confirm">Archive cost</string>
     <string name="money_cadence_weekly">Weekly</string>
+    <string name="money_cadence_fortnightly">Every two weeks</string>
     <string name="money_cadence_monthly">Monthly</string>
     <string name="money_cadence_quarterly">Quarterly</string>
     <string name="money_cadence_yearly">Yearly</string>
+    <string name="money_schedule_ends_on">Final occurrence</string>
+    <string name="money_no_end_date">No end date</string>
+    <string name="action_clear">Clear</string>
     <string name="money_template_error">The household cost could not be saved. Reload and try again.</string>
     <string name="money_generated_cost">Generated household cost</string>
     <string name="money_generated_cost_details">Created automatically from the household schedule for %1$s. No payment was transferred.</string>
@@ -515,6 +644,8 @@
     <string name="money_payment_status_confirmed">Confirmed by another member</string>
     <string name="money_payment_status_disputed">Disputed · review needed</string>
     <string name="money_payment_status_reversed">Corrected / reversed</string>
+    <string name="money_payment_status_by">%1$s by %2$s</string>
+    <string name="money_payment_declared_by">Declared by %1$s</string>
     <string name="money_payment_method_bank_transfer">Bank transfer</string>
     <string name="money_payment_method_cash">Cash</string>
     <string name="money_payment_method_card">Card</string>
@@ -560,10 +691,16 @@
     <string name="tasks_empty_title">Nothing in this view</string>
     <string name="tasks_empty_admin">Add a real household responsibility when you are ready.</string>
     <string name="tasks_empty_member">New assignments and committed decisions will appear here.</string>
-    <string name="tasks_pending_count" formatted="true">%1$d pending request(s)</string>
+    <plurals name="tasks_pending_count">
+        <item quantity="one">%1$d pending request</item>
+        <item quantity="other">%1$d pending requests</item>
+    </plurals>
     <string name="tasks_assigned_to" formatted="true">Assigned to %1$s</string>
     <string name="tasks_zone" formatted="true">Zone: %1$s</string>
-    <string name="tasks_estimate" formatted="true">Estimated time: %1$d minutes</string>
+    <plurals name="tasks_estimate">
+        <item quantity="one">Estimated time: %1$d minute</item>
+        <item quantity="other">Estimated time: %1$d minutes</item>
+    </plurals>
     <string name="tasks_start">Start</string>
     <string name="tasks_complete">Complete</string>
     <string name="tasks_help">Request help</string>
@@ -572,9 +709,11 @@
     <string name="tasks_issue">Report issue</string>
     <string name="tasks_reopen">Reopen</string>
     <string name="tasks_cancel">Cancel task</string>
+    <string name="tasks_stop_recurrence">Stop schedule</string>
     <string name="tasks_completion_note">Completion note</string>
     <string name="tasks_requests_title">Request history</string>
     <string name="tasks_requested_by" formatted="true">Requested by %1$s</string>
+    <string name="tasks_request_decision_by">%1$s by %2$s</string>
     <string name="tasks_swap_to" formatted="true">Proposed assignee: %1$s</string>
     <string name="tasks_postpone_to" formatted="true">Requested date: %1$s %2$s</string>
     <string name="tasks_member_unavailable">Unavailable member</string>
@@ -589,6 +728,12 @@
     <string name="tasks_field_minutes">Minutes</string>
     <string name="tasks_choose_member">Choose responsible member</string>
     <string name="tasks_create_action">Create task</string>
+    <string name="tasks_recurrence_once">One time</string>
+    <string name="tasks_recurrence_weekly">Repeat weekly</string>
+    <string name="tasks_recurrence_fortnightly">Repeat every two weeks</string>
+    <string name="tasks_recurrence_monthly">Repeat monthly</string>
+    <string name="tasks_recurrence_end_optional">Final task date (optional)</string>
+    <string name="tasks_recurrence_infinite_hint">YYYY-MM-DD, or leave empty to continue until archived</string>
     <string name="tasks_field_reason">Reason or completion note</string>
     <string name="tasks_confirm_action">Confirm action</string>
     <string name="tasks_field_decision_note">Decision note</string>
@@ -615,6 +760,8 @@
     <string name="tasks_reopen_explanation">The previous completion stays in the audit trail and the task becomes active again.</string>
     <string name="tasks_cancel_title">Cancel this task?</string>
     <string name="tasks_cancel_explanation">Explain why it is no longer needed. It remains visible in history.</string>
+    <string name="tasks_stop_recurrence_title">Stop this recurring schedule?</string>
+    <string name="tasks_stop_recurrence_explanation">Explain why the schedule is ending. Existing history is preserved and later active occurrences are cancelled.</string>
     <string name="tasks_help_title">Request help</string>
     <string name="tasks_help_explanation">You remain responsible while asking another household member for support.</string>
     <string name="tasks_swap_title">Request a swap</string>
@@ -626,6 +773,10 @@
     <string name="dashboard_connected_badge">Live</string>
     <string name="dashboard_tasks_loading">Loading authoritative household tasks…</string>
     <string name="dashboard_tasks_error">Task data could not be loaded. Open Tasks to retry.</string>
-    <string name="dashboard_tasks_next" formatted="true">Next for you: %1$s · %2$d active · %3$d pending requests</string>
-    <string name="dashboard_tasks_ready" formatted="true">%1$d active tasks · %2$d pending requests</string>
+    <plurals name="dashboard_active_tasks_count">
+        <item quantity="one">%1$d active task</item>
+        <item quantity="other">%1$d active tasks</item>
+    </plurals>
+    <string name="dashboard_tasks_next">Next for you: %1$s · %2$s · %3$s</string>
+    <string name="dashboard_tasks_ready">%1$s · %2$s</string>
 </resources>

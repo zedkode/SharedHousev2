@@ -170,6 +170,74 @@ describe('tenant-scoped household expenses', () => {
     await request(server).get(endpoint).set('Authorization', `Bearer ${outsiderToken}`).expect(404);
   });
 
+  it('lets managers revise an unsettled expense without erasing the original', async () => {
+    const endpoint = `/v1/households/${householdId}/expenses`;
+    const created = await request(server)
+      .post(endpoint)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Idempotency-Key', 'money-expense-revision-source-01')
+      .send({
+        ...expenseBody(3600, 'GBP'),
+        title: 'Electricity estimate',
+        supplierName: 'Initial Energy Ltd',
+      })
+      .expect(201);
+    const sourceId = readStringProperty(created.body, 'id');
+    expect(created.body).toMatchObject({ supplierName: 'Initial Energy Ltd', canRevise: true });
+
+    const revisionBody = {
+      ...expenseBody(4200, 'GBP'),
+      title: 'Electricity final invoice',
+      supplierName: 'Correct Energy Ltd',
+      reason: 'Final supplier invoice replaced the estimate',
+    };
+    await request(server)
+      .post(`${endpoint}/${sourceId}/revise`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-expense-revision-member-01')
+      .send(revisionBody)
+      .expect(403);
+
+    const revised = await request(server)
+      .post(`${endpoint}/${sourceId}/revise`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-expense-revision-owner-001')
+      .send(revisionBody)
+      .expect('ETag', '"1"')
+      .expect(201);
+    const revisedId = readStringProperty(revised.body, 'id');
+    expect(revised.body).toMatchObject({
+      title: 'Electricity final invoice',
+      supplierName: 'Correct Energy Ltd',
+      amount: { minorUnits: 4200, currency: 'GBP' },
+      revisionOfExpenseId: sourceId,
+      supersededByExpenseId: null,
+      status: 'approved',
+      canRevise: true,
+    });
+
+    const replay = await request(server)
+      .post(`${endpoint}/${sourceId}/revise`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', 'money-expense-revision-owner-001')
+      .send(revisionBody)
+      .expect(201);
+    expect(replay.body).toEqual(revised.body);
+
+    const source = await request(server)
+      .get(`${endpoint}/${sourceId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(source.body).toMatchObject({
+      status: 'reversed',
+      supersededByExpenseId: revisedId,
+      canRevise: false,
+    });
+  });
+
   it('declares, confirms, disputes and reverses payments without pretending to move money', async () => {
     const endpoint = `/v1/households/${householdId}/expenses`;
     const created = await request(server)
@@ -212,6 +280,7 @@ describe('tenant-scoped household expenses', () => {
       method: 'bank_transfer',
       reference: 'BANK-REF-2048',
       status: 'declared',
+      declaredByDisplayName: 'Money Member',
       version: 1,
       canConfirm: false,
       canDispute: false,
@@ -246,6 +315,8 @@ describe('tenant-scoped household expenses', () => {
       .expect(201);
     expect(readPaymentById(confirmed.body, paymentId)).toMatchObject({
       status: 'confirmed',
+      declaredByDisplayName: 'Money Member',
+      confirmedByDisplayName: 'Money Owner',
       version: 2,
       canConfirm: false,
       canDispute: true,
@@ -261,6 +332,8 @@ describe('tenant-scoped household expenses', () => {
       .expect(201);
     expect(readPaymentById(disputed.body, paymentId)).toMatchObject({
       status: 'disputed',
+      declaredByDisplayName: 'Money Member',
+      disputedByDisplayName: 'Money Owner',
       disputeReason: 'Reference does not match the bank statement',
       version: 3,
     });
@@ -287,6 +360,8 @@ describe('tenant-scoped household expenses', () => {
       .expect(201);
     expect(readPaymentById(corrected.body, paymentId)).toMatchObject({
       status: 'reversed',
+      declaredByDisplayName: 'Money Member',
+      reversedByDisplayName: 'Money Member',
       reversalReason: 'Transfer was returned by the bank',
       version: 4,
       canReverse: false,
@@ -319,6 +394,8 @@ describe('tenant-scoped household expenses', () => {
       .expect((response) =>
         expect(readPaymentById(response.body, ownerPaymentId)).toMatchObject({
           status: 'confirmed',
+          declaredByDisplayName: 'Money Owner',
+          confirmedByDisplayName: 'Money Member',
           version: 2,
         }),
       );
@@ -334,6 +411,8 @@ describe('tenant-scoped household expenses', () => {
     expect(exportedExpense).toBeDefined();
     expect(readPaymentById(exportedExpense, paymentId)).toMatchObject({
       status: 'reversed',
+      declaredByDisplayName: 'Money Member',
+      reversedByDisplayName: 'Money Member',
       canConfirm: false,
       canDispute: false,
       canReverse: false,
@@ -347,8 +426,9 @@ describe('tenant-scoped household expenses', () => {
       category: 'custom',
       customCategoryName: 'Studio rent',
       amount: { minorUnits: 145_000, currency: 'GBP' },
-      cadence: 'monthly',
+      cadence: 'fortnightly',
       nextDueDate: '2026-09-01',
+      endsOn: '2026-12-31',
       notes: 'Reusable household cost',
     };
 
@@ -370,7 +450,8 @@ describe('tenant-scoped household expenses', () => {
       title: 'Garden studio rent',
       category: 'custom',
       customCategoryName: 'Studio rent',
-      cadence: 'monthly',
+      cadence: 'fortnightly',
+      endsOn: '2026-12-31',
       status: 'active',
       canManage: true,
       version: 1,

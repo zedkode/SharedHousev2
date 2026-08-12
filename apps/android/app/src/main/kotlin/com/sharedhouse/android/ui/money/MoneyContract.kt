@@ -23,6 +23,7 @@ sealed interface MoneyContent {
 data class ExpenseUi(
     val id: String,
     val title: String,
+    val supplierName: String? = null,
     val category: ExpenseCategory,
     val customCategoryName: String? = null,
     val amountMinor: Long,
@@ -31,11 +32,14 @@ data class ExpenseUi(
     val notes: String?,
     val sourceTemplateId: String? = null,
     val occurrenceDate: LocalDate? = null,
+    val revisionOfExpenseId: String? = null,
+    val supersededByExpenseId: String? = null,
     val status: ExpenseStatus,
     val allocations: List<ExpenseAllocationUi>,
     val currentUserShareMinor: Long,
     val canApprove: Boolean,
     val canReverse: Boolean,
+    val canRevise: Boolean = false,
     val version: Int,
 )
 
@@ -109,8 +113,12 @@ data class ExpensePaymentUi(
     val note: String?,
     val paidAt: Instant,
     val status: ExpensePaymentStatus,
+    val declaredByDisplayName: String,
+    val confirmedByDisplayName: String?,
     val confirmedAt: Instant?,
+    val disputedByDisplayName: String?,
     val disputeReason: String?,
+    val reversedByDisplayName: String?,
     val reversedAt: Instant?,
     val reversalReason: String?,
     val canConfirm: Boolean,
@@ -153,6 +161,7 @@ enum class MoneyProblem {
     CREATE_FAILED,
     APPROVE_FAILED,
     REVERSE_FAILED,
+    REVISE_FAILED,
     TEMPLATE_FAILED,
     PAYMENT_DECLARE_FAILED,
     PAYMENT_CONFIRM_FAILED,
@@ -164,6 +173,7 @@ enum class MoneyProblem {
 
 data class ExpenseDraft(
     val title: String,
+    val supplierName: String? = null,
     val category: ExpenseCategory,
     val customCategoryName: String? = null,
     val amountMinor: Long,
@@ -172,7 +182,8 @@ data class ExpenseDraft(
 )
 
 enum class ExpenseTemplateCadence(val wireValue: String) {
-    WEEKLY("weekly"), MONTHLY("monthly"), QUARTERLY("quarterly"), YEARLY("yearly");
+    WEEKLY("weekly"), FORTNIGHTLY("fortnightly"), MONTHLY("monthly"),
+    QUARTERLY("quarterly"), YEARLY("yearly");
 
     companion object {
         fun fromWire(value: String) = entries.firstOrNull { it.wireValue == value } ?: MONTHLY
@@ -188,6 +199,7 @@ data class ExpenseTemplateUi(
     val currency: String,
     val cadence: ExpenseTemplateCadence,
     val nextDueDate: LocalDate,
+    val endsOn: LocalDate?,
     val notes: String?,
     val active: Boolean,
     val canManage: Boolean,
@@ -201,6 +213,7 @@ data class ExpenseTemplateDraft(
     val amountMinor: Long,
     val cadence: ExpenseTemplateCadence,
     val nextDueDate: LocalDate,
+    val endsOn: LocalDate?,
     val notes: String?,
 )
 
@@ -209,6 +222,12 @@ sealed interface MoneyAction {
     data class Create(val draft: ExpenseDraft) : MoneyAction
     data class Approve(val expenseId: String, val expectedVersion: Int) : MoneyAction
     data class Reverse(val expenseId: String, val expectedVersion: Int, val reason: String) : MoneyAction
+    data class Revise(
+        val expenseId: String,
+        val expectedVersion: Int,
+        val draft: ExpenseDraft,
+        val reason: String,
+    ) : MoneyAction
     data class DeclarePayment(val expenseId: String, val draft: ExpensePaymentDraft) : MoneyAction
     data class ConfirmPayment(val expenseId: String, val paymentId: String, val expectedVersion: Int) : MoneyAction
     data class DisputePayment(

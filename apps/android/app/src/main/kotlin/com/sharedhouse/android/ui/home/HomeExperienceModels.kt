@@ -13,7 +13,18 @@ data class HouseholdDashboardUiModel(
     val accountDisplayName: String,
     val calendar: DashboardCalendarContent,
     val tasks: DashboardTasksContent,
+    val money: DashboardMoneyContent,
 )
+
+sealed interface DashboardMoneyContent {
+    data object Loading : DashboardMoneyContent
+    data object Error : DashboardMoneyContent
+    data class Ready(
+        val amountDueMinor: Long,
+        val currency: String,
+        val outstandingCount: Int,
+    ) : DashboardMoneyContent
+}
 
 sealed interface DashboardTasksContent {
     data object Loading : DashboardTasksContent

@@ -3,6 +3,7 @@ package com.sharedhouse.android.ui.app
 import com.sharedhouse.android.ui.calendar.CalendarUiState
 import com.sharedhouse.android.ui.money.MoneyUiState
 import com.sharedhouse.android.ui.tasks.TasksUiState
+import com.sharedhouse.android.ui.chat.ChatUiState
 import com.sharedhouse.android.ui.home.HouseholdMembersUiState
 import com.sharedhouse.network.AccountDto
 import com.sharedhouse.network.AccountExportDto
@@ -145,6 +146,7 @@ data class AppUiState(
     val calendar: CalendarUiState = CalendarUiState(),
     val money: MoneyUiState = MoneyUiState(),
     val tasks: TasksUiState = TasksUiState(),
+    val chat: ChatUiState = ChatUiState(),
     val invitation: InvitationUiState = InvitationUiState(),
     val householdMembers: HouseholdMembersUiState = HouseholdMembersUiState(),
 )

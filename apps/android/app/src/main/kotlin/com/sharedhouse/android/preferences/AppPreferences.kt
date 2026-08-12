@@ -46,6 +46,7 @@ enum class ReminderLeadTime(val storageValue: String, val minutes: Int) {
 }
 
 enum class NotificationCategory(val storageValue: String) {
+    CHAT("chat"),
     MONEY("money"),
     TASKS("tasks"),
     REQUESTS("requests"),
@@ -84,6 +85,7 @@ data class QuietHours(
 }
 
 data class NotificationPreferences(
+    val chat: Boolean = true,
     val money: Boolean = true,
     val tasks: Boolean = true,
     val requests: Boolean = true,
@@ -96,6 +98,7 @@ data class NotificationPreferences(
     val vibration: Boolean = true,
 ) {
     fun isEnabled(category: NotificationCategory): Boolean = when (category) {
+        NotificationCategory.CHAT -> chat
         NotificationCategory.MONEY -> money
         NotificationCategory.TASKS -> tasks
         NotificationCategory.REQUESTS -> requests
@@ -105,6 +108,7 @@ data class NotificationPreferences(
     }
 
     fun withCategory(category: NotificationCategory, enabled: Boolean): NotificationPreferences = when (category) {
+        NotificationCategory.CHAT -> copy(chat = enabled)
         NotificationCategory.MONEY -> copy(money = enabled)
         NotificationCategory.TASKS -> copy(tasks = enabled)
         NotificationCategory.REQUESTS -> copy(requests = enabled)

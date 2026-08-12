@@ -54,6 +54,7 @@ interface ExpenseBaseRow {
   readonly created_by_membership_id: string;
   readonly created_by_user_id: string;
   readonly title: string;
+  readonly supplier_name: string | null;
   readonly category: ExpenseSummary['category'];
   readonly custom_category_name: string | null;
   readonly amount_minor: number | string | bigint;
@@ -62,6 +63,8 @@ interface ExpenseBaseRow {
   readonly notes: string | null;
   readonly source_template_id: string | null;
   readonly occurrence_date: Date | string | null;
+  readonly revision_of_expense_id: string | null;
+  readonly superseded_by_expense_id: string | null;
   readonly split_method: 'equal';
   readonly status: ExpenseStatus;
   readonly version: number;
@@ -88,12 +91,16 @@ interface ExpenseJoinRow extends ExpenseBaseRow {
   readonly payment_paid_at: Date | string | null;
   readonly payment_status: ExpensePaymentSummary['status'] | null;
   readonly payment_declared_by_user_id: string | null;
+  readonly payment_declared_by_display_name: string | null;
   readonly payment_confirmed_by_user_id: string | null;
+  readonly payment_confirmed_by_display_name: string | null;
   readonly payment_confirmed_at: Date | string | null;
   readonly payment_disputed_by_user_id: string | null;
+  readonly payment_disputed_by_display_name: string | null;
   readonly payment_disputed_at: Date | string | null;
   readonly payment_dispute_reason: string | null;
   readonly payment_reversed_by_user_id: string | null;
+  readonly payment_reversed_by_display_name: string | null;
   readonly payment_reversed_at: Date | string | null;
   readonly payment_reversal_reason: string | null;
   readonly payment_version: number | null;
@@ -124,6 +131,19 @@ export type ExpenseTransitionResult =
   | {
       readonly status:
         'not_found' | 'forbidden' | 'version_conflict' | 'status_conflict' | 'payment_conflict';
+    };
+
+export type ExpenseRevisionResult =
+  | { readonly status: 'created' | 'replayed'; readonly expense: ExpenseSummary }
+  | {
+      readonly status:
+        | 'not_found'
+        | 'forbidden'
+        | 'currency_mismatch'
+        | 'version_conflict'
+        | 'status_conflict'
+        | 'payment_conflict'
+        | 'idempotency_conflict';
     };
 
 @Injectable()
@@ -214,6 +234,7 @@ export class ExpensesRepository {
         id: expenseId,
         householdId: input.householdId,
         title: input.configuration.title,
+        supplierName: input.configuration.supplierName ?? null,
         category: input.configuration.category,
         customCategoryName: input.configuration.customCategoryName ?? null,
         amount: input.configuration.amount,
@@ -231,6 +252,9 @@ export class ExpensesRepository {
         createdByUserId: input.userId,
         canApprove: status === 'proposed' && isManager(membership.role),
         canReverse: true,
+        canRevise: isManager(membership.role),
+        revisionOfExpenseId: null,
+        supersededByExpenseId: null,
         version: 1,
         createdAt: input.occurredAt,
         updatedAt: input.occurredAt,
@@ -263,14 +287,15 @@ export class ExpensesRepository {
 
       await transaction.query(
         `INSERT INTO expenses (
-           id, household_id, created_by_membership_id, title, category, custom_category_name, amount_minor, currency,
+           id, household_id, created_by_membership_id, title, supplier_name, category, custom_category_name, amount_minor, currency,
            due_date, notes, split_method, status, version, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'equal', $11, 1, $12, $12)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'equal', $12, 1, $13, $13)`,
         [
           expense.id,
           expense.householdId,
           membership.id,
           expense.title,
+          expense.supplierName,
           expense.category,
           expense.customCategoryName,
           expense.amount.minorUnits,
@@ -327,6 +352,267 @@ export class ExpensesRepository {
     });
   }
 
+  async revise(input: {
+    readonly userId: string;
+    readonly householdId: string;
+    readonly expenseId: string;
+    readonly expectedVersion: number;
+    readonly configuration: ExpenseConfiguration;
+    readonly reason: string;
+    readonly idempotencyKey: string;
+    readonly requestHash: string;
+    readonly occurredAt: string;
+  }): Promise<ExpenseRevisionResult> {
+    return this.database.transaction(async (transaction) => {
+      const membership = await findMembershipContext(transaction, input.userId, input.householdId);
+      if (membership === null) return { status: 'not_found' };
+      if (!isManager(membership.role)) return { status: 'forbidden' };
+      if (membership.default_currency !== input.configuration.amount.currency) {
+        return { status: 'currency_mismatch' };
+      }
+
+      const existingIdempotency = await transaction.query<IdempotencyRow>(
+        `SELECT request_hash, response_body FROM idempotency_records
+         WHERE user_id = $1 AND operation = 'expenses.revise' AND idempotency_key = $2`,
+        [input.userId, input.idempotencyKey],
+      );
+      if (existingIdempotency[0] !== undefined) {
+        if (existingIdempotency[0].request_hash !== input.requestHash) {
+          return { status: 'idempotency_conflict' };
+        }
+        return {
+          status: 'replayed',
+          expense: readExpenseResponse(existingIdempotency[0].response_body),
+        };
+      }
+
+      const currentRows = await transaction.query<ExpenseBaseRow>(
+        `${expenseBaseSelect()}
+         WHERE e.id = $1 AND e.household_id = $2
+         LIMIT 1 FOR UPDATE`,
+        [input.expenseId, input.householdId],
+      );
+      const current = currentRows[0];
+      if (current === undefined) return { status: 'not_found' };
+      if (current.version !== input.expectedVersion) return { status: 'version_conflict' };
+      if (current.status === 'reversed' || current.superseded_by_expense_id !== null) {
+        return { status: 'status_conflict' };
+      }
+      const activePayments = await transaction.query<{ readonly id: string }>(
+        `SELECT id FROM expense_payment_declarations
+         WHERE expense_id = $1 AND household_id = $2 AND status <> 'reversed'
+         LIMIT 1`,
+        [input.expenseId, input.householdId],
+      );
+      if (activePayments.length > 0) return { status: 'payment_conflict' };
+
+      const activeMemberships = await transaction.query<ActiveMembershipRow>(
+        `SELECT m.id, m.user_id, p.display_name
+         FROM household_memberships m
+         JOIN users u ON u.id = m.user_id AND u.status = 'active'
+         JOIN user_profiles p ON p.user_id = m.user_id
+         WHERE m.household_id = $1 AND m.status = 'active'
+         ORDER BY m.id`,
+        [input.householdId],
+      );
+      if (activeMemberships.length === 0) return { status: 'not_found' };
+      const activeCouples = await transaction.query<ActiveCoupleRow>(
+        `SELECT couple.id, couple.primary_membership_id,
+           primary_member.user_id AS primary_user_id,
+           primary_profile.display_name AS primary_display_name,
+           couple.partner_membership_id,
+           partner_member.user_id AS partner_user_id,
+           COALESCE(partner_profile.display_name, couple.partner_display_name) AS partner_display_name
+         FROM household_billing_couples couple
+         JOIN household_memberships primary_member ON primary_member.id = couple.primary_membership_id
+         JOIN user_profiles primary_profile ON primary_profile.user_id = primary_member.user_id
+         LEFT JOIN household_memberships partner_member ON partner_member.id = couple.partner_membership_id
+         LEFT JOIN user_profiles partner_profile ON partner_profile.user_id = partner_member.user_id
+         WHERE couple.household_id = $1 AND couple.status = 'active'
+         ORDER BY couple.primary_membership_id, couple.id`,
+        [input.householdId],
+      );
+      const revisedId = newUuidV7(Date.parse(input.occurredAt));
+      const pendingAllocations = equalAllocations(
+        input.configuration.amount.minorUnits,
+        input.configuration.amount.currency,
+        activeMemberships,
+        activeCouples,
+        input.userId,
+        true,
+      );
+      const allocations = pendingAllocations.map((allocation) => allocation.response);
+      const revised: ExpenseSummary = {
+        id: revisedId,
+        householdId: input.householdId,
+        title: input.configuration.title,
+        supplierName: input.configuration.supplierName ?? null,
+        category: input.configuration.category,
+        customCategoryName: input.configuration.customCategoryName ?? null,
+        amount: input.configuration.amount,
+        dueDate: input.configuration.dueDate,
+        notes: input.configuration.notes ?? null,
+        sourceTemplateId: null,
+        occurrenceDate: null,
+        revisionOfExpenseId: input.expenseId,
+        supersededByExpenseId: null,
+        splitMethod: 'equal',
+        status: 'approved',
+        allocations,
+        currentUserShare: allocations.find((allocation) => allocation.isCurrentUser)?.amount ?? {
+          minorUnits: 0,
+          currency: input.configuration.amount.currency,
+        },
+        createdByUserId: input.userId,
+        canApprove: false,
+        canReverse: true,
+        canRevise: true,
+        version: 1,
+        createdAt: input.occurredAt,
+        updatedAt: input.occurredAt,
+      };
+      const claimed = await transaction.query<{ readonly idempotency_key: string }>(
+        `INSERT INTO idempotency_records (
+           user_id, operation, idempotency_key, request_hash, response_status, response_body, created_at
+         ) VALUES ($1, 'expenses.revise', $2, $3, 201, $4::jsonb, $5)
+         ON CONFLICT (user_id, operation, idempotency_key) DO NOTHING
+         RETURNING idempotency_key`,
+        [
+          input.userId,
+          input.idempotencyKey,
+          input.requestHash,
+          JSON.stringify(revised),
+          input.occurredAt,
+        ],
+      );
+      if (claimed.length === 0) {
+        const replay = await transaction.query<IdempotencyRow>(
+          `SELECT request_hash, response_body FROM idempotency_records
+           WHERE user_id = $1 AND operation = 'expenses.revise' AND idempotency_key = $2`,
+          [input.userId, input.idempotencyKey],
+        );
+        const replayed = replay[0];
+        if (replayed?.request_hash !== input.requestHash) {
+          return { status: 'idempotency_conflict' };
+        }
+        return { status: 'replayed', expense: readExpenseResponse(replayed.response_body) };
+      }
+
+      await transaction.query(
+        `INSERT INTO expenses (
+           id, household_id, created_by_membership_id, title, supplier_name, category,
+           custom_category_name, amount_minor, currency, due_date, notes, revision_of_expense_id,
+           split_method, status, version, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+           'equal', 'approved', 1, $13, $13)`,
+        [
+          revised.id,
+          revised.householdId,
+          membership.id,
+          revised.title,
+          revised.supplierName,
+          revised.category,
+          revised.customCategoryName,
+          revised.amount.minorUnits,
+          revised.amount.currency,
+          revised.dueDate,
+          revised.notes,
+          input.expenseId,
+          input.occurredAt,
+        ],
+      );
+      for (const pending of pendingAllocations) {
+        const allocation = pending.response;
+        const allocationId = newUuidV7();
+        await transaction.query(
+          `INSERT INTO expense_allocations (
+             id, expense_id, membership_id, amount_minor, rounding_adjustment_minor, status,
+             billing_unit_type, billing_unit_label, participant_count, billing_couple_id, created_at
+           ) VALUES ($1, $2, $3, $4, $5, 'outstanding', $6, $7, $8, $9, $10)`,
+          [
+            allocationId,
+            revised.id,
+            allocation.membershipId,
+            allocation.amount.minorUnits,
+            allocation.roundingAdjustmentMinor,
+            allocation.billingUnitType,
+            allocation.displayName,
+            allocation.participantCount,
+            pending.billingCoupleId,
+            input.occurredAt,
+          ],
+        );
+        for (const eligibleMembershipId of allocation.eligibleMembershipIds) {
+          await transaction.query(
+            `INSERT INTO expense_allocation_members (allocation_id, membership_id, created_at)
+             VALUES ($1, $2, $3)`,
+            [allocationId, eligibleMembershipId, input.occurredAt],
+          );
+        }
+      }
+      await transaction.query(
+        `UPDATE expenses
+         SET status = 'reversed', superseded_by_expense_id = $4, version = version + 1, updated_at = $5
+         WHERE id = $1 AND household_id = $2 AND version = $3`,
+        [input.expenseId, input.householdId, input.expectedVersion, revised.id, input.occurredAt],
+      );
+      await transaction.query(
+        `INSERT INTO expense_status_events (
+           id, expense_id, actor_membership_id, previous_status, next_status, reason, occurred_at
+         ) VALUES
+           ($1, $2, $3, $4, 'reversed', $5, $6),
+           ($7, $8, $3, NULL, 'approved', $5, $6)`,
+        [
+          newUuidV7(),
+          input.expenseId,
+          membership.id,
+          current.status,
+          input.reason,
+          input.occurredAt,
+          newUuidV7(),
+          revised.id,
+        ],
+      );
+      await transaction.query(
+        `INSERT INTO expense_revision_events (
+           id, original_expense_id, revised_expense_id, actor_membership_id,
+           original_snapshot, revised_snapshot, reason, occurred_at
+         ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8)`,
+        [
+          newUuidV7(),
+          input.expenseId,
+          revised.id,
+          membership.id,
+          JSON.stringify(current),
+          JSON.stringify(input.configuration),
+          input.reason,
+          input.occurredAt,
+        ],
+      );
+      const rows = await selectExpenseRows(transaction, input.householdId, revised.id);
+      const response = mapExpenseRows(rows, membership, input.userId)[0];
+      if (response === undefined) return { status: 'not_found' };
+      // Persist the authoritative, database-mapped representation. Allocation IDs are generated
+      // during the transaction, so the optimistic pre-insert preview can have a different order.
+      // Idempotent replays must be byte-for-byte equivalent to the committed response.
+      await transaction.query(
+        `UPDATE idempotency_records
+         SET response_body = $4::jsonb
+         WHERE user_id = $1 AND operation = 'expenses.revise' AND idempotency_key = $2
+           AND request_hash = $3`,
+        [input.userId, input.idempotencyKey, input.requestHash, JSON.stringify(response)],
+      );
+      await writeExpenseEvidence(
+        transaction,
+        input.userId,
+        response,
+        'ledger.expense_revised.v1',
+        input.occurredAt,
+      );
+      return { status: 'created', expense: response };
+    });
+  }
+
   async transition(input: {
     readonly userId: string;
     readonly householdId: string;
@@ -373,7 +659,9 @@ export class ExpensesRepository {
          WHERE id = $1 AND household_id = $2 AND version = $3
          RETURNING id, household_id, created_by_membership_id,
            (SELECT user_id FROM household_memberships WHERE id = created_by_membership_id) AS created_by_user_id,
-           title, category, custom_category_name, amount_minor, currency, due_date, notes, split_method, status,
+           title, supplier_name, category, custom_category_name, amount_minor, currency, due_date, notes,
+           source_template_id, occurrence_date, revision_of_expense_id, superseded_by_expense_id,
+           split_method, status,
            version, created_at, updated_at`,
         [input.expenseId, input.householdId, input.expectedVersion, nextStatus, input.occurredAt],
       );
@@ -504,8 +792,9 @@ async function findMembershipContext(
 
 function expenseBaseSelect(): string {
   return `SELECT e.id, e.household_id, e.created_by_membership_id,
-    creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
+    creator.user_id AS created_by_user_id, e.title, e.supplier_name, e.category, e.custom_category_name, e.amount_minor,
     e.currency, e.due_date, e.notes, e.source_template_id, e.occurrence_date,
+    e.revision_of_expense_id, e.superseded_by_expense_id,
     e.split_method, e.status, e.version,
     e.created_at, e.updated_at
     FROM expenses e
@@ -519,8 +808,9 @@ async function selectExpenseRows(
 ): Promise<readonly ExpenseJoinRow[]> {
   return executor.query<ExpenseJoinRow>(
     `SELECT e.id, e.household_id, e.created_by_membership_id,
-       creator.user_id AS created_by_user_id, e.title, e.category, e.custom_category_name, e.amount_minor,
+       creator.user_id AS created_by_user_id, e.title, e.supplier_name, e.category, e.custom_category_name, e.amount_minor,
        e.currency, e.due_date, e.notes, e.source_template_id, e.occurrence_date,
+       e.revision_of_expense_id, e.superseded_by_expense_id,
        e.split_method, e.status, e.version,
        e.created_at, e.updated_at,
        a.id AS allocation_id,
@@ -536,10 +826,17 @@ async function selectExpenseRows(
        p.id AS payment_id, p.amount_minor AS payment_amount_minor, p.method AS payment_method,
        p.payment_reference, p.note AS payment_note, p.paid_at AS payment_paid_at,
        p.status AS payment_status, declared.user_id AS payment_declared_by_user_id,
-       confirmed.user_id AS payment_confirmed_by_user_id, p.confirmed_at AS payment_confirmed_at,
-       disputed.user_id AS payment_disputed_by_user_id, p.disputed_at AS payment_disputed_at,
+       declared_profile.display_name AS payment_declared_by_display_name,
+       confirmed.user_id AS payment_confirmed_by_user_id,
+       confirmed_profile.display_name AS payment_confirmed_by_display_name,
+       p.confirmed_at AS payment_confirmed_at,
+       disputed.user_id AS payment_disputed_by_user_id,
+       disputed_profile.display_name AS payment_disputed_by_display_name,
+       p.disputed_at AS payment_disputed_at,
        p.dispute_reason AS payment_dispute_reason,
-       reversed.user_id AS payment_reversed_by_user_id, p.reversed_at AS payment_reversed_at,
+       reversed.user_id AS payment_reversed_by_user_id,
+       reversed_profile.display_name AS payment_reversed_by_display_name,
+       p.reversed_at AS payment_reversed_at,
        p.reversal_reason AS payment_reversal_reason, p.version AS payment_version,
        p.created_at AS payment_created_at, p.updated_at AS payment_updated_at
      FROM expenses e
@@ -554,9 +851,13 @@ async function selectExpenseRows(
      ) eligible ON true
      LEFT JOIN expense_payment_declarations p ON p.allocation_id = a.id
      LEFT JOIN household_memberships declared ON declared.id = p.declared_by_membership_id
+     LEFT JOIN user_profiles declared_profile ON declared_profile.user_id = declared.user_id
      LEFT JOIN household_memberships confirmed ON confirmed.id = p.confirmed_by_membership_id
+     LEFT JOIN user_profiles confirmed_profile ON confirmed_profile.user_id = confirmed.user_id
      LEFT JOIN household_memberships disputed ON disputed.id = p.disputed_by_membership_id
+     LEFT JOIN user_profiles disputed_profile ON disputed_profile.user_id = disputed.user_id
      LEFT JOIN household_memberships reversed ON reversed.id = p.reversed_by_membership_id
+     LEFT JOIN user_profiles reversed_profile ON reversed_profile.user_id = reversed.user_id
      WHERE e.household_id = $1 ${expenseId === undefined ? '' : 'AND e.id = $2'}
      ORDER BY e.due_date, e.created_at DESC, e.id, a.id, p.created_at, p.id`,
     expenseId === undefined ? [householdId] : [householdId, expenseId],
@@ -621,6 +922,7 @@ function mapExpenseRows(
       id: row.id,
       householdId: row.household_id,
       title: row.title,
+      supplierName: row.supplier_name,
       category: row.category,
       customCategoryName: row.custom_category_name,
       amount: { minorUnits: toSafeNumber(row.amount_minor), currency: row.currency },
@@ -628,6 +930,8 @@ function mapExpenseRows(
       notes: row.notes,
       sourceTemplateId: row.source_template_id,
       occurrenceDate: row.occurrence_date === null ? null : toLocalDate(row.occurrence_date),
+      revisionOfExpenseId: row.revision_of_expense_id,
+      supersededByExpenseId: row.superseded_by_expense_id,
       splitMethod: row.split_method,
       status: row.status,
       allocations,
@@ -638,6 +942,12 @@ function mapExpenseRows(
       createdByUserId: row.created_by_user_id,
       canApprove: row.status === 'proposed' && isManager(membership.role),
       canReverse: row.status !== 'reversed' && (isManager(membership.role) || ownsProposal),
+      canRevise:
+        row.status !== 'reversed' &&
+        isManager(membership.role) &&
+        allocations.every((allocation) =>
+          allocation.paymentDeclarations.every((payment) => payment.status === 'reversed'),
+        ),
       version: row.version,
       createdAt: toInstant(row.created_at),
       updatedAt: toInstant(row.updated_at),
@@ -683,10 +993,20 @@ function readExpenseResponse(value: unknown): ExpenseSummary {
   };
   type StoredExpenseResponse = Omit<
     ExpenseSummary,
-    'sourceTemplateId' | 'occurrenceDate' | 'allocations'
+    | 'supplierName'
+    | 'sourceTemplateId'
+    | 'occurrenceDate'
+    | 'revisionOfExpenseId'
+    | 'supersededByExpenseId'
+    | 'canRevise'
+    | 'allocations'
   > & {
+    readonly supplierName?: string | null;
     readonly sourceTemplateId?: string | null;
     readonly occurrenceDate?: string | null;
+    readonly revisionOfExpenseId?: string | null;
+    readonly supersededByExpenseId?: string | null;
+    readonly canRevise?: boolean;
     readonly allocations: readonly StoredExpenseAllocation[];
   };
   const stored = (typeof value === 'string' ? JSON.parse(value) : value) as StoredExpenseResponse;
@@ -707,6 +1027,10 @@ function readExpenseResponse(value: unknown): ExpenseSummary {
     })),
     sourceTemplateId: stored.sourceTemplateId ?? null,
     occurrenceDate: stored.occurrenceDate ?? null,
+    supplierName: stored.supplierName ?? null,
+    revisionOfExpenseId: stored.revisionOfExpenseId ?? null,
+    supersededByExpenseId: stored.supersededByExpenseId ?? null,
+    canRevise: stored.canRevise ?? false,
   };
 }
 
@@ -723,6 +1047,7 @@ function mapPaymentRow(
     payment.payment_paid_at === null ||
     payment.payment_status === null ||
     payment.payment_declared_by_user_id === null ||
+    payment.payment_declared_by_display_name === null ||
     payment.payment_version === null ||
     payment.payment_created_at === null ||
     payment.payment_updated_at === null
@@ -748,14 +1073,18 @@ function mapPaymentRow(
     paidAt: toInstant(payment.payment_paid_at),
     status: payment.payment_status,
     declaredByUserId: payment.payment_declared_by_user_id,
+    declaredByDisplayName: payment.payment_declared_by_display_name,
     confirmedByUserId: payment.payment_confirmed_by_user_id,
+    confirmedByDisplayName: payment.payment_confirmed_by_display_name,
     confirmedAt:
       payment.payment_confirmed_at === null ? null : toInstant(payment.payment_confirmed_at),
     disputedByUserId: payment.payment_disputed_by_user_id,
+    disputedByDisplayName: payment.payment_disputed_by_display_name,
     disputedAt:
       payment.payment_disputed_at === null ? null : toInstant(payment.payment_disputed_at),
     disputeReason: payment.payment_dispute_reason,
     reversedByUserId: payment.payment_reversed_by_user_id,
+    reversedByDisplayName: payment.payment_reversed_by_display_name,
     reversedAt:
       payment.payment_reversed_at === null ? null : toInstant(payment.payment_reversed_at),
     reversalReason: payment.payment_reversal_reason,

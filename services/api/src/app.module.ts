@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { DatabaseModule } from './database/database.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
+import { ChatModule } from './chat/chat.module.js';
 import { EmailModule } from './email/email.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
 import { HouseholdsModule } from './households/households.module.js';
@@ -17,6 +18,7 @@ import { TasksModule } from './tasks/tasks.module.js';
   imports: [
     DatabaseModule,
     CalendarModule,
+    ChatModule,
     EmailModule,
     ExpensesModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),

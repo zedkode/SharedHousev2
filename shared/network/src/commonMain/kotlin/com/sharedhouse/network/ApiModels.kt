@@ -251,6 +251,8 @@ data class HouseholdTaskConfigurationDto(
     val dueTime: String? = null,
     val estimatedMinutes: Int? = null,
     val assigneeMembershipId: String,
+    val recurrenceCadence: String? = null,
+    val recurrenceEndsOn: String? = null,
 )
 
 @Serializable
@@ -274,6 +276,7 @@ data class HouseholdTaskRequestDto(
     val createdByMembershipId: String,
     val createdByDisplayName: String,
     val resolvedByUserId: String? = null,
+    val resolvedByDisplayName: String? = null,
     val resolutionNote: String? = null,
     val resolvedAt: String? = null,
     val createdAt: String,
@@ -292,6 +295,11 @@ data class HouseholdTaskDto(
     val estimatedMinutes: Int? = null,
     val assigneeMembershipId: String,
     val assigneeDisplayName: String,
+    val recurrenceCadence: String? = null,
+    val recurrenceEndsOn: String? = null,
+    val seriesId: String? = null,
+    val occurrenceDate: String? = null,
+    val recurrenceActive: Boolean = false,
     val status: String,
     val completionNote: String? = null,
     val completedByUserId: String? = null,
@@ -322,6 +330,27 @@ data class HouseholdTaskActionDto(
     val requestedDueDate: String? = null,
     val requestedDueTime: String? = null,
 )
+
+@Serializable
+data class HouseholdChatMessageDto(
+    val id: String,
+    val householdId: String,
+    val senderMembershipId: String,
+    val senderUserId: String,
+    val senderDisplayName: String,
+    val isCurrentUser: Boolean,
+    val body: String,
+    val createdAt: String,
+)
+
+@Serializable
+data class HouseholdChatPageDto(
+    val messages: List<HouseholdChatMessageDto>,
+    val nextCursor: String? = null,
+)
+
+@Serializable
+data class CreateHouseholdChatMessageDto(val body: String)
 
 @Serializable
 data class MoneyDto(
@@ -372,6 +401,7 @@ data class UpdateBillingRosterDto(
 @Serializable
 data class ExpenseConfigurationDto(
     val title: String,
+    val supplierName: String? = null,
     val category: String,
     val customCategoryName: String? = null,
     val amount: MoneyDto,
@@ -407,12 +437,16 @@ data class ExpensePaymentDto(
     val paidAt: String,
     val status: String,
     val declaredByUserId: String,
+    val declaredByDisplayName: String,
     val confirmedByUserId: String? = null,
+    val confirmedByDisplayName: String? = null,
     val confirmedAt: String? = null,
     val disputedByUserId: String? = null,
+    val disputedByDisplayName: String? = null,
     val disputedAt: String? = null,
     val disputeReason: String? = null,
     val reversedByUserId: String? = null,
+    val reversedByDisplayName: String? = null,
     val reversedAt: String? = null,
     val reversalReason: String? = null,
     val canConfirm: Boolean,
@@ -441,6 +475,7 @@ data class ExpenseDto(
     val id: String,
     val householdId: String,
     val title: String,
+    val supplierName: String? = null,
     val category: String,
     val customCategoryName: String? = null,
     val amount: MoneyDto,
@@ -448,6 +483,8 @@ data class ExpenseDto(
     val notes: String? = null,
     val sourceTemplateId: String? = null,
     val occurrenceDate: String? = null,
+    val revisionOfExpenseId: String? = null,
+    val supersededByExpenseId: String? = null,
     val splitMethod: String,
     val status: String,
     val allocations: List<ExpenseAllocationDto>,
@@ -455,6 +492,7 @@ data class ExpenseDto(
     val createdByUserId: String,
     val canApprove: Boolean,
     val canReverse: Boolean,
+    val canRevise: Boolean = false,
     val version: Int,
     val createdAt: String,
     val updatedAt: String,
@@ -466,6 +504,18 @@ data class ReverseExpensePayload(
 )
 
 @Serializable
+data class ReviseExpensePayload(
+    val title: String,
+    val supplierName: String? = null,
+    val category: String,
+    val customCategoryName: String? = null,
+    val amount: MoneyDto,
+    val dueDate: String,
+    val notes: String? = null,
+    val reason: String,
+)
+
+@Serializable
 data class ExpenseTemplateConfigurationDto(
     val title: String,
     val category: String,
@@ -473,6 +523,7 @@ data class ExpenseTemplateConfigurationDto(
     val amount: MoneyDto,
     val cadence: String,
     val nextDueDate: String,
+    val endsOn: String? = null,
     val notes: String? = null,
 )
 
@@ -486,6 +537,7 @@ data class ExpenseTemplateDto(
     val amount: MoneyDto,
     val cadence: String,
     val nextDueDate: String,
+    val endsOn: String? = null,
     val notes: String? = null,
     val status: String,
     val canManage: Boolean,

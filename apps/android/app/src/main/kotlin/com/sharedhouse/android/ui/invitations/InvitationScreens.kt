@@ -12,16 +12,16 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import com.sharedhouse.android.ui.atmosphere.Button
+import com.sharedhouse.android.ui.atmosphere.Card
+import com.sharedhouse.android.ui.atmosphere.CardDefaults
+import com.sharedhouse.android.ui.atmosphere.FilterChip
+import com.sharedhouse.android.ui.atmosphere.Icon
+import com.sharedhouse.android.ui.atmosphere.LinearProgressIndicator
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
+import com.sharedhouse.android.ui.atmosphere.OutlinedButton
+import com.sharedhouse.android.ui.atmosphere.OutlinedTextField
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -82,9 +82,9 @@ fun InvitationJoinScreen(
         state.invitation.preview?.let { preview ->
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = AtmosphereTheme.colorScheme.secondaryContainer,
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -92,7 +92,7 @@ fun InvitationJoinScreen(
                 ) {
                     Text(
                         text = preview.householdName,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AtmosphereTheme.typography.titleLarge,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
@@ -109,11 +109,11 @@ fun InvitationJoinScreen(
                                 R.string.invitation_email_open
                             },
                         ),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = AtmosphereTheme.colorScheme.onSecondaryContainer,
                     )
                     Text(
                         text = stringResource(R.string.invitation_expires, preview.expiresAt),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = AtmosphereTheme.typography.bodySmall,
                     )
                 }
             }
@@ -158,7 +158,7 @@ fun InvitationManagerScreen(
         }
         Text(
             text = stringResource(R.string.invitation_create_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = AtmosphereTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
         OutlinedTextField(
@@ -176,7 +176,7 @@ fun InvitationManagerScreen(
             enabled = !state.isSubmitting,
             singleLine = true,
         )
-        Text(stringResource(R.string.invitation_role_label), style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.invitation_role_label), style = AtmosphereTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (canInviteAdmins) {
                 InvitationRoleChip("admin", state.invitation.role, onRoleChange)
@@ -194,7 +194,7 @@ fun InvitationManagerScreen(
         state.invitation.createdToken?.let { token ->
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    containerColor = AtmosphereTheme.colorScheme.primaryContainer,
                 ),
             ) {
                 Column(
@@ -203,10 +203,10 @@ fun InvitationManagerScreen(
                 ) {
                     Text(
                         stringResource(R.string.invitation_secret_once),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = AtmosphereTheme.typography.titleMedium,
                     )
                     SelectionContainer {
-                        Text(token, style = MaterialTheme.typography.bodyMedium)
+                        Text(token, style = AtmosphereTheme.typography.bodyMedium)
                     }
                     Button(onClick = { onShare(token) }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Outlined.Share, contentDescription = null)
@@ -220,13 +220,13 @@ fun InvitationManagerScreen(
         }
         Text(
             text = stringResource(R.string.invitation_existing_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = AtmosphereTheme.typography.titleLarge,
             modifier = Modifier.semantics { heading() },
         )
         if (!state.isSubmitting && state.invitation.invitations.isEmpty()) {
             Text(
                 text = stringResource(R.string.invitation_existing_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
         }
         state.invitation.invitations.forEach { invitation ->
@@ -255,7 +255,7 @@ private fun InvitationCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
@@ -263,16 +263,16 @@ private fun InvitationCard(
         ) {
             Text(
                 invitation.email ?: stringResource(R.string.invitation_any_email),
-                style = MaterialTheme.typography.titleMedium,
+                style = AtmosphereTheme.typography.titleMedium,
             )
             Text(stringResource(R.string.invitation_preview_role, localizedInvitationRole(invitation.role)))
             Text(
                 stringResource(R.string.invitation_status, localizedInvitationStatus(invitation.status)),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 stringResource(R.string.invitation_expires, invitation.expiresAt),
-                style = MaterialTheme.typography.bodySmall,
+                style = AtmosphereTheme.typography.bodySmall,
             )
             if (invitation.status == "pending") {
                 OutlinedButton(

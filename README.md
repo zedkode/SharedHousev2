@@ -18,17 +18,24 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
 - a versioned OpenAPI 3.1 boundary for health, registration, email verification, rotating sessions,
   account access and tenant-scoped household configuration;
 - Kotlin Multiplatform domain and Ktor network modules targeting Android, iOS and JVM tests;
-- an installable Android Compose application with a Material 3 light/dark/dynamic theme,
+- an installable Android Compose application with a custom dark atmospheric Foundation UI kit,
   English/Romanian resources, a skippable first-run tutorial, responsive navigation, persistent
   accessibility/notification settings and real authentication and household setup/editing flows;
 - Android session recovery backed by a non-exportable AES-256-GCM Android Keystore key, atomic
   no-backup storage and server-side refresh rotation before household data is shown;
-- an append-only Money ledger with recurring household costs and payment
-  declaration/confirmation/dispute/correction flows that never claim SharedHouse moved money;
-- a tenant-scoped one-off calendar vertical with an interactive Android week/month/quarter/year UI,
-  idempotent creation and optimistic edit/delete protection;
+- an append-only Money ledger with finite or open-ended weekly, fortnightly, monthly, quarterly and
+  yearly household costs and payment declaration/confirmation/dispute/correction flows that never
+  claim SharedHouse moved money;
+- a tenant-scoped unified Android calendar that combines one-off events with generated household
+  costs and chores, with idempotent event creation and optimistic edit/delete protection;
 - a tenant-scoped household task board with role-aware creation/assignment, start and completion,
-  append-only history, issue reporting, and committed help/swap/postpone request decisions;
+  weekly/fortnightly/monthly finite or open-ended schedules, append-only history, issue reporting,
+  and committed help/swap/postpone request decisions;
+- automatic five-second foreground refresh of money, tasks, calendar and membership projections,
+  plus timezone-aware Android reminders with privacy-minimised lock-screen content and versioned
+  Start/Complete quick actions;
+- append-only household chat with authenticated tenant-scoped SSE delivery, idempotent sending,
+  reconnecting Android conversation UI and privacy-minimised foreground notifications;
 - secure, expiring household invitation codes with email restriction, role-aware creation and
   revocation, one-time acceptance, and an Android household switcher for multi-home accounts;
 - consent-gated Firebase Analytics/Crashlytics and GMA Next-Gen/UMP foundations, with optional ads
@@ -37,14 +44,15 @@ Development started with `EPIC-01` on 25 July 2026. The first foundation slice i
 - synthetic-only local PostgreSQL, Redis and S3-compatible infrastructure definitions;
 - strict TypeScript checks, unit/API tests, dependency auditing and GitHub Actions CI.
 
-The identity, household-configuration and one-off calendar verticals are functional. A hardened
+The identity, household-configuration and unified calendar verticals are functional. A hardened
 single-VPS deployment profile now provides PostgreSQL, an outbound Cloudflare Tunnel and
 transactional verification email through Resend, with the Android public profile pinned to
 `https://houseapi.dohotstudio.com`. A guarded interactive Linux wizard prepares secrets, validates
 Docker Compose and can deploy, back up and verify the public endpoint. This is not yet a complete
 production MVP: independent backup restoration exercises, session-device management, recent-authentication,
-distributed rate limiting, emailed invitation links/App Links, recurring/generated calendar and
-chore occurrences, advanced fairness/exemptions, shopping, remote notification delivery, store
+distributed rate limiting, emailed invitation links/App Links, push-driven invalidation for the
+non-chat projections and background provider push,
+advanced chore fairness/exemptions and series editing, shopping, remote notification delivery, store
 billing and final privacy/store evidence remain. The implemented identity, ledger, task and privacy
 records use the production VPS/API path and account exports include created or assigned tasks.
 

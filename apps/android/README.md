@@ -7,29 +7,32 @@ The application uses application ID `com.sharedhouse.android`, minimum SDK 26 an
 Its current functional vertical supports registration, development email verification, sign-in,
 access/refresh rotation, sign-out, household discovery, creation and version-checked editing. It also
 supports secure invitation preview/acceptance, owner/admin invitation management and switching among
-multiple joined households. The
-UI uses Navigation Compose and Material 3 with a phone navigation bar or large-screen rail,
-light/dark/dynamic/high-contrast themes, text scaling, a skippable first-run tutorial and matching
-English/Romanian resources. The server-backed calendar offers interactive week, month, quarter and
+multiple joined households. The UI uses Navigation Compose and SharedHouse's custom atmospheric
+dark-glass Foundation components with a phone dock or large-screen rail, high contrast, reduced
+motion, text scaling, a skippable first-run tutorial and matching English/Romanian resources. The
+server-backed calendar offers interactive week, month, quarter and
 year periods with day sheets and role-aware one-off event create/edit/delete actions. Advanced
 settings persist appearance, language, accessibility, notification categories, quiet hours, lead
-time, sound and vibration. A Material 3 privacy centre exposes opt-in Analytics, Crashlytics and
+time, sound and vibration. The atmospheric privacy centre exposes opt-in Analytics, Crashlytics and
 AdMob controls. Collection starts disabled; ads require UMP permission and are limited to a labelled
-adaptive banner in Guides. Debug variants use Google's test inventory. Six Android notification
-channels and a local test notification exist;
+adaptive banner in Guides. Debug variants use Google's test inventory. Seven Android notification
+channels, scheduled reminders, task quick actions and privacy-minimised foreground chat alerts exist;
 remote push scheduling does not. Money now provides a server-backed append-only expense ledger with
 exact equal splitting, personal/household summaries, member proposals, owner/admin approval and
 reasoned reversal. Owners and administrators can also manage reusable rent, bill and custom-cost
-templates with weekly/monthly/quarterly/yearly schedules. The production worker now creates each due
+templates with finite or open-ended weekly/fortnightly/monthly/quarterly/yearly schedules. The production worker now creates each due
 ledger occurrence exactly once, and Android labels it as generated without implying a payment.
 Members can declare their own approved share paid with method, time, reference and note; another
 active writer confirms or disputes the declaration, and corrections preserve the full audit trail.
 SharedHouse never claims to move money. Custom split methods are not yet exposed. Tasks is now a
-real server-backed Material 3 board: owners/admins assign responsibilities with zone, priority,
+real server-backed atmospheric board: owners/admins assign responsibilities with zone, priority,
 deadline and estimate; the responsible member can start, complete, report an issue or request help,
 swap or postponement; manager decisions are committed before the assignment/deadline changes. Home
-shows only authoritative task counts and the next assignment. Recurring templates, photo evidence
-and fairness scoring are not yet exposed and are never simulated.
+shows only authoritative task counts and the next assignment. Fixed-assignee task schedules support
+weekly, fortnightly and monthly generation with an optional final date. Named reusable templates,
+photo evidence and fairness scoring are not yet exposed and are never simulated. Household chat is
+append-only, tenant-scoped and interactive through authenticated SSE while Android is active;
+provider-backed background push remains absent.
 
 Account privacy actions are real rather than placeholders. **Settings > Trust and transparency** can
 create a password-confirmed JSON export through Android's system document picker or permanently

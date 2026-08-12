@@ -49,6 +49,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -320,6 +321,87 @@ class SharedHouseViewModelTest {
     }
 
     @Test
+    fun `foreground sync refreshes household projections without an app restart`() = runTest {
+        withMainDispatcher {
+            var calendarLoads = 0
+            var title = "Initial event"
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "member"))) }
+                listCalendarHandler = { _, householdId, from, _ ->
+                    calendarLoads += 1
+                    ApiResult.Success(
+                        listOf(calendarEvent(householdId = householdId, date = from, title = title)),
+                    )
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+            assertEquals(1, calendarLoads)
+
+            title = "Updated by another member"
+            viewModel.startLiveSync()
+            advanceTimeBy(5_000)
+            runCurrent()
+
+            assertEquals(2, calendarLoads)
+            assertEquals(
+                "Updated by another member",
+                (viewModel.uiState.value.calendar.content as CalendarContent.Ready).events.single().title,
+            )
+            viewModel.stopLiveSync()
+        }
+    }
+
+    @Test
+    fun `chat retry preserves draft and reuses the idempotency key`() = runTest {
+        withMainDispatcher {
+            val fake = FakeGateway().apply {
+                signInHandler = { ApiResult.Success(session("access-1", "refresh-1")) }
+                listHandler = { ApiResult.Success(listOf(household(role = "member"))) }
+                createChatHandler = { _, householdId, key, body ->
+                    chatCreateKeys += key
+                    if (chatCreateKeys.size == 1) {
+                        ApiResult.Failure(code = "NETWORK_UNAVAILABLE", title = "offline")
+                    } else {
+                        ApiResult.Success(
+                            com.sharedhouse.network.HouseholdChatMessageDto(
+                                id = "018f0000-0000-7000-8000-000000000077",
+                                householdId = householdId,
+                                senderMembershipId = "018f0000-0000-7000-8000-000000000003",
+                                senderUserId = "018f0000-0000-7000-8000-000000000001",
+                                senderDisplayName = "Alex",
+                                isCurrentUser = true,
+                                body = body,
+                                createdAt = "2026-08-11T12:00:00Z",
+                            ),
+                        )
+                    }
+                }
+            }
+            val viewModel = viewModel(fake)
+            runCurrent()
+            signIn(viewModel)
+            advanceUntilIdle()
+
+            viewModel.updateChatDraft("  Kitchen is finished.  ")
+            viewModel.sendChatMessage()
+            advanceUntilIdle()
+            assertEquals("  Kitchen is finished.  ", viewModel.uiState.value.chat.draft)
+            assertEquals(com.sharedhouse.android.ui.chat.ChatProblem.SEND_FAILED, viewModel.uiState.value.chat.problem)
+
+            viewModel.sendChatMessage()
+            advanceUntilIdle()
+            assertEquals(2, fake.chatCreateKeys.size)
+            assertEquals(fake.chatCreateKeys[0], fake.chatCreateKeys[1])
+            assertEquals("", viewModel.uiState.value.chat.draft)
+            assertEquals("Kitchen is finished.", viewModel.uiState.value.chat.messages.single().body)
+        }
+    }
+
+    @Test
     fun `calendar create retry reuses idempotency key and updates only after server success`() = runTest {
         withMainDispatcher {
             val fake = FakeGateway().apply {
@@ -442,6 +524,7 @@ class SharedHouseViewModelTest {
             val declared = (viewModel.uiState.value.money.content as MoneyContent.Ready)
                 .expenses.single().allocations.first { it.isCurrentUser }
             assertEquals(ExpensePaymentStatus.DECLARED, declared.paymentDeclarations.single().status)
+            assertEquals("Alex", declared.paymentDeclarations.single().declaredByDisplayName)
             assertFalse(declared.canDeclarePayment)
 
             viewModel.handleMoneyAction(
@@ -457,6 +540,7 @@ class SharedHouseViewModelTest {
             val corrected = (viewModel.uiState.value.money.content as MoneyContent.Ready)
                 .expenses.single().allocations.first { it.isCurrentUser }
             assertEquals(ExpensePaymentStatus.REVERSED, corrected.paymentDeclarations.single().status)
+            assertEquals("Sam", corrected.paymentDeclarations.single().reversedByDisplayName)
             assertTrue(corrected.canDeclarePayment)
         }
     }
@@ -742,6 +826,7 @@ private class FakeGateway : SharedHouseGateway {
     var signOutCalls = 0
     val createKeys = mutableListOf<String>()
     val calendarCreateKeys = mutableListOf<String>()
+    val chatCreateKeys = mutableListOf<String>()
 
     var registerHandler: suspend (RegisterPayload) -> ApiResult<RegistrationAcceptedDto> = {
         error("Unexpected register")
@@ -828,6 +913,14 @@ private class FakeGateway : SharedHouseGateway {
     var taskActionHandler:
         suspend (String, String, String, Int, String, com.sharedhouse.network.HouseholdTaskActionDto) -> ApiResult<com.sharedhouse.network.HouseholdTaskDto> =
         { _, _, _, _, _, _ -> error("Unexpected task action") }
+    var listChatHandler:
+        suspend (String, String, String?) -> ApiResult<com.sharedhouse.network.HouseholdChatPageDto> = { _, _, _ ->
+            ApiResult.Success(com.sharedhouse.network.HouseholdChatPageDto(emptyList()))
+        }
+    var createChatHandler:
+        suspend (String, String, String, String) -> ApiResult<com.sharedhouse.network.HouseholdChatMessageDto> = { _, _, _, _ ->
+            error("Unexpected chat message create")
+        }
     var listExpensesHandler:
         suspend (String, String) -> ApiResult<List<com.sharedhouse.network.ExpenseDto>> = { _, _ ->
             ApiResult.Success(emptyList())
@@ -987,6 +1080,25 @@ private class FakeGateway : SharedHouseGateway {
         action: com.sharedhouse.network.HouseholdTaskActionDto,
     ) = taskActionHandler(accessToken, householdId, taskId, expectedVersion, idempotencyKey, action)
 
+    override suspend fun listHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ) = listChatHandler(accessToken, householdId, after)
+
+    override suspend fun createHouseholdChatMessage(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        body: String,
+    ) = createChatHandler(accessToken, householdId, idempotencyKey, body)
+
+    override fun streamHouseholdChatMessages(
+        accessToken: String,
+        householdId: String,
+        after: String?,
+    ) = kotlinx.coroutines.flow.emptyFlow<ApiResult<com.sharedhouse.network.HouseholdChatMessageDto>>()
+
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         listExpensesHandler(accessToken, householdId)
 
@@ -1020,6 +1132,15 @@ private class FakeGateway : SharedHouseGateway {
         expenseId: String,
         expectedVersion: Int,
     ) = approveExpenseHandler(accessToken, householdId, expenseId, expectedVersion)
+
+    override suspend fun reviseExpense(
+        accessToken: String,
+        householdId: String,
+        expenseId: String,
+        expectedVersion: Int,
+        idempotencyKey: String,
+        payload: com.sharedhouse.network.ReviseExpensePayload,
+    ): ApiResult<ExpenseDto> = ApiResult.Failure("UNUSED", "Revision handler not configured")
 
     override suspend fun reverseExpense(
         accessToken: String,
@@ -1229,7 +1350,9 @@ private fun expenseWithCurrentPayment(householdId: String, status: String?): Exp
             paidAt = "2026-08-11T10:00:00Z",
             status = it,
             declaredByUserId = "018f0000-0000-7000-8000-000000000001",
+            declaredByDisplayName = "Alex",
             reversalReason = if (it == "reversed") "Transfer returned" else null,
+            reversedByDisplayName = if (it == "reversed") "Sam" else null,
             reversedAt = if (it == "reversed") "2026-08-11T10:05:00Z" else null,
             canConfirm = false,
             canDispute = false,

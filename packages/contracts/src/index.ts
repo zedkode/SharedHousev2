@@ -34,7 +34,13 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export type ExpenseStatus = 'proposed' | 'approved' | 'reversed';
-export const EXPENSE_TEMPLATE_CADENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
+export const EXPENSE_TEMPLATE_CADENCES = [
+  'weekly',
+  'fortnightly',
+  'monthly',
+  'quarterly',
+  'yearly',
+] as const;
 export type ExpenseTemplateCadence = (typeof EXPENSE_TEMPLATE_CADENCES)[number];
 export const EXPENSE_PAYMENT_METHODS = [
   'bank_transfer',
@@ -48,6 +54,8 @@ export type ExpensePaymentStatus = 'declared' | 'confirmed' | 'disputed' | 'reve
 
 export const HOUSEHOLD_TASK_PRIORITIES = ['low', 'normal', 'high'] as const;
 export type HouseholdTaskPriority = (typeof HOUSEHOLD_TASK_PRIORITIES)[number];
+export const HOUSEHOLD_TASK_RECURRENCE_CADENCES = ['weekly', 'fortnightly', 'monthly'] as const;
+export type HouseholdTaskRecurrenceCadence = (typeof HOUSEHOLD_TASK_RECURRENCE_CADENCES)[number];
 export type HouseholdTaskStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 export const HOUSEHOLD_TASK_REQUEST_TYPES = ['help', 'swap', 'postpone', 'issue'] as const;
 export type HouseholdTaskRequestType = (typeof HOUSEHOLD_TASK_REQUEST_TYPES)[number];
@@ -232,6 +240,26 @@ export interface HouseholdMemberBoard {
   readonly members: readonly HouseholdMemberSummary[];
 }
 
+export interface HouseholdChatMessage {
+  readonly id: string;
+  readonly householdId: string;
+  readonly senderMembershipId: string;
+  readonly senderUserId: string;
+  readonly senderDisplayName: string;
+  readonly isCurrentUser: boolean;
+  readonly body: string;
+  readonly createdAt: string;
+}
+
+export interface HouseholdChatPage {
+  readonly messages: readonly HouseholdChatMessage[];
+  readonly nextCursor: string | null;
+}
+
+export interface CreateHouseholdChatMessageRequest {
+  readonly body: string;
+}
+
 export interface HouseholdMemberActionRequest {
   readonly action: 'change_role' | 'suspend' | 'reactivate' | 'remove' | 'transfer_ownership';
   readonly role?: Exclude<HouseholdMemberRole, 'owner'> | null;
@@ -309,6 +337,8 @@ export interface HouseholdTaskConfiguration {
   readonly dueTime?: string | null;
   readonly estimatedMinutes?: number | null;
   readonly assigneeMembershipId: string;
+  readonly recurrenceCadence?: HouseholdTaskRecurrenceCadence | null;
+  readonly recurrenceEndsOn?: string | null;
 }
 
 export interface HouseholdTaskMemberSummary {
@@ -330,6 +360,7 @@ export interface HouseholdTaskRequestSummary {
   readonly createdByMembershipId: string;
   readonly createdByDisplayName: string;
   readonly resolvedByUserId: string | null;
+  readonly resolvedByDisplayName: string | null;
   readonly resolutionNote: string | null;
   readonly resolvedAt: string | null;
   readonly createdAt: string;
@@ -343,6 +374,9 @@ export interface HouseholdTaskSummary extends HouseholdTaskConfiguration {
   readonly dueTime: string | null;
   readonly estimatedMinutes: number | null;
   readonly assigneeDisplayName: string;
+  readonly seriesId: string | null;
+  readonly occurrenceDate: string | null;
+  readonly recurrenceActive: boolean;
   readonly status: HouseholdTaskStatus;
   readonly completionNote: string | null;
   readonly completedByUserId: string | null;
@@ -369,6 +403,7 @@ export interface HouseholdTaskActionRequest {
     | 'complete'
     | 'reopen'
     | 'cancel'
+    | 'stop_recurrence'
     | 'request_help'
     | 'request_swap'
     | 'request_postpone'
@@ -384,6 +419,7 @@ export interface HouseholdTaskActionRequest {
 
 export interface ExpenseConfiguration {
   readonly title: string;
+  readonly supplierName?: string | null;
   readonly category: ExpenseCategory;
   readonly customCategoryName?: string | null;
   readonly amount: Money;
@@ -449,12 +485,16 @@ export interface ExpensePaymentSummary {
   readonly paidAt: string;
   readonly status: ExpensePaymentStatus;
   readonly declaredByUserId: string;
+  readonly declaredByDisplayName: string;
   readonly confirmedByUserId: string | null;
+  readonly confirmedByDisplayName: string | null;
   readonly confirmedAt: string | null;
   readonly disputedByUserId: string | null;
+  readonly disputedByDisplayName: string | null;
   readonly disputedAt: string | null;
   readonly disputeReason: string | null;
   readonly reversedByUserId: string | null;
+  readonly reversedByDisplayName: string | null;
   readonly reversedAt: string | null;
   readonly reversalReason: string | null;
   readonly canConfirm: boolean;
@@ -483,6 +523,9 @@ export interface ExpenseSummary extends ExpenseConfiguration {
   readonly id: string;
   readonly householdId: string;
   readonly notes: string | null;
+  readonly supplierName: string | null;
+  readonly revisionOfExpenseId: string | null;
+  readonly supersededByExpenseId: string | null;
   readonly sourceTemplateId: string | null;
   readonly occurrenceDate: string | null;
   readonly splitMethod: 'equal';
@@ -492,12 +535,17 @@ export interface ExpenseSummary extends ExpenseConfiguration {
   readonly createdByUserId: string;
   readonly canApprove: boolean;
   readonly canReverse: boolean;
+  readonly canRevise: boolean;
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
 
 export interface ReverseExpenseRequest {
+  readonly reason: string;
+}
+
+export interface ReviseExpenseRequest extends ExpenseConfiguration {
   readonly reason: string;
 }
 
@@ -508,6 +556,8 @@ export interface ExpenseTemplateConfiguration {
   readonly amount: Money;
   readonly cadence: ExpenseTemplateCadence;
   readonly nextDueDate: string;
+  /** Inclusive final occurrence date. Null means the series continues until an admin archives it. */
+  readonly endsOn?: string | null;
   readonly notes?: string | null;
 }
 
@@ -516,6 +566,7 @@ export interface ExpenseTemplateSummary extends ExpenseTemplateConfiguration {
   readonly householdId: string;
   readonly customCategoryName: string | null;
   readonly notes: string | null;
+  readonly endsOn: string | null;
   readonly status: 'active' | 'archived';
   readonly canManage: boolean;
   readonly version: number;

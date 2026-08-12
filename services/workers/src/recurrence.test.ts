@@ -26,6 +26,7 @@ describe('expense recurrence', () => {
 
   it('moves weekly and quarterly rules using local dates only', () => {
     expect(nextOccurrenceDate('2026-03-29', 'weekly', 29, 3)).toBe('2026-04-05');
+    expect(nextOccurrenceDate('2026-03-29', 'fortnightly', 29, 3)).toBe('2026-04-12');
     expect(nextOccurrenceDate('2026-11-30', 'quarterly', 30, 11)).toBe('2027-02-28');
   });
 
