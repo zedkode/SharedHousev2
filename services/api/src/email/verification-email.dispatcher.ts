@@ -84,6 +84,7 @@ export class VerificationEmailDispatcher implements OnModuleInit, OnModuleDestro
          challenge_id AS "challengeId",
          recipient_email AS "recipientEmail",
          locale,
+         message_kind AS "messageKind",
          code_ciphertext_base64 AS "codeCiphertextBase64",
          code_iv_base64 AS "codeIvBase64",
          code_auth_tag_base64 AS "codeAuthTagBase64",
@@ -101,11 +102,15 @@ export class VerificationEmailDispatcher implements OnModuleInit, OnModuleDestro
     }
 
     try {
-      const code = this.codec.decrypt(message);
-      if (!/^[0-9]{8}$/u.test(code)) {
+      const code =
+        message.messageKind === undefined ||
+        message.messageKind === 'email_verification' ||
+        message.messageKind === 'email_change_verification'
+          ? this.codec.decrypt(message)
+          : null;
+      if (code !== null && !/^[0-9]{8}$/u.test(code))
         throw new EmailDeliveryError('verification_code_payload_invalid', false);
-      }
-      const providerMessageId = await this.resend.sendVerification(message, code);
+      const providerMessageId = await this.resend.send(message, code);
       await this.database.query(
         `UPDATE verification_email_outbox
          SET status = 'sent',

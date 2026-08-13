@@ -135,6 +135,7 @@ data class AppPreferences(
     val textScale: TextScale = TextScale.STANDARD,
     val notifications: NotificationPreferences = NotificationPreferences(),
     val privacy: PrivacyPreferences = PrivacyPreferences(),
+    val biometricUnlockEnabled: Boolean = false,
 )
 
 fun formatMinutesOfDay(minutes: Int): String {

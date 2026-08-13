@@ -21,6 +21,7 @@ import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppearanceMode
 import com.sharedhouse.android.ui.app.UiMessage
 import com.sharedhouse.network.AccountExportDto
+import com.sharedhouse.network.AccountDto
 import com.sharedhouse.android.preferences.AppPreferences
 import com.sharedhouse.android.preferences.AppPreferencesRepository
 import kotlinx.coroutines.CancellationException
@@ -48,6 +49,12 @@ fun SettingsRoute(
     accountExport: AccountExportDto?,
     onExportAccount: (String) -> Unit,
     onAccountExportHandled: () -> Unit,
+    account: AccountDto?,
+    onUpdateDisplayName: (String) -> Unit,
+    onChangePassword: (String,String,Boolean) -> Unit,
+    onRequestEmailChange: (String,String) -> Unit,
+    onConfirmEmailChange: (String) -> Unit,
+    onEnableBiometric: () -> Unit,
     googleServicesStatus: GoogleServicesStatus,
     onShowAdPrivacyOptions: () -> Unit,
     modifier: Modifier = Modifier,
@@ -159,6 +166,13 @@ fun SettingsRoute(
         accountOperationInProgress = accountOperationInProgress,
         onDeleteAccount = onDeleteAccount,
         onExportAccount = onExportAccount,
+        account = account,
+        biometricEnabled = preferences.biometricUnlockEnabled,
+        onUpdateDisplayName = onUpdateDisplayName,
+        onChangePassword = onChangePassword,
+        onRequestEmailChange = onRequestEmailChange,
+        onConfirmEmailChange = onConfirmEmailChange,
+        onBiometricChanged = { enabled -> if (enabled) onEnableBiometric() else persist { repository.setBiometricUnlockEnabled(false) } },
         modifier = modifier,
     )
 }

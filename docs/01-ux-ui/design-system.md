@@ -1,6 +1,6 @@
 # UI Design System
 
-## SharedHouse premium v2
+## SharedHouse premium v3
 
 SharedHouse uses a product-owned Compose design system rather than stock Material components. The
 visual character is precise, contemporary and slightly playful in low-risk moments, while money, access,
@@ -79,12 +79,23 @@ primary financial value; do not make every metric a hero.
 
 ## Shape, depth and density
 
-- Shape radii are 8, 12, 16, 20 and 28 dp. A screen may use a deliberately asymmetric bubble or
-  action shape, but repeated content must stay coherent.
-- Use at most one 28 dp hero surface per screen. The current hero uses a 135-degree
-  violet–purple–pink gradient, 20 dp content padding and a diffuse 20 dp shadow.
-- Level-1 cards sit directly above the background. Level-2/actionable cards use the stronger
-  surface, a violet-to-border 1 dp outline and an 8 dp default shadow.
+- Shape radii are 8, 16, 20, 24 and 36 dp. Repeated list/secondary cards use 24 dp, metric cards use
+  28 dp explicitly, large hero cards use 36 dp, short filters remain full pills and modal sheets use
+  32–34 dp top corners. Primary buttons never use less than 20 dp.
+- Use at most one 36 dp hero surface per screen. The hero uses the exact 135-degree three-stop
+  violet–purple–pink gradient (`0%`, `55%`, `100%`), 22 dp content padding, a coloured diffuse
+  shadow plus a tighter contact shadow, a top-left radial highlight and a short white edge
+  reflection.
+- Every standard card renders at least three perceptual layers: tinted/contact shadow beneath,
+  subtly illuminated vertical body gradient, and a top-left glass-like highlight above. Level-1
+  cards default to a 4 dp elevation input and level-2/actionable cards to 8 dp; the renderer adds a
+  broader tinted shadow without changing layout bounds.
+- `DepthIconBadge` owns the physical badge treatment: radial body light, its own 10 dp shadow,
+  highlight and border. Hero badges use translucent white while neutral badges preserve semantic
+  icon tint.
+- Hero cards include low-opacity clipped circles at the upper-right/lower-right. The global
+  scaffold and Home/House ambient container draw separate violet, pink and blue radial washes so
+  every principal screen has visible composition behind its surfaces.
 - Information-first screens use compact rows and grouped sections. Do not restore equal-height card
   grids when a list, metric strip or agenda communicates more in the first viewport.
 - Interactive targets remain at least 48 × 48 dp, including icon-only actions.
@@ -119,10 +130,12 @@ The phone navigation is a floating 32 dp dock, not a stock navigation bar. It us
 gradient indicator, custom icons and an animated spring transition. Selection remains explicit in
 semantics and text. Large layouts use the equivalent product-owned rail.
 
-Chips and segmented controls animate selected colour, depth and scale. Calendar transitions, task
-completion and navigation may use short springs. Reduced-motion mode replaces these transitions
-with immediate state changes. Never animate totals in a way that delays or obscures their final
-value.
+Chips and segmented controls animate selected colour, a 14 dp coloured shadow, highlight and scale.
+Primary buttons use the brand gradient and compress to `0.97` over 120 ms while their shadow moves
+closer; clickable card surfaces compress to `0.985`, and icon buttons to `0.94`. Calendar
+transitions, task completion and navigation may use short springs. Reduced-motion mode replaces
+these transitions with immediate state changes. Never animate totals in a way that delays or
+obscures their final value.
 
 ## Core component behaviour
 

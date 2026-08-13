@@ -23,6 +23,7 @@ interface CalendarEventRow {
   readonly start_time: string | null;
   readonly end_time: string | null;
   readonly reminder_minutes_before: number | null;
+  readonly source_chat_message_id: string | null;
   readonly status: 'active' | 'deleted';
   readonly version: number;
   readonly created_at: Date | string;
@@ -95,6 +96,7 @@ export class CalendarRepository {
       startTime: input.configuration.startTime ?? null,
       endTime: input.configuration.endTime ?? null,
       reminderMinutesBefore: input.configuration.reminderMinutesBefore ?? null,
+      sourceChatMessageId: input.configuration.sourceChatMessageId ?? null,
       createdByUserId: input.userId,
       version: 1,
       createdAt: input.occurredAt,
@@ -144,8 +146,8 @@ export class CalendarRepository {
       await transaction.query(
         `INSERT INTO calendar_events (
            id, household_id, created_by_user_id, event_type, title, description, event_date,
-           start_time, end_time, reminder_minutes_before, status, version, created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', 1, $11, $11)`,
+           start_time, end_time, reminder_minutes_before, source_chat_message_id, status, version, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', 1, $12, $12)`,
         [
           event.id,
           event.householdId,
@@ -157,9 +159,34 @@ export class CalendarRepository {
           event.startTime,
           event.endTime,
           event.reminderMinutesBefore,
+          event.sourceChatMessageId ?? null,
           input.occurredAt,
         ],
       );
+      if (event.sourceChatMessageId !== null && event.sourceChatMessageId !== undefined) {
+        const source = await transaction.query<{ readonly id: string }>(
+          `UPDATE household_chat_messages SET source_calendar_event_id=$1 WHERE id=$2 AND household_id=$3 RETURNING id`,
+          [event.id, event.sourceChatMessageId, event.householdId],
+        );
+        if (source.length === 0) return { status: 'not_found' };
+        const systemMessageId = newUuidV7(Date.parse(input.occurredAt) + 1);
+        const membership = await transaction.query<{ readonly id: string }>(
+          `SELECT id FROM household_memberships WHERE household_id=$1 AND user_id=$2 AND status='active' LIMIT 1`,
+          [event.householdId, input.userId],
+        );
+        await transaction.query(
+          `INSERT INTO household_chat_messages (id,household_id,sender_membership_id,body,message_kind,source_chat_message_id,source_calendar_event_id,created_at) VALUES ($1,$2,$3,$4,'system',$5,$6,$7)`,
+          [
+            systemMessageId,
+            event.householdId,
+            membership[0]?.id,
+            `${event.title} · ${event.date}`,
+            event.sourceChatMessageId,
+            event.id,
+            input.occurredAt,
+          ],
+        );
+      }
       await writeCalendarEventEvidence(transaction, {
         userId: input.userId,
         event,
@@ -220,7 +247,7 @@ export class CalendarRepository {
          WHERE id = $1 AND household_id = $2 AND version = $3 AND status = 'active'
          RETURNING
            id, household_id, created_by_user_id, event_type, title, description, event_date,
-           start_time, end_time, reminder_minutes_before, status, version, created_at, updated_at`,
+           start_time, end_time, reminder_minutes_before, source_chat_message_id, status, version, created_at, updated_at`,
         [
           input.eventId,
           input.householdId,
@@ -294,7 +321,7 @@ export class CalendarRepository {
          WHERE id = $1 AND household_id = $2 AND version = $3 AND status = 'active'
          RETURNING
            id, household_id, created_by_user_id, event_type, title, description, event_date,
-           start_time, end_time, reminder_minutes_before, status, version, created_at, updated_at`,
+           start_time, end_time, reminder_minutes_before, source_chat_message_id, status, version, created_at, updated_at`,
         [input.eventId, input.householdId, input.expectedVersion, input.occurredAt],
       );
       const deleted = deletedRows[0];
@@ -344,6 +371,7 @@ function calendarEventSelect(): string {
     start_time,
     end_time,
     reminder_minutes_before,
+    source_chat_message_id,
     status,
     version,
     created_at,
@@ -362,6 +390,7 @@ function mapCalendarEvent(row: CalendarEventRow): CalendarEventSummary {
     startTime: toLocalTime(row.start_time),
     endTime: toLocalTime(row.end_time),
     reminderMinutesBefore: row.reminder_minutes_before,
+    sourceChatMessageId: row.source_chat_message_id,
     createdByUserId: row.created_by_user_id,
     version: row.version,
     createdAt: toInstant(row.created_at),

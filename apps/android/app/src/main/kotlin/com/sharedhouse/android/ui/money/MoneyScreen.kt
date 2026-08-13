@@ -33,6 +33,7 @@ import com.sharedhouse.android.ui.atmosphere.CardDefaults
 import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
 import com.sharedhouse.android.ui.atmosphere.DatePicker
 import com.sharedhouse.android.ui.atmosphere.DatePickerDialog
+import com.sharedhouse.android.ui.atmosphere.DepthIconBadge
 import com.sharedhouse.android.ui.atmosphere.DropdownMenu
 import com.sharedhouse.android.ui.atmosphere.DropdownMenuItem
 import com.sharedhouse.android.ui.atmosphere.FilterChip
@@ -444,6 +445,7 @@ private fun SummaryCard(icon: ImageVector, label: String, value: String, modifie
     } else {
         Card(
             modifier,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         ) {
@@ -465,15 +467,14 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = AtmosphereTheme.shapes.small,
-            color = if (hero) Color.White.copy(alpha = .14f) else AtmosphereTheme.colorScheme.secondary.copy(alpha = .16f),
-            contentColor = if (hero) Color.White else AtmosphereTheme.colorScheme.secondary,
-        ) {
-            Box(Modifier.size(if (hero) 46.dp else 34.dp), contentAlignment = Alignment.Center) {
-                Icon(icon, null, Modifier.size(if (hero) 24.dp else 19.dp))
-            }
-        }
+        DepthIconBadge(
+            icon = icon,
+            contentDescription = null,
+            hero = hero,
+            tint = if (hero) Color.White else AtmosphereTheme.colorScheme.secondary,
+            badgeSize = if (hero) 46.dp else 36.dp,
+            iconSize = if (hero) 24.dp else 19.dp,
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 value,
@@ -499,11 +500,13 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
     Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = AtmosphereTheme.shapes.small,
-                    color = AtmosphereTheme.colorScheme.secondaryContainer,
-                    contentColor = AtmosphereTheme.colorScheme.secondary,
-                ) { Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) { Icon(expense.category.icon(), null, Modifier.size(21.dp)) } }
+                DepthIconBadge(
+                    icon = expense.category.icon(),
+                    contentDescription = null,
+                    tint = AtmosphereTheme.colorScheme.secondary,
+                    badgeSize = 38.dp,
+                    iconSize = 21.dp,
+                )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(expense.title, style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1062,7 +1065,12 @@ private fun ArchiveTemplateDialog(template: ExpenseTemplateUi, onDismiss: () -> 
 private fun EmptyMoney(filter: MoneyFilter, canCreate: Boolean, onAdd: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(SharedHouseIcons.Approved, null)
+            DepthIconBadge(
+                icon = SharedHouseIcons.Approved,
+                contentDescription = null,
+                badgeSize = 72.dp,
+                iconSize = 34.dp,
+            )
             Spacer(Modifier.height(12.dp))
             Text(stringResource(filter.emptyResource), style = AtmosphereTheme.typography.titleMedium)
             Text(stringResource(R.string.money_empty_explanation), style = AtmosphereTheme.typography.bodyMedium)

@@ -77,6 +77,8 @@ import com.sharedhouse.android.preferences.TextScale
 import com.sharedhouse.android.preferences.adjustedQuietTime
 import com.sharedhouse.android.preferences.formatMinutesOfDay
 import com.sharedhouse.android.ui.app.UiMessage
+import com.sharedhouse.network.AccountDto
+import androidx.compose.material.icons.outlined.AccountCircle
 import com.sharedhouse.android.ui.components.localized
 
 private data class Choice<T>(
@@ -116,6 +118,13 @@ fun SettingsScreen(
     accountOperationInProgress: Boolean,
     onDeleteAccount: (String) -> Unit,
     onExportAccount: (String) -> Unit,
+    account: AccountDto?,
+    biometricEnabled: Boolean,
+    onUpdateDisplayName: (String) -> Unit,
+    onChangePassword: (String,String,Boolean) -> Unit,
+    onRequestEmailChange: (String,String) -> Unit,
+    onConfirmEmailChange: (String) -> Unit,
+    onBiometricChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val notifications = preferences.notifications
@@ -123,6 +132,13 @@ fun SettingsScreen(
     var deletionPassword by remember { mutableStateOf("") }
     var showExportDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
+    var displayName by remember(account?.displayName) { mutableStateOf(account?.displayName.orEmpty()) }
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var newEmail by remember { mutableStateOf("") }
+    var emailPassword by remember { mutableStateOf("") }
+    var emailCode by remember { mutableStateOf("") }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = AtmosphereTheme.colorScheme.background,
@@ -192,6 +208,32 @@ fun SettingsScreen(
                             },
                         )
                     }
+                }
+            }
+
+            item {
+                SettingsSection(
+                    icon = Icons.Outlined.AccountCircle,
+                    title = R.string.my_account_title,
+                    description = R.string.my_account_description,
+                ) {
+                    OutlinedTextField(value=displayName,onValueChange={displayName=it},label={Text(stringResource(R.string.my_account_name))},singleLine=true,modifier=Modifier.fillMaxWidth())
+                    Button(onClick={onUpdateDisplayName(displayName)},enabled=displayName.trim().length>=2&&!accountOperationInProgress,modifier=Modifier.fillMaxWidth()){Text(stringResource(R.string.my_account_save_name))}
+                    HorizontalDivider()
+                    Text(stringResource(R.string.my_account_email_current,account?.email.orEmpty()),color=AtmosphereTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value=newEmail,onValueChange={newEmail=it},label={Text(stringResource(R.string.my_account_new_email))},singleLine=true,modifier=Modifier.fillMaxWidth())
+                    OutlinedTextField(value=emailPassword,onValueChange={emailPassword=it},label={Text(stringResource(R.string.settings_current_password))},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth())
+                    Button(onClick={onRequestEmailChange(newEmail,emailPassword)},enabled=newEmail.isNotBlank()&&emailPassword.isNotBlank()&&!accountOperationInProgress,modifier=Modifier.fillMaxWidth()){Text(stringResource(R.string.my_account_send_email_code))}
+                    OutlinedTextField(value=emailCode,onValueChange={emailCode=it.filter(Char::isDigit).take(8)},label={Text(stringResource(R.string.my_account_email_code))},singleLine=true,modifier=Modifier.fillMaxWidth())
+                    Button(onClick={onConfirmEmailChange(emailCode)},enabled=emailCode.length==8&&!accountOperationInProgress,modifier=Modifier.fillMaxWidth()){Text(stringResource(R.string.my_account_confirm_email))}
+                    HorizontalDivider()
+                    OutlinedTextField(value=currentPassword,onValueChange={currentPassword=it},label={Text(stringResource(R.string.settings_current_password))},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth())
+                    OutlinedTextField(value=newPassword,onValueChange={newPassword=it.take(128)},label={Text(stringResource(R.string.my_account_new_password))},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth())
+                    OutlinedTextField(value=confirmPassword,onValueChange={confirmPassword=it.take(128)},label={Text(stringResource(R.string.my_account_confirm_password))},visualTransformation=PasswordVisualTransformation(),singleLine=true,modifier=Modifier.fillMaxWidth())
+                    Text(stringResource(if(newPassword.length>=20) R.string.password_strength_strong else if(newPassword.length>=15) R.string.password_strength_medium else R.string.password_strength_weak),color=if(newPassword.length>=15) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.error)
+                    Button(onClick={onChangePassword(currentPassword,newPassword,true)},enabled=currentPassword.isNotBlank()&&newPassword.length>=15&&newPassword==confirmPassword&&!accountOperationInProgress,modifier=Modifier.fillMaxWidth()){Text(stringResource(R.string.my_account_change_password))}
+                    HorizontalDivider()
+                    ToggleSetting(title=R.string.my_account_biometric,description=R.string.my_account_biometric_description,checked=biometricEnabled,onCheckedChange=onBiometricChanged)
                 }
             }
 

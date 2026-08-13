@@ -1,5 +1,9 @@
 import { Injectable, type MessageEvent } from '@nestjs/common';
-import type { HouseholdChatMessage, HouseholdChatPage } from '@sharedhouse/contracts';
+import type {
+  HouseholdChatAttachment,
+  HouseholdChatMessage,
+  HouseholdChatPage,
+} from '@sharedhouse/contracts';
 import { createHash } from 'node:crypto';
 import { Observable } from 'rxjs';
 
@@ -24,16 +28,22 @@ export class ChatService {
   async create(
     userId: string,
     householdId: string,
-    body: string,
+    message: {
+      readonly body: string;
+      readonly attachmentIds: readonly string[];
+      readonly mentionedUserIds: readonly string[];
+      readonly mentionAll: boolean;
+      readonly location: { readonly latitude: number; readonly longitude: number } | null;
+    },
     idempotencyKey: string,
   ): Promise<HouseholdChatMessage> {
     const requestHash = createHash('sha256')
-      .update(JSON.stringify({ householdId, body }), 'utf8')
+      .update(JSON.stringify({ householdId, message }), 'utf8')
       .digest('hex');
     const result = await this.repository.create({
       userId,
       householdId,
-      body,
+      ...message,
       idempotencyKey,
       requestHash,
       occurredAt: new Date().toISOString(),
@@ -50,6 +60,60 @@ export class ChatService {
       status: 409,
       code: 'IDEMPOTENCY_KEY_REUSED',
       title: 'This idempotency key was already used for another request.',
+    });
+  }
+
+  async uploadAttachment(
+    userId: string,
+    householdId: string,
+    attachment: {
+      readonly mediaType: HouseholdChatAttachment['mediaType'];
+      readonly width: number;
+      readonly height: number;
+      readonly content: Buffer;
+    },
+  ): Promise<HouseholdChatAttachment> {
+    const result = await this.repository.uploadAttachment({
+      userId,
+      householdId,
+      ...attachment,
+      occurredAt: new Date().toISOString(),
+    });
+    if (result.status === 'created') return result.attachment;
+    if (result.status === 'not_found') throw householdNotFound();
+    throw writeForbidden();
+  }
+
+  async downloadAttachment(userId: string, householdId: string, attachmentId: string) {
+    const result = await this.repository.downloadAttachment({ userId, householdId, attachmentId });
+    if (result.status === 'found') return result.attachment;
+    throw new ApiProblemException({
+      status: 404,
+      code: 'CHAT_ATTACHMENT_NOT_FOUND',
+      title: 'The chat photo was not found.',
+    });
+  }
+
+  async setPinned(userId: string, householdId: string, messageId: string, pinned: boolean) {
+    const result = await this.repository.setPinned({
+      userId,
+      householdId,
+      messageId,
+      pinned,
+      occurredAt: new Date().toISOString(),
+    });
+    if (result.status === 'updated') return result.message;
+    if (result.status === 'not_found')
+      throw new ApiProblemException({
+        status: 404,
+        code: 'CHAT_MESSAGE_NOT_FOUND',
+        title: 'The chat message was not found.',
+      });
+    if (result.status === 'forbidden') throw writeForbidden();
+    throw new ApiProblemException({
+      status: 409,
+      code: 'CHAT_PIN_LIMIT',
+      title: 'A household can keep up to five messages pinned.',
     });
   }
 
@@ -96,5 +160,13 @@ function householdNotFound(): ApiProblemException {
     status: 404,
     code: 'HOUSEHOLD_NOT_FOUND',
     title: 'The household was not found.',
+  });
+}
+
+function writeForbidden(): ApiProblemException {
+  return new ApiProblemException({
+    status: 403,
+    code: 'HOUSEHOLD_CHAT_WRITE_FORBIDDEN',
+    title: 'Your household role cannot change chat messages.',
   });
 }

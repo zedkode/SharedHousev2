@@ -5,6 +5,7 @@ import {
   Get,
   Header,
   HttpCode,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -19,6 +20,7 @@ import type {
 } from '@sharedhouse/contracts';
 import type { Request } from 'express';
 
+import { ApiProblemException } from '../http/api-problem.exception.js';
 import {
   parseRefreshRequest,
   parseDeleteAccountRequest,
@@ -102,6 +104,100 @@ export class AccountController {
   @UseGuards(AuthenticationGuard)
   getAccount(@CurrentPrincipal() principal: AuthenticatedPrincipal): AccountSummary {
     return principal.account;
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthenticationGuard)
+  updateProfile(
+    @CurrentPrincipal() principal: AuthenticatedPrincipal,
+    @Body() body: unknown,
+  ): Promise<AccountSummary> {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('displayName' in body) ||
+      typeof body.displayName !== 'string'
+    )
+      throw new ApiProblemException({
+        status: 400,
+        code: 'VALIDATION_FAILED',
+        title: 'Provide a display name.',
+      });
+    return this.identity.updateDisplayName(principal.userId, body.displayName);
+  }
+
+  @Post('password')
+  @UseGuards(AuthenticationGuard)
+  @Throttle({ default: { limit: 5, ttl: 60 * 60_000 } })
+  changePassword(
+    @CurrentPrincipal() principal: AuthenticatedPrincipal,
+    @Body() body: unknown,
+  ): Promise<AccountSummary> {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('currentPassword' in body) ||
+      typeof body.currentPassword !== 'string' ||
+      !('newPassword' in body) ||
+      typeof body.newPassword !== 'string'
+    )
+      throw new ApiProblemException({
+        status: 400,
+        code: 'VALIDATION_FAILED',
+        title: 'Provide the current and new passwords.',
+      });
+    return this.identity.changePassword({
+      userId: principal.userId,
+      sessionId: principal.sessionId,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      revokeOtherSessions: 'revokeOtherSessions' in body && body.revokeOtherSessions === true,
+    });
+  }
+
+  @Post('email-change')
+  @UseGuards(AuthenticationGuard)
+  @Throttle({ default: { limit: 3, ttl: 60 * 60_000 } })
+  requestEmailChange(@CurrentPrincipal() principal: AuthenticatedPrincipal, @Body() body: unknown) {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('newEmail' in body) ||
+      typeof body.newEmail !== 'string' ||
+      !('currentPassword' in body) ||
+      typeof body.currentPassword !== 'string'
+    )
+      throw new ApiProblemException({
+        status: 400,
+        code: 'VALIDATION_FAILED',
+        title: 'Provide the new email and current password.',
+      });
+    return this.identity.requestEmailChange({
+      userId: principal.userId,
+      newEmail: body.newEmail,
+      currentPassword: body.currentPassword,
+    });
+  }
+
+  @Post('email-change/confirm')
+  @UseGuards(AuthenticationGuard)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  confirmEmailChange(
+    @CurrentPrincipal() principal: AuthenticatedPrincipal,
+    @Body() body: unknown,
+  ): Promise<AccountSummary> {
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('code' in body) ||
+      typeof body.code !== 'string'
+    )
+      throw new ApiProblemException({
+        status: 400,
+        code: 'VALIDATION_FAILED',
+        title: 'Provide the verification code.',
+      });
+    return this.identity.confirmEmailChange(principal.userId, body.code);
   }
 
   @Delete()

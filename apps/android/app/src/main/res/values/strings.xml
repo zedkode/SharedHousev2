@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="startup_logo_description">SharedHouse logo</string>
+    <string name="startup_loading_description">SharedHouse is loading</string>
+    <string name="startup_preparing_title">Preparing your shared home</string>
+    <string name="startup_preparing_supporting">Restoring your secure session and latest household details…</string>
+    <string name="startup_welcome_back">Welcome back, %1$s</string>
+    <string name="startup_authenticated_supporting">Everything at home is ready for you.</string>
+    <string name="startup_welcome_guest">Welcome to SharedHouse</string>
+    <string name="startup_guest_supporting">A calmer way to organise life together.</string>
     <string name="app_name">SharedHouse</string>
     <string name="home_title">SharedHouse</string>
     <string name="household_not_configured">Not configured</string>
@@ -38,7 +46,6 @@
     <string name="welcome_title">A calmer way to organise home together</string>
     <string name="welcome_description">Create a verified account, configure your household and keep responsibilities clear without pretending that SharedHouse moves money.</string>
     <string name="session_secure_notice">Your session is encrypted with a key protected by this device and is removed when you sign out.</string>
-    <string name="session_restoring">Checking your secure session…</string>
     <string name="retry_secure_session">Try session recovery again</string>
     <string name="create_account">Create account</string>
     <string name="creating_account">Creating account…</string>
@@ -779,4 +786,38 @@
     </plurals>
     <string name="dashboard_tasks_next">Next for you: %1$s · %2$s · %3$s</string>
     <string name="dashboard_tasks_ready">%1$s · %2$s</string>
+    <string name="biometric_locked_title">SharedHouse is locked</string>
+    <string name="biometric_locked_description">Unlock before household money, messages, and tasks are loaded.</string>
+    <string name="biometric_unlock_action">Unlock securely</string>
+    <string name="biometric_use_password">Sign in with password instead</string>
+    <string name="biometric_prompt_title">Unlock SharedHouse</string>
+    <string name="biometric_prompt_subtitle">Use your fingerprint, face, or device screen lock.</string>
+    <string name="my_account_title">My account</string>
+    <string name="my_account_description">Your identity, email, password, and secure app unlock.</string>
+    <string name="my_account_name">Display name</string>
+    <string name="my_account_save_name">Save name</string>
+    <string name="my_account_email_current">Current email: %1$s</string>
+    <string name="my_account_new_email">New email</string>
+    <string name="my_account_send_email_code">Send verification code</string>
+    <string name="my_account_email_code">8-digit verification code</string>
+    <string name="my_account_confirm_email">Confirm new email</string>
+    <string name="my_account_new_password">New password</string>
+    <string name="my_account_confirm_password">Confirm new password</string>
+    <string name="my_account_change_password">Change password and sign out other devices</string>
+    <string name="password_strength_weak">Password strength: use at least 15 characters</string>
+    <string name="password_strength_medium">Password strength: medium</string>
+    <string name="password_strength_strong">Password strength: strong</string>
+    <string name="my_account_biometric">Biometric unlock</string>
+    <string name="my_account_biometric_description">Require your fingerprint, face, or screen lock before household data is loaded.</string>
+    <string name="chat_pinned_title">Pinned messages</string>
+    <string name="chat_media_message">Photo or shared location</string>
+    <string name="chat_message_actions">Message actions</string>
+    <string name="chat_pin">Pin message</string>
+    <string name="chat_unpin">Unpin message</string>
+    <string name="chat_create_event">Create calendar event</string>
+    <string name="chat_pinned_by">Pinned by %1$s</string>
+    <string name="chat_close_actions">Close</string>
+    <string name="notification_channel_chat_mentions">Chat mentions</string>
+    <string name="notification_channel_chat_mentions_description">Direct mentions and @all household alerts.</string>
+    <plurals name="chat_photo_count"><item quantity="one">1 shared photo</item><item quantity="other">%1$d shared photos</item></plurals>
 </resources>

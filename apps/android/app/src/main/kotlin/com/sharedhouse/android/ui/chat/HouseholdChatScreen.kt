@@ -3,6 +3,7 @@ package com.sharedhouse.android.ui.chat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -59,6 +62,8 @@ import com.sharedhouse.android.ui.atmosphere.Scaffold
 import com.sharedhouse.android.ui.atmosphere.Surface
 import com.sharedhouse.android.ui.atmosphere.Text
 import com.sharedhouse.android.ui.atmosphere.TopAppBar
+import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.TextButton
 import com.sharedhouse.android.ui.icons.SharedHouseIcons
 import com.sharedhouse.android.ui.theme.AtmosphereTheme
 import java.time.Duration
@@ -68,7 +73,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
-private const val ChatBodyLimit = 2_000
 private val MessageGroupingWindow: Duration = Duration.ofMinutes(5)
 
 @Composable
@@ -78,6 +82,11 @@ fun HouseholdChatScreen(
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
     onRetry: () -> Unit,
+    onPinMessage: (String,Boolean) -> Unit = { _,_ -> },
+    onCreateEventFromMessage: (ChatMessageUi) -> Unit = {},
+    onPickPhotos: () -> Unit = {},
+    onTakePhoto: () -> Unit = {},
+    onShareLocation: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -85,6 +94,7 @@ fun HouseholdChatScreen(
     val timeline = remember(state.messages, zoneId) { buildTimeline(state.messages, zoneId) }
     val motionEnabled = AtmosphereTheme.motionEnabled
     var previousTimelineSize by remember { mutableIntStateOf(0) }
+    var selectedMessage by remember { mutableStateOf<ChatMessageUi?>(null) }
 
     LaunchedEffect(timeline.size, state.messages.lastOrNull()?.id) {
         if (timeline.isNotEmpty()) {
@@ -165,6 +175,14 @@ fun HouseholdChatScreen(
                     ),
                 ),
         ) {
+            if (state.pinnedMessages.isNotEmpty()) {
+                Surface(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=8.dp),shape=RoundedCornerShape(18.dp),color=AtmosphereTheme.colorScheme.primaryContainer,border=BorderStroke(1.dp,AtmosphereTheme.colorScheme.primary.copy(alpha=.35f))) {
+                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.chat_pinned_title),style=AtmosphereTheme.typography.labelLarge,color=AtmosphereTheme.colorScheme.primary)
+                        state.pinnedMessages.take(5).forEach { Text(it.body.ifBlank { stringResource(R.string.chat_media_message) },maxLines=1,style=AtmosphereTheme.typography.bodySmall) }
+                    }
+                }
+            }
             if (state.problem != null && state.messages.isNotEmpty()) {
                 ChatProblemBanner(state.problem, onRetry)
             }
@@ -192,7 +210,7 @@ fun HouseholdChatScreen(
                         items(timeline, key = ChatTimelineItem::key) { item ->
                             when (item) {
                                 is ChatTimelineItem.Day -> DayDivider(item.date)
-                                is ChatTimelineItem.Messages -> MessageGroup(item.group, zoneId)
+                                is ChatTimelineItem.Messages -> MessageGroup(item.group, zoneId,onLongPress={selectedMessage=it})
                             }
                         }
                     }
@@ -203,8 +221,17 @@ fun HouseholdChatScreen(
                 state = state,
                 onDraftChanged = onDraftChanged,
                 onSend = onSend,
+                onPickPhotos=onPickPhotos,
+                onTakePhoto=onTakePhoto,
+                onShareLocation=onShareLocation,
             )
         }
+    }
+    selectedMessage?.let { message ->
+        AlertDialog(onDismissRequest={selectedMessage=null},title={Text(stringResource(R.string.chat_message_actions))},text={Column {
+            TextButton(onClick={onPinMessage(message.id,!message.isPinned);selectedMessage=null}){Text(stringResource(if(message.isPinned) R.string.chat_unpin else R.string.chat_pin))}
+            TextButton(onClick={onCreateEventFromMessage(message);selectedMessage=null}){Text(stringResource(R.string.chat_create_event))}
+        }},confirmButton={TextButton(onClick={selectedMessage=null}){Text(stringResource(R.string.chat_close_actions))}})
     }
 }
 
@@ -494,6 +521,7 @@ private fun DayDivider(date: LocalDate) {
 private fun MessageGroup(
     group: ChatMessageGroup,
     zoneId: ZoneId,
+    onLongPress: (ChatMessageUi) -> Unit,
 ) {
     val senderLabel = if (group.isCurrentUser) {
         stringResource(R.string.chat_sender_you, group.senderDisplayName)
@@ -530,6 +558,7 @@ private fun MessageGroup(
                     zoneId = zoneId,
                     position = index,
                     groupSize = group.messages.size,
+                    onLongPress = { onLongPress(message) },
                 )
             }
         }
@@ -594,6 +623,7 @@ private fun MessageBubble(
     zoneId: ZoneId,
     position: Int,
     groupSize: Int,
+    onLongPress: () -> Unit,
 ) {
     val time = remember(message.createdAt, zoneId) {
         DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).format(message.createdAt.atZone(zoneId))
@@ -648,13 +678,21 @@ private fun MessageBubble(
                 },
                 shape = shape,
             )
+            .combinedClickable(onClick={},onLongClick=onLongPress)
             .clearAndSetSemantics { contentDescription = accessibilityLabel },
     ) {
         Column(
             Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(message.body, style = AtmosphereTheme.typography.bodyLarge, color = bodyColor)
+            if(message.body.isNotBlank()) Text(message.body, style = AtmosphereTheme.typography.bodyLarge, color = bodyColor)
+            if(message.attachments.isNotEmpty()) {
+                Surface(shape=RoundedCornerShape(16.dp),color=Color.Black.copy(alpha=.18f),border=BorderStroke(1.dp,Color.White.copy(alpha=.16f))) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally) { Text("🖼️",style=AtmosphereTheme.typography.headlineMedium); Text(pluralStringResource(R.plurals.chat_photo_count,message.attachments.size,message.attachments.size),color=bodyColor) }
+                }
+            }
+            message.location?.let { location -> Text("📍 %.5f, %.5f".format(location.latitude,location.longitude),style=AtmosphereTheme.typography.bodyMedium,color=bodyColor) }
+            if(message.isPinned) Text(stringResource(R.string.chat_pinned_by,message.pinnedByDisplayName.orEmpty()),style=AtmosphereTheme.typography.labelSmall,color=timeColor)
             Text(
                 time,
                 modifier = Modifier.align(Alignment.End),
@@ -697,6 +735,9 @@ private fun ChatComposer(
     state: ChatUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
+    onPickPhotos: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onShareLocation: () -> Unit,
 ) {
     val canSubmit = state.canSend && !state.isSending && state.draft.isNotBlank()
     val sendFailure = state.problem == ChatProblem.SEND_FAILED
@@ -706,6 +747,7 @@ private fun ChatComposer(
         sendFailure -> stringResource(R.string.chat_draft_preserved)
         else -> null
     }
+    val mentionQuery = state.draft.substringAfterLast(' ', "").takeIf { it.startsWith("@") }?.drop(1)?.lowercase()
 
     Surface(
         modifier = Modifier.fillMaxWidth().imePadding(),
@@ -714,14 +756,28 @@ private fun ChatComposer(
         border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
         shadowElevation = 16.dp,
     ) {
-        Row(
+        Column(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement=Arrangement.spacedBy(8.dp),
+        ) {
+        if (mentionQuery != null) {
+            val suggestions=state.members.filter { !it.isCurrentUser && it.displayName.lowercase().contains(mentionQuery) }.take(3)
+            if(suggestions.isNotEmpty() || state.canMentionAll) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                if(state.canMentionAll && (mentionQuery.isEmpty() || "toți".startsWith(mentionQuery) || "all".startsWith(mentionQuery))) TextButton(onClick={onDraftChanged(state.draft.substringBeforeLast("@")+"@toți ")}){Text("@toți")}
+                suggestions.forEach { member -> TextButton(onClick={onDraftChanged(state.draft.substringBeforeLast("@")+"@${member.displayName} ")}){Text("@${member.displayName}")}}
+            }
+        }
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            IconButton(onPickPhotos){ Text("🖼️") }; IconButton(onTakePhoto){Text("📷")}; IconButton(onShareLocation){Text("📍")}
+        }
+        Row(
+            Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
                 value = state.draft,
-                onValueChange = { onDraftChanged(it.take(ChatBodyLimit)) },
+                onValueChange = onDraftChanged,
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(
@@ -762,26 +818,13 @@ private fun ChatComposer(
                                 },
                             )
                         } ?: Spacer(Modifier.weight(1f))
-                        Text(
-                            stringResource(
-                                R.string.chat_character_count,
-                                state.draft.length,
-                                ChatBodyLimit,
-                            ),
-                            style = AtmosphereTheme.typography.labelSmall,
-                            color = if (state.draft.length >= ChatBodyLimit) {
-                                AtmosphereTheme.colorScheme.statusAttention
-                            } else {
-                                AtmosphereTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
                     }
                 },
                 enabled = state.canSend && !state.isSending,
                 isError = sendFailure,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { if (canSubmit) onSend() }),
-                maxLines = 4,
+                maxLines = 8,
                 minLines = 1,
             )
 
@@ -826,6 +869,7 @@ private fun ChatComposer(
                     }
                 }
             }
+        }
         }
     }
 }

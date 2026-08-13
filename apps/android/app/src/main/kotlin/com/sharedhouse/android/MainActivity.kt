@@ -12,14 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.isSystemInDarkTheme
-import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
-import com.sharedhouse.android.ui.theme.AtmosphereTheme
-import com.sharedhouse.android.ui.atmosphere.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
@@ -32,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sharedhouse.android.platform.notifications.SharedHouseNotifications
 import com.sharedhouse.android.platform.google.GoogleServicesCoordinator
 import com.sharedhouse.android.platform.security.AndroidKeystoreSessionStore
+import com.sharedhouse.android.platform.security.requestBiometricUnlock
 import com.sharedhouse.android.preferences.AppLanguage
 import com.sharedhouse.android.preferences.AppearanceMode
 import com.sharedhouse.android.preferences.AppPreferences
@@ -40,6 +37,9 @@ import com.sharedhouse.android.ui.app.ApiSharedHouseGateway
 import com.sharedhouse.android.ui.app.HouseholdFormState
 import com.sharedhouse.android.ui.app.SharedHouseApp
 import com.sharedhouse.android.ui.app.SharedHouseViewModel
+import com.sharedhouse.android.ui.startup.SharedHouseStartupScreen
+import com.sharedhouse.android.ui.startup.StartupCopyKind
+import com.sharedhouse.android.ui.security.BiometricLockScreen
 import com.sharedhouse.android.ui.theme.SharedHouseTheme
 import com.sharedhouse.android.ui.tutorial.TutorialRoute
 import com.sharedhouse.network.SharedHouseApiClient
@@ -51,8 +51,14 @@ import java.time.temporal.WeekFields
 import java.util.Currency
 import java.util.Locale
 import kotlinx.coroutines.flow.map
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+    private var lastBackgroundAt: Long? = null
+    private var biometricUnlocked by mutableStateOf(false)
     private val gateway by lazy {
         ApiSharedHouseGateway(
             SharedHouseApiClient(
@@ -78,19 +84,16 @@ class MainActivity : AppCompatActivity() {
 
             if (preferenceSnapshot == null) {
                 SharedHouseTheme {
-                    Surface(
+                    SharedHouseStartupScreen(
+                        copyKind = StartupCopyKind.RESOLVING_SESSION,
                         modifier = Modifier.fillMaxSize(),
-                        color = AtmosphereTheme.colorScheme.background,
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
+                    )
                 }
                 return@setContent
             }
 
             val preferences = requireNotNull(preferenceSnapshot)
+            val scope = rememberCoroutineScope()
             val systemDark = isSystemInDarkTheme()
             val useDarkTheme = when (preferences.appearanceMode) {
                 AppearanceMode.SYSTEM -> systemDark
@@ -125,6 +128,20 @@ class MainActivity : AppCompatActivity() {
                             .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.safeDrawing),
                     ) {
+                        if (preferences.biometricUnlockEnabled && !biometricUnlocked) {
+                            BiometricLockScreen(
+                                onUnlock = { promptForBiometric() },
+                                onUsePassword = {
+                                    scope.launch {
+                                        sessionStore.clear()
+                                        preferencesRepository.setBiometricUnlockEnabled(false)
+                                        biometricUnlocked = true
+                                    }
+                                },
+                            )
+                            LaunchedEffect(Unit) { promptForBiometric() }
+                            return@Box
+                        }
                         if (!preferences.tutorialCompleted) {
                             TutorialRoute(
                                 repository = preferencesRepository,
@@ -145,12 +162,39 @@ class MainActivity : AppCompatActivity() {
                                 googleServicesStatus = googleServicesStatus,
                                 onShowAdPrivacyOptions = googleServicesCoordinator::showPrivacyOptions,
                                 onLanguageChanged = ::applyAppLanguage,
+                                onEnableBiometric = {
+                                    requestBiometricUnlock(
+                                        title=getString(R.string.biometric_prompt_title),
+                                        subtitle=getString(R.string.biometric_prompt_subtitle),
+                                        onSuccess={ scope.launch { preferencesRepository.setBiometricUnlockEnabled(true); biometricUnlocked=true } },
+                                        onUnavailable={},
+                                    )
+                                },
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    override fun onStop() {
+        lastBackgroundAt = System.currentTimeMillis()
+        super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (lastBackgroundAt?.let { System.currentTimeMillis() - it >= 120_000L } == true) biometricUnlocked = false
+    }
+
+    private fun promptForBiometric() {
+        requestBiometricUnlock(
+            title = getString(R.string.biometric_prompt_title),
+            subtitle = getString(R.string.biometric_prompt_subtitle),
+            onSuccess = { biometricUnlocked = true },
+            onUnavailable = {},
+        )
     }
 
     override fun onDestroy() {

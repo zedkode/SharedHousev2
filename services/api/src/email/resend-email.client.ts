@@ -26,7 +26,7 @@ export class ResendEmailClient {
     this.from = environment.emailFrom;
   }
 
-  async sendVerification(message: ClaimedVerificationEmail, code: string): Promise<string> {
+  async send(message: ClaimedVerificationEmail, code: string | null): Promise<string> {
     if (this.apiKey === null || this.from === null) {
       throw new EmailDeliveryError('email_provider_unconfigured', false);
     }
@@ -43,13 +43,10 @@ export class ResendEmailClient {
         body: JSON.stringify({
           from: this.from,
           to: [message.recipientEmail],
-          subject:
-            message.locale === 'ro'
-              ? 'Codul tău de verificare SharedHouse'
-              : 'Your SharedHouse verification code',
-          text: verificationText(message.locale, code),
-          html: verificationHtml(message.locale, code),
-          tags: [{ name: 'message_type', value: 'email_verification' }],
+          subject: emailSubject(message),
+          text: emailText(message, code),
+          html: emailHtml(message, code),
+          tags: [{ name: 'message_type', value: message.messageKind }],
         }),
         signal: AbortSignal.timeout(10_000),
       });
@@ -70,6 +67,59 @@ export class ResendEmailClient {
     }
     return payload.id;
   }
+
+  async sendVerification(message: ClaimedVerificationEmail, code: string): Promise<string> {
+    return this.send(
+      { ...message, messageKind: message.messageKind ?? 'email_verification' },
+      code,
+    );
+  }
+}
+
+function emailSubject(message: ClaimedVerificationEmail): string {
+  if (message.messageKind === 'password_changed')
+    return message.locale === 'ro'
+      ? 'Parola SharedHouse a fost schimbată'
+      : 'Your SharedHouse password was changed';
+  if (message.messageKind === 'email_change_warning')
+    return message.locale === 'ro'
+      ? 'Schimbare de email inițiată'
+      : 'SharedHouse email change started';
+  if (message.messageKind === 'email_change_verification')
+    return message.locale === 'ro'
+      ? 'Confirmă noul email SharedHouse'
+      : 'Confirm your new SharedHouse email';
+  return message.locale === 'ro'
+    ? 'Codul tău de verificare SharedHouse'
+    : 'Your SharedHouse verification code';
+}
+
+function emailText(message: ClaimedVerificationEmail, code: string | null): string {
+  if (message.messageKind === 'password_changed')
+    return message.locale === 'ro'
+      ? 'Parola contului tău SharedHouse a fost schimbată. Dacă nu ai făcut tu această schimbare, contactează suportul imediat.'
+      : 'Your SharedHouse account password was changed. If this was not you, contact support immediately.';
+  if (message.messageKind === 'email_change_warning')
+    return message.locale === 'ro'
+      ? 'A fost inițiată schimbarea adresei de email pentru contul tău. Adresa actuală rămâne activă până la confirmarea celei noi.'
+      : 'An email-address change was started for your account. Your current address remains active until the new one is confirmed.';
+  return verificationText(message.locale, requireCode(code));
+}
+
+function emailHtml(message: ClaimedVerificationEmail, code: string | null): string {
+  if (
+    message.messageKind === 'password_changed' ||
+    message.messageKind === 'email_change_warning'
+  ) {
+    const text = emailText(message, code);
+    return `<!doctype html><html><body style="margin:0;background:#f4f1ff;color:#171226;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:32px 20px"><div style="background:#fff;border:1px solid #ded5f5;border-radius:20px;padding:32px"><h1 style="font-size:24px">SharedHouse security</h1><p style="font-size:16px;line-height:1.6">${text}</p></div></div></body></html>`;
+  }
+  return verificationHtml(message.locale, requireCode(code));
+}
+
+function requireCode(code: string | null): string {
+  if (code === null) throw new EmailDeliveryError('verification_code_payload_invalid', false);
+  return code;
 }
 
 function verificationText(locale: ClaimedVerificationEmail['locale'], code: string): string {

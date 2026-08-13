@@ -33,6 +33,7 @@ export class VerificationEmailCodec {
     readonly code: string;
     readonly expiresAt: string;
     readonly occurredAt: string;
+    readonly messageKind?: PreparedVerificationEmail['messageKind'];
   }): PreparedVerificationEmail | undefined {
     if (this.key === null) {
       return undefined;
@@ -53,6 +54,7 @@ export class VerificationEmailCodec {
       codeAuthTagBase64: cipher.getAuthTag().toString('base64'),
       expiresAt: input.expiresAt,
       occurredAt: input.occurredAt,
+      ...(input.messageKind === undefined ? {} : { messageKind: input.messageKind }),
     };
   }
 
@@ -65,15 +67,20 @@ export class VerificationEmailCodec {
     const decipher = createDecipheriv(
       ALGORITHM,
       this.key,
-      Buffer.from(message.codeIvBase64, 'base64'),
+      Buffer.from(requireEncryptedPart(message.codeIvBase64), 'base64'),
     );
     decipher.setAAD(authenticatedContext(message.challengeId, message.recipientEmail, expiresAt));
-    decipher.setAuthTag(Buffer.from(message.codeAuthTagBase64, 'base64'));
+    decipher.setAuthTag(Buffer.from(requireEncryptedPart(message.codeAuthTagBase64), 'base64'));
     return Buffer.concat([
-      decipher.update(Buffer.from(message.codeCiphertextBase64, 'base64')),
+      decipher.update(Buffer.from(requireEncryptedPart(message.codeCiphertextBase64), 'base64')),
       decipher.final(),
     ]).toString('utf8');
   }
+}
+
+function requireEncryptedPart(value: string | null): string {
+  if (value === null) throw new Error('Verification email payload is unavailable.');
+  return value;
 }
 
 function authenticatedContext(challengeId: string, email: string, expiresAt: string): Buffer {

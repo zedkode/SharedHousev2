@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import com.sharedhouse.android.ui.atmosphere.Button
 import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.DepthIconBadge
 import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
 import com.sharedhouse.android.ui.atmosphere.Icon
 import com.sharedhouse.android.ui.atmosphere.IconButton
@@ -434,15 +435,12 @@ private fun SelectedDayPreview(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                color = AtmosphereTheme.colorScheme.primaryContainer,
-                contentColor = AtmosphereTheme.colorScheme.primary,
-                shape = AtmosphereTheme.shapes.small,
-            ) {
-                Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Icon(SharedHouseIcons.Calendar, contentDescription = null, Modifier.size(20.dp))
-                }
-            }
+            DepthIconBadge(
+                icon = SharedHouseIcons.Calendar,
+                contentDescription = null,
+                badgeSize = 38.dp,
+                iconSize = 20.dp,
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(localizedDate(date, java.time.format.FormatStyle.MEDIUM), style = AtmosphereTheme.typography.titleSmall)
                 Text(
@@ -467,25 +465,26 @@ private fun CalendarEmptyBanner(
         color = AtmosphereTheme.colorScheme.surfaceVariant,
         shape = AtmosphereTheme.shapes.large,
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.calendar_empty_title),
-                style = AtmosphereTheme.typography.titleSmall,
-            )
-            Text(
-                text = stringResource(
-                    if (canCreateEvents) {
-                        R.string.calendar_empty_description
-                    } else {
-                        R.string.calendar_empty_read_only_description
-                    },
-                ),
-                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
-                style = AtmosphereTheme.typography.bodySmall,
-            )
+            DepthIconBadge(SharedHouseIcons.Calendar, null, badgeSize = 56.dp, iconSize = 27.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.calendar_empty_title),
+                    style = AtmosphereTheme.typography.titleSmall,
+                )
+                Text(
+                    text = stringResource(
+                        if (canCreateEvents) R.string.calendar_empty_description
+                        else R.string.calendar_empty_read_only_description,
+                    ),
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    style = AtmosphereTheme.typography.bodySmall,
+                )
+            }
         }
     }
 }

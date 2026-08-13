@@ -8,12 +8,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -65,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInParent
@@ -192,16 +195,49 @@ private fun Modifier.atmosphericSurface(
     .then(
         if (shadow > 0.dp) {
             Modifier.shadow(
-                elevation = shadow,
+                elevation = shadow + 8.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = PremiumPalette.HeroStart.copy(alpha = .12f),
-                spotColor = PremiumPalette.HeroStart.copy(alpha = .12f),
+                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .44f),
+                spotColor = PremiumPalette.HeroStart.copy(alpha = .22f),
+            )
+        } else Modifier
+    )
+    .then(
+        if (shadow > 0.dp) {
+            Modifier.shadow(
+                elevation = 3.dp,
+                shape = shape,
+                clip = false,
+                ambientColor = Color.Black.copy(alpha = .30f),
+                spotColor = Color.Black.copy(alpha = .30f),
             )
         } else Modifier
     )
     .clip(shape)
-    .background(color)
+    .drawWithCache {
+        val body = Brush.verticalGradient(
+            listOf(
+                lerp(color, Color.White, if (color.alpha > .02f) .045f else 0f),
+                lerp(color, Color.Black, if (color.alpha > .02f) .06f else 0f),
+            ),
+        )
+        val glass = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = .12f), Color.Transparent),
+            center = androidx.compose.ui.geometry.Offset(size.width * .14f, 0f),
+            radius = size.maxDimension * .68f,
+        )
+        onDrawBehind {
+            drawRect(body)
+            if (color.alpha > .02f) drawRect(glass)
+            drawLine(
+                color = Color.White.copy(alpha = if (color.alpha > .02f) .22f else .08f),
+                start = androidx.compose.ui.geometry.Offset(size.width * .12f, 1.dp.toPx()),
+                end = androidx.compose.ui.geometry.Offset(size.width * .62f, 1.dp.toPx()),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+    }
     .then(if (border != null) Modifier.border(border, shape) else Modifier)
 
 private fun Modifier.premiumGradientSurface(
@@ -214,7 +250,7 @@ private fun Modifier.premiumGradientSurface(
     .then(
         if (shadow > 0.dp) {
             Modifier.shadow(
-                elevation = shadow,
+                elevation = shadow + 12.dp,
                 shape = shape,
                 clip = false,
                 ambientColor = PremiumPalette.HeroStart.copy(alpha = shadowAlpha),
@@ -222,8 +258,35 @@ private fun Modifier.premiumGradientSurface(
             )
         } else Modifier,
     )
+    .then(
+        if (shadow > 0.dp) {
+            Modifier.shadow(
+                elevation = 4.dp,
+                shape = shape,
+                clip = false,
+                ambientColor = Color.Black.copy(alpha = .30f),
+                spotColor = Color.Black.copy(alpha = .30f),
+            )
+        } else Modifier,
+    )
     .clip(shape)
     .background(brush)
+    .drawWithCache {
+        val glass = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = .18f), Color.Transparent),
+            center = androidx.compose.ui.geometry.Offset(size.width * .08f, 0f),
+            radius = size.maxDimension * .72f,
+        )
+        onDrawBehind {
+            drawRect(glass)
+            drawLine(
+                color = Color.White.copy(alpha = .30f),
+                start = androidx.compose.ui.geometry.Offset(size.width * .10f, 1.dp.toPx()),
+                end = androidx.compose.ui.geometry.Offset(size.width * .64f, 1.dp.toPx()),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+    }
     .then(if (border != null) Modifier.border(border, shape) else Modifier)
 
 @Composable
@@ -256,13 +319,28 @@ fun Surface(
     border: BorderStroke? = null,
     content: @Composable () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) .985f else 1f,
+        animationSpec = if (AtmosphereTheme.motionEnabled) tween(120) else snap(),
+        label = "surface press scale",
+    )
     Surface(
-        modifier = modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            ),
         shape = shape,
         color = color,
         contentColor = contentColor,
         tonalElevation = tonalElevation,
-        shadowElevation = shadowElevation,
+        shadowElevation = if (pressed) 2.dp else shadowElevation,
         border = border,
         content = content,
     )
@@ -284,13 +362,21 @@ fun AmbientBackground(
         modifier = modifier
             .background(base)
             .drawWithCache {
-                val radius = size.maxDimension * .9f
-                val wash = Brush.radialGradient(
+                val radius = size.maxDimension * .82f
+                val topWash = Brush.radialGradient(
                     colors = listOf(glow.copy(alpha = if (dark) .45f else .10f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset.Zero,
+                    center = androidx.compose.ui.geometry.Offset(size.width * .05f, size.height * .06f),
                     radius = radius,
                 )
-                onDrawBehind { drawRect(wash) }
+                val lowerWash = Brush.radialGradient(
+                    colors = listOf(PremiumPalette.HeroEnd.copy(alpha = if (dark) .10f else .06f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .62f),
+                    radius = size.maxDimension * .66f,
+                )
+                onDrawBehind {
+                    drawRect(topWash)
+                    drawRect(lowerWash)
+                }
             },
         content = content,
     )
@@ -303,7 +389,7 @@ fun PremiumHeroCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(28.dp)
+    val shape = RoundedCornerShape(36.dp)
     val clickable = if (onClick == null) {
         Modifier
     } else {
@@ -312,24 +398,89 @@ fun PremiumHeroCard(
     CompositionLocalProvider(
         LocalAtmosphereContentColor provides PremiumPalette.TextOnGradient,
     ) {
-        Column(
+        Box(
             modifier = modifier
                 .premiumGradientSurface(
                     shape = shape,
                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            PremiumPalette.HeroStart,
-                            PremiumPalette.HeroMiddle,
-                            PremiumPalette.HeroEnd,
+                        colorStops = arrayOf(
+                            0f to PremiumPalette.HeroStart,
+                            .55f to PremiumPalette.HeroMiddle,
+                            1f to PremiumPalette.HeroEnd,
                         ),
                     ),
-                    shadow = 20.dp,
-                    shadowAlpha = .35f,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                    shadow = 24.dp,
+                    shadowAlpha = .45f,
                 )
                 .then(clickable)
-                .padding(20.dp),
-            content = content,
-        )
+        ) {
+            Canvas(Modifier.matchParentSize()) {
+                drawCircle(
+                    color = Color.White.copy(alpha = .055f),
+                    radius = size.minDimension * .52f,
+                    center = androidx.compose.ui.geometry.Offset(size.width * 1.02f, size.height * .10f),
+                )
+                drawCircle(
+                    color = PremiumPalette.AccentSecondary.copy(alpha = .09f),
+                    radius = size.minDimension * .30f,
+                    center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .88f),
+                )
+            }
+            Column(
+                modifier = Modifier.padding(22.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+/** A physical, independently-lit icon badge for cards and empty states. */
+@Composable
+fun DepthIconBadge(
+    icon: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    hero: Boolean = false,
+    tint: Color = if (hero) Color.White else AtmosphereTheme.colorScheme.primary,
+    badgeSize: Dp = 44.dp,
+    iconSize: Dp = 22.dp,
+) {
+    val shape = CircleShape
+    val base = if (hero) Color.White.copy(alpha = .18f) else AtmosphereTheme.colorScheme.primaryContainer
+    Box(
+        modifier = modifier
+            .size(badgeSize)
+            .shadow(
+                elevation = 10.dp,
+                shape = shape,
+                clip = false,
+                ambientColor = Color.Black.copy(alpha = .35f),
+                spotColor = PremiumPalette.HeroStart.copy(alpha = .28f),
+            )
+            .clip(shape)
+            .drawWithCache {
+                val body = Brush.radialGradient(
+                    colors = listOf(
+                        lerp(base, Color.White, if (hero) .22f else .10f),
+                        lerp(base, Color.Black, .14f),
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .42f, size.height * .28f),
+                    radius = size.maxDimension * .68f,
+                )
+                val shine = Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = .24f), Color.Transparent),
+                    endY = size.height * .55f,
+                )
+                onDrawBehind {
+                    drawCircle(body)
+                    drawCircle(shine)
+                }
+            }
+            .border(1.dp, Color.White.copy(alpha = if (hero) .24f else .10f), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
     }
 }
 
@@ -377,9 +528,11 @@ fun Card(
     border: BorderStroke? = CardDefaults.cardBorder(colors.containerColor),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val resolvedElevation = if (
-        elevation.defaultElevation == 0.dp && colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2
-    ) 8.dp else elevation.defaultElevation
+    val resolvedElevation = when {
+        elevation.defaultElevation > 0.dp -> elevation.defaultElevation
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
+        else -> 4.dp
+    }
     Surface(modifier, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
     }
@@ -396,9 +549,11 @@ fun Card(
     border: BorderStroke? = CardDefaults.cardBorder(colors.containerColor),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val resolvedElevation = if (
-        elevation.defaultElevation == 0.dp && colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2
-    ) 8.dp else elevation.defaultElevation
+    val resolvedElevation = when {
+        elevation.defaultElevation > 0.dp -> elevation.defaultElevation
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
+        else -> 4.dp
+    }
     Surface(onClick, modifier, enabled, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
     }
@@ -425,14 +580,47 @@ private fun BaseButton(
     contentPadding: PaddingValues,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val motion = AtmosphereTheme.motionEnabled
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) .97f else 1f,
+        animationSpec = if (motion) tween(120) else snap(),
+        label = "button press scale",
+    )
     val container = if (enabled) colors.containerColor else colors.containerColor.copy(alpha = .42f)
     val contentColor = if (enabled) colors.contentColor else colors.contentColor.copy(alpha = .58f)
     CompositionLocalProvider(LocalAtmosphereContentColor provides contentColor) {
         Row(
             modifier = modifier
                 .height(52.dp)
-                .atmosphericSurface(shape, container, border, if (enabled) 5.dp else 0.dp)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .then(
+                    if (container == AtmosphereTheme.colorScheme.primary && enabled) {
+                        Modifier.premiumGradientSurface(
+                            shape = shape,
+                            brush = Brush.linearGradient(
+                                colorStops = arrayOf(
+                                    0f to PremiumPalette.HeroStart,
+                                    .55f to PremiumPalette.HeroMiddle,
+                                    1f to PremiumPalette.HeroEnd,
+                                ),
+                            ),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = if (pressed) .12f else .22f)),
+                            shadow = if (pressed) 2.dp else 10.dp,
+                            shadowAlpha = if (pressed) .18f else .38f,
+                        )
+                    } else {
+                        Modifier.atmosphericSurface(shape, container, border, if (enabled && !pressed) 5.dp else 1.dp)
+                    },
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = onClick,
+                )
                 .padding(contentPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
@@ -444,7 +632,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(20.dp),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
@@ -456,7 +644,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.surfaceVariant, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.surfaceVariant, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(20.dp), contentPadding, content)
 
 @Composable fun OutlinedButton(
     onClick: () -> Unit,
@@ -464,7 +652,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(20.dp), contentPadding, content)
 
 @Composable fun TextButton(
     onClick: () -> Unit,
@@ -472,23 +660,42 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(20.dp), contentPadding, content)
 
 @Composable fun IconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     content: @Composable () -> Unit,
-) = Box(
-    modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-    contentAlignment = Alignment.Center,
-) { content() }
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) .94f else 1f,
+        animationSpec = if (AtmosphereTheme.motionEnabled) tween(120) else snap(),
+        label = "icon button press scale",
+    )
+    Box(
+        modifier
+            .size(48.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
 
 @Composable fun FloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
-) = Surface(onClick, modifier.size(58.dp), shape = RoundedCornerShape(18.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 8.dp) {
+) = Surface(onClick, modifier.size(58.dp), shape = RoundedCornerShape(20.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 10.dp) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
@@ -544,7 +751,7 @@ private fun BaseButton(
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .then(
                     if (selected) Modifier.shadow(
-                        elevation = 6.dp,
+                        elevation = 14.dp,
                         shape = shape,
                         clip = false,
                         ambientColor = PremiumPalette.HeroStart.copy(alpha = .30f),
@@ -557,7 +764,19 @@ private fun BaseButton(
                     val activeBrush = Brush.horizontalGradient(
                         listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle),
                     )
-                    onDrawBehind { drawRect(activeBrush, alpha = selectedProgress) }
+                    val idleBrush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = .045f), Color.Transparent),
+                    )
+                    onDrawBehind {
+                        drawRect(idleBrush)
+                        drawRect(activeBrush, alpha = selectedProgress)
+                        drawLine(
+                            Color.White.copy(alpha = .18f * selectedProgress),
+                            androidx.compose.ui.geometry.Offset(size.width * .16f, 1.dp.toPx()),
+                            androidx.compose.ui.geometry.Offset(size.width * .70f, 1.dp.toPx()),
+                            1.dp.toPx(),
+                        )
+                    }
                 }
                 .border(1.dp, borderColor, shape)
                 .semantics { this.selected = selected }
@@ -698,7 +917,27 @@ fun Scaffold(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     @Suppress("UNUSED_VARIABLE") val handledInsets = contentWindowInsets
-    Box(modifier.fillMaxSize().background(containerColor)) {
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .drawWithCache {
+                val upperBlob = Brush.radialGradient(
+                    listOf(PremiumPalette.HeroStart.copy(alpha = .10f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .12f, size.height * .08f),
+                    radius = size.maxDimension * .52f,
+                )
+                val lowerBlob = Brush.radialGradient(
+                    listOf(PremiumPalette.AccentSecondary.copy(alpha = .075f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .94f, size.height * .72f),
+                    radius = size.maxDimension * .48f,
+                )
+                onDrawBehind {
+                    drawRect(upperBlob)
+                    drawRect(lowerBlob)
+                }
+            },
+    ) {
         Column(Modifier.fillMaxSize()) {
             topBar()
             Box(Modifier.weight(1f).fillMaxWidth()) { content(PaddingValues(0.dp)) }
@@ -859,7 +1098,7 @@ object SegmentedButtonDefaults {
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .then(
                     if (selected) Modifier.shadow(
-                        elevation = 6.dp,
+                        elevation = 14.dp,
                         shape = shape,
                         clip = false,
                         ambientColor = PremiumPalette.HeroStart.copy(alpha = .30f),
@@ -872,7 +1111,19 @@ object SegmentedButtonDefaults {
                     val activeBrush = Brush.horizontalGradient(
                         listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle),
                     )
-                    onDrawBehind { drawRect(activeBrush, alpha = selectedProgress) }
+                    val idleBrush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = .045f), Color.Transparent),
+                    )
+                    onDrawBehind {
+                        drawRect(idleBrush)
+                        drawRect(activeBrush, alpha = selectedProgress)
+                        drawLine(
+                            Color.White.copy(alpha = .18f * selectedProgress),
+                            androidx.compose.ui.geometry.Offset(size.width * .18f, 1.dp.toPx()),
+                            androidx.compose.ui.geometry.Offset(size.width * .72f, 1.dp.toPx()),
+                            1.dp.toPx(),
+                        )
+                    }
                 }
                 .border(1.dp, borderColor, shape)
                 .semantics { this.selected = selected }

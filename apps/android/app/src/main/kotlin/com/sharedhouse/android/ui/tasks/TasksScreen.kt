@@ -26,6 +26,7 @@ import com.sharedhouse.android.ui.atmosphere.CardDefaults
 import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
 import com.sharedhouse.android.ui.atmosphere.DropdownMenu
 import com.sharedhouse.android.ui.atmosphere.DropdownMenuItem
+import com.sharedhouse.android.ui.atmosphere.DepthIconBadge
 import com.sharedhouse.android.ui.atmosphere.FilterChip
 import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
 import com.sharedhouse.android.ui.atmosphere.Icon
@@ -133,7 +134,8 @@ fun TasksScreen(
                 if (visible.isEmpty()) item {
                     Card(colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerLow)) {
                         Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(SharedHouseIcons.Tasks, null); Spacer(Modifier.height(8.dp)); Text(stringResource(R.string.tasks_empty_title), fontWeight = FontWeight.SemiBold)
+                            DepthIconBadge(SharedHouseIcons.Tasks, null, badgeSize = 72.dp, iconSize = 34.dp)
+                            Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.tasks_empty_title), fontWeight = FontWeight.SemiBold)
                             Text(stringResource(if (state.canCreate) R.string.tasks_empty_admin else R.string.tasks_empty_member), color = AtmosphereTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -176,9 +178,15 @@ private fun SummaryTile(icon: androidx.compose.ui.graphics.vector.ImageVector, l
         attention -> AtmosphereTheme.colorScheme.tertiary
         else -> AtmosphereTheme.colorScheme.primary
     }
-    Card(onClick = onClick, modifier = modifier, colors = CardDefaults.cardColors(containerColor = container), elevation = CardDefaults.cardElevation(if (urgent || attention) 5.dp else 2.dp)) {
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = container),
+        elevation = CardDefaults.cardElevation(if (urgent || attention) 7.dp else 4.dp),
+    ) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, Modifier.size(20.dp), tint = accent)
+            DepthIconBadge(icon, null, tint = accent, badgeSize = 34.dp, iconSize = 18.dp)
             Column { Text(count.toString(), style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text(label, style = AtmosphereTheme.typography.labelSmall) }
         }
     }

@@ -28,6 +28,8 @@ import com.sharedhouse.network.HouseholdTaskConfigurationDto
 import com.sharedhouse.network.HouseholdTaskDto
 import com.sharedhouse.network.HouseholdChatMessageDto
 import com.sharedhouse.network.HouseholdChatPageDto
+import com.sharedhouse.network.HouseholdChatAttachmentDto
+import com.sharedhouse.network.UploadChatAttachmentDto
 import com.sharedhouse.network.RegisterPayload
 import com.sharedhouse.network.RegistrationAcceptedDto
 import com.sharedhouse.network.ResendVerificationPayload
@@ -35,6 +37,10 @@ import com.sharedhouse.network.SessionDto
 import com.sharedhouse.network.SharedHouseApiClient
 import com.sharedhouse.network.SignInPayload
 import com.sharedhouse.network.VerifyEmailPayload
+import com.sharedhouse.network.ChangePasswordDto
+import com.sharedhouse.network.RequestEmailChangeDto
+import com.sharedhouse.network.AccountSecurityResultDto
+import com.sharedhouse.network.AccountDto
 import kotlinx.coroutines.flow.Flow
 
 interface SharedHouseGateway {
@@ -53,6 +59,11 @@ interface SharedHouseGateway {
     suspend fun deleteAccount(accessToken: String, password: String): ApiResult<AccountDeletionResultDto>
 
     suspend fun exportAccount(accessToken: String, password: String): ApiResult<AccountExportDto>
+
+    suspend fun updateAccountProfile(accessToken: String, displayName: String): ApiResult<AccountDto>
+    suspend fun changePassword(accessToken: String, payload: ChangePasswordDto): ApiResult<AccountDto>
+    suspend fun requestEmailChange(accessToken: String, payload: RequestEmailChangeDto): ApiResult<AccountSecurityResultDto>
+    suspend fun confirmEmailChange(accessToken: String, code: String): ApiResult<AccountDto>
 
     suspend fun listHouseholds(accessToken: String): ApiResult<List<HouseholdDto>>
 
@@ -174,6 +185,10 @@ interface SharedHouseGateway {
         householdId: String,
         after: String?,
     ): Flow<ApiResult<HouseholdChatMessageDto>>
+
+    suspend fun uploadHouseholdChatAttachment(accessToken:String,householdId:String,payload:UploadChatAttachmentDto): ApiResult<HouseholdChatAttachmentDto>
+    suspend fun setHouseholdChatMessagePinned(accessToken:String,householdId:String,messageId:String,pinned:Boolean): ApiResult<HouseholdChatMessageDto>
+    suspend fun createRichHouseholdChatMessage(accessToken:String,householdId:String,idempotencyKey:String,body:String,attachmentIds:List<String>,mentionedUserIds:List<String>,mentionAll:Boolean,location:com.sharedhouse.network.HouseholdChatLocationDto?): ApiResult<HouseholdChatMessageDto>
 
     suspend fun listExpenses(accessToken: String, householdId: String): ApiResult<List<ExpenseDto>>
 
@@ -299,6 +314,11 @@ class ApiSharedHouseGateway(
 
     override suspend fun exportAccount(accessToken: String, password: String) =
         api.exportAccount(accessToken, password)
+
+    override suspend fun updateAccountProfile(accessToken: String,displayName: String)=api.updateAccountProfile(accessToken,displayName)
+    override suspend fun changePassword(accessToken: String,payload: ChangePasswordDto)=api.changePassword(accessToken,payload)
+    override suspend fun requestEmailChange(accessToken: String,payload: RequestEmailChangeDto)=api.requestEmailChange(accessToken,payload)
+    override suspend fun confirmEmailChange(accessToken: String,code: String)=api.confirmEmailChange(accessToken,code)
 
     override suspend fun listHouseholds(accessToken: String) = api.listHouseholds(accessToken)
 
@@ -436,6 +456,10 @@ class ApiSharedHouseGateway(
         householdId: String,
         after: String?,
     ) = api.streamHouseholdChatMessages(accessToken, householdId, after)
+
+    override suspend fun uploadHouseholdChatAttachment(accessToken:String,householdId:String,payload:UploadChatAttachmentDto)=api.uploadHouseholdChatAttachment(accessToken,householdId,payload)
+    override suspend fun setHouseholdChatMessagePinned(accessToken:String,householdId:String,messageId:String,pinned:Boolean)=api.setHouseholdChatMessagePinned(accessToken,householdId,messageId,pinned)
+    override suspend fun createRichHouseholdChatMessage(accessToken:String,householdId:String,idempotencyKey:String,body:String,attachmentIds:List<String>,mentionedUserIds:List<String>,mentionAll:Boolean,location:com.sharedhouse.network.HouseholdChatLocationDto?)=api.createHouseholdChatMessage(accessToken,householdId,idempotencyKey,body,attachmentIds=attachmentIds,mentionedUserIds=mentionedUserIds,mentionAll=mentionAll,location=location)
 
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         api.listExpenses(accessToken, householdId)

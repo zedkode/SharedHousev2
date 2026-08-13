@@ -32,6 +32,7 @@ enum class LocalTestNotificationResult {
 
 object SharedHouseNotifications {
     const val CHANNEL_CHAT = "sharedhouse.chat"
+    const val CHANNEL_CHAT_MENTIONS = "sharedhouse.chat.mentions"
     const val CHANNEL_MONEY = "sharedhouse.money"
     const val CHANNEL_TASKS = "sharedhouse.tasks"
     const val CHANNEL_REQUESTS = "sharedhouse.requests"
@@ -60,6 +61,7 @@ object SharedHouseNotifications {
                     R.string.notification_channel_chat_description,
                     NotificationManager.IMPORTANCE_DEFAULT,
                 ),
+                channel(context,CHANNEL_CHAT_MENTIONS,R.string.notification_channel_chat_mentions,R.string.notification_channel_chat_mentions_description,NotificationManager.IMPORTANCE_HIGH),
                 channel(
                     context,
                     CHANNEL_MONEY,

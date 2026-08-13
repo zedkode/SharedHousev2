@@ -26,6 +26,7 @@ import type {
   UserCredentialRecord,
   VerificationResult,
 } from './identity.types.js';
+import type { PreparedVerificationEmail } from '../email/verification-email.types.js';
 
 interface UserCredentialRow {
   readonly id: string;
@@ -233,6 +234,182 @@ export class IdentityRepository {
       userId,
     ]);
     return rows[0] === undefined ? null : mapCredential(rows[0]);
+  }
+
+  async updateDisplayName(
+    userId: string,
+    displayName: string,
+    occurredAt: string,
+  ): Promise<AccountSummary | null> {
+    return this.database.transaction(async (transaction) => {
+      const updated = await transaction.query<{ readonly user_id: string }>(
+        `UPDATE user_profiles profile SET display_name=$2
+         FROM users account WHERE profile.user_id=$1 AND account.id=profile.user_id AND account.status='active'
+         RETURNING profile.user_id`,
+        [userId, displayName],
+      );
+      if (updated.length === 0) return null;
+      await insertAudit(transaction, {
+        actorUserId: userId,
+        action: 'identity.display_name_changed',
+        targetType: 'user',
+        targetId: userId,
+        occurredAt,
+      });
+      const credentials = await transaction.query<UserCredentialRow>(credentialQuery('u.id=$1'), [
+        userId,
+      ]);
+      return mapAccount(requireCredential(credentials[0]));
+    });
+  }
+
+  async changePassword(input: {
+    readonly userId: string;
+    readonly sessionId: string;
+    readonly credential: {
+      readonly algorithm: string;
+      readonly saltBase64: string;
+      readonly hashBase64: string;
+    };
+    readonly revokeOtherSessions: boolean;
+    readonly occurredAt: string;
+  }): Promise<AccountSummary | null> {
+    return this.database.transaction(async (transaction) => {
+      const updated = await transaction.query<{ readonly user_id: string }>(
+        `UPDATE password_credentials credential SET algorithm=$2,salt_base64=$3,hash_base64=$4,changed_at=$5
+         FROM users account WHERE credential.user_id=$1 AND account.id=credential.user_id AND account.status='active'
+         RETURNING credential.user_id`,
+        [
+          input.userId,
+          input.credential.algorithm,
+          input.credential.saltBase64,
+          input.credential.hashBase64,
+          input.occurredAt,
+        ],
+      );
+      if (updated.length === 0) return null;
+      if (input.revokeOtherSessions)
+        await transaction.query(
+          `UPDATE user_sessions SET revoked_at=$3 WHERE user_id=$1 AND id<>$2 AND revoked_at IS NULL`,
+          [input.userId, input.sessionId, input.occurredAt],
+        );
+      await insertAudit(transaction, {
+        actorUserId: input.userId,
+        action: 'identity.password_changed',
+        targetType: 'user',
+        targetId: input.userId,
+        occurredAt: input.occurredAt,
+      });
+      const credentials = await transaction.query<UserCredentialRow>(credentialQuery('u.id=$1'), [
+        input.userId,
+      ]);
+      return mapAccount(requireCredential(credentials[0]));
+    });
+  }
+
+  async requestEmailChange(input: {
+    readonly userId: string;
+    readonly changeId: string;
+    readonly newEmail: string;
+    readonly codeHash: string;
+    readonly expiresAt: string;
+    readonly verificationEmail?: PreparedVerificationEmail;
+    readonly occurredAt: string;
+  }): Promise<'created' | 'conflict' | 'not_found'> {
+    return this.database.transaction(async (transaction) => {
+      const credentials = await transaction.query<UserCredentialRow>(credentialQuery('u.id=$1'), [
+        input.userId,
+      ]);
+      const current = credentials[0];
+      if (current === undefined) return 'not_found';
+      const existing = await transaction.query<{ readonly id: string }>(
+        `SELECT id FROM users WHERE email_normalized=$1 AND id<>$2 UNION ALL SELECT id FROM account_email_changes WHERE new_email_normalized=$1 AND confirmed_at IS NULL AND cancelled_at IS NULL`,
+        [input.newEmail, input.userId],
+      );
+      if (existing.length > 0) return 'conflict';
+      await transaction.query(
+        `UPDATE account_email_changes SET cancelled_at=$2 WHERE user_id=$1 AND confirmed_at IS NULL AND cancelled_at IS NULL`,
+        [input.userId, input.occurredAt],
+      );
+      await transaction.query(
+        `INSERT INTO account_email_changes (id,user_id,old_email_normalized,new_email_normalized,code_hash,expires_at,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          input.changeId,
+          input.userId,
+          current.email_normalized,
+          input.newEmail,
+          input.codeHash,
+          input.expiresAt,
+          input.occurredAt,
+        ],
+      );
+      await insertVerificationEmail(transaction, input.verificationEmail);
+      await insertAudit(transaction, {
+        actorUserId: input.userId,
+        action: 'identity.email_change_requested',
+        targetType: 'user',
+        targetId: input.userId,
+        occurredAt: input.occurredAt,
+      });
+      return 'created';
+    });
+  }
+
+  async confirmEmailChange(
+    userId: string,
+    codeHash: string,
+    occurredAt: string,
+  ): Promise<AccountSummary | 'invalid' | 'expired'> {
+    return this.database.transaction(async (transaction) => {
+      const rows = await transaction.query<{
+        readonly id: string;
+        readonly new_email_normalized: string;
+        readonly expires_at: Date | string;
+        readonly attempt_count: number;
+      }>(
+        `SELECT id,new_email_normalized,expires_at,attempt_count FROM account_email_changes WHERE user_id=$1 AND confirmed_at IS NULL AND cancelled_at IS NULL FOR UPDATE`,
+        [userId],
+      );
+      const change = rows[0];
+      if (change === undefined) return 'invalid';
+      if (new Date(change.expires_at).getTime() <= Date.parse(occurredAt)) {
+        await transaction.query(`UPDATE account_email_changes SET cancelled_at=$2 WHERE id=$1`, [
+          change.id,
+          occurredAt,
+        ]);
+        return 'expired';
+      }
+      const matched = await transaction.query<{ readonly id: string }>(
+        `UPDATE account_email_changes SET attempt_count=attempt_count+1 WHERE id=$1 AND code_hash=$2 AND attempt_count<5 RETURNING id`,
+        [change.id, codeHash],
+      );
+      if (matched.length === 0) {
+        await transaction.query(
+          `UPDATE account_email_changes SET attempt_count=attempt_count+1,cancelled_at=CASE WHEN attempt_count+1>=5 THEN $2 ELSE cancelled_at END WHERE id=$1`,
+          [change.id, occurredAt],
+        );
+        return 'invalid';
+      }
+      await transaction.query(
+        `UPDATE users SET email_normalized=$2,email_verified_at=$3,updated_at=$3 WHERE id=$1`,
+        [userId, change.new_email_normalized, occurredAt],
+      );
+      await transaction.query(`UPDATE account_email_changes SET confirmed_at=$2 WHERE id=$1`, [
+        change.id,
+        occurredAt,
+      ]);
+      await insertAudit(transaction, {
+        actorUserId: userId,
+        action: 'identity.email_changed',
+        targetType: 'user',
+        targetId: userId,
+        occurredAt,
+      });
+      const credentials = await transaction.query<UserCredentialRow>(credentialQuery('u.id=$1'), [
+        userId,
+      ]);
+      return mapAccount(requireCredential(credentials[0]));
+    });
   }
 
   async exportAccount(userId: string, occurredAt: string): Promise<AccountExport> {
@@ -1350,6 +1527,11 @@ function mapCredential(row: UserCredentialRow): UserCredentialRecord {
   };
 }
 
+function requireCredential(row: UserCredentialRow | undefined): UserCredentialRow {
+  if (row === undefined) throw new Error('Authenticated account disappeared.');
+  return row;
+}
+
 function mapAccount(row: UserCredentialRow): AccountSummary {
   return {
     id: row.id,
@@ -1403,8 +1585,8 @@ async function insertVerificationEmail(
     `INSERT INTO verification_email_outbox (
        id, challenge_id, recipient_email, locale, code_ciphertext_base64,
        code_iv_base64, code_auth_tag_base64, expires_at, available_at,
-       created_at, updated_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $9)`,
+       created_at, updated_at, message_kind
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $9, $10)`,
     [
       email.outboxId,
       email.challengeId,
@@ -1415,6 +1597,7 @@ async function insertVerificationEmail(
       email.codeAuthTagBase64,
       email.expiresAt,
       email.occurredAt,
+      email.messageKind ?? 'email_verification',
     ],
   );
 }

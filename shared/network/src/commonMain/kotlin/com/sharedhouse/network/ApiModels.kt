@@ -222,6 +222,7 @@ data class CalendarEventConfigurationDto(
     val startTime: String? = null,
     val endTime: String? = null,
     val reminderMinutesBefore: Int? = null,
+    val sourceChatMessageId: String? = null,
 )
 
 @Serializable
@@ -235,6 +236,7 @@ data class CalendarEventDto(
     val startTime: String? = null,
     val endTime: String? = null,
     val reminderMinutesBefore: Int? = null,
+    val sourceChatMessageId: String? = null,
     val createdByUserId: String,
     val version: Int,
     val createdAt: String,
@@ -340,17 +342,55 @@ data class HouseholdChatMessageDto(
     val senderDisplayName: String,
     val isCurrentUser: Boolean,
     val body: String,
+    val kind: String = "member",
+    val attachments: List<HouseholdChatAttachmentDto> = emptyList(),
+    val mentionedUserIds: List<String> = emptyList(),
+    val location: HouseholdChatLocationDto? = null,
+    val isPinned: Boolean = false,
+    val pinnedByDisplayName: String? = null,
+    val sourceChatMessageId: String? = null,
+    val sourceCalendarEventId: String? = null,
     val createdAt: String,
 )
 
 @Serializable
+data class HouseholdChatAttachmentDto(val id: String,val mediaType: String,val byteSize: Int,val width: Int,val height: Int,val downloadPath: String)
+
+@Serializable
+data class HouseholdChatLocationDto(val latitude: Double,val longitude: Double)
+
+@Serializable
+data class HouseholdChatMemberDto(val membershipId: String,val userId: String,val displayName: String,val role: String,val isCurrentUser: Boolean)
+
+@Serializable
 data class HouseholdChatPageDto(
     val messages: List<HouseholdChatMessageDto>,
+    val pinnedMessages: List<HouseholdChatMessageDto> = emptyList(),
+    val members: List<HouseholdChatMemberDto> = emptyList(),
+    val canMentionAll: Boolean = false,
     val nextCursor: String? = null,
 )
 
 @Serializable
-data class CreateHouseholdChatMessageDto(val body: String)
+data class CreateHouseholdChatMessageDto(
+    val body: String,
+    val attachmentIds: List<String> = emptyList(),
+    val mentionedUserIds: List<String> = emptyList(),
+    val mentionAll: Boolean = false,
+    val location: HouseholdChatLocationDto? = null,
+)
+
+@Serializable
+data class UploadChatAttachmentDto(val mediaType: String,val width: Int,val height: Int,val contentBase64: String)
+
+@Serializable
+data class PinChatMessageDto(val pinned: Boolean)
+
+@Serializable data class UpdateAccountProfileDto(val displayName: String)
+@Serializable data class ChangePasswordDto(val currentPassword: String,val newPassword: String,val revokeOtherSessions: Boolean)
+@Serializable data class RequestEmailChangeDto(val newEmail: String,val currentPassword: String)
+@Serializable data class ConfirmEmailChangeDto(val code: String)
+@Serializable data class AccountSecurityResultDto(val status: String,val account: AccountDto,val developmentVerificationCode: String? = null)
 
 @Serializable
 data class MoneyDto(

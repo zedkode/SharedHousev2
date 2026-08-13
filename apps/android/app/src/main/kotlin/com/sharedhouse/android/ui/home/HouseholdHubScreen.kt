@@ -38,12 +38,14 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import com.sharedhouse.android.ui.atmosphere.Button
 import com.sharedhouse.android.ui.atmosphere.AlertDialog
+import com.sharedhouse.android.ui.atmosphere.AmbientBackground
 import com.sharedhouse.android.ui.atmosphere.Card
 import com.sharedhouse.android.ui.atmosphere.CardDefaults
 import com.sharedhouse.android.ui.atmosphere.FilledTonalButton
 import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
 import com.sharedhouse.android.ui.atmosphere.DropdownMenu
 import com.sharedhouse.android.ui.atmosphere.DropdownMenuItem
+import com.sharedhouse.android.ui.atmosphere.DepthIconBadge
 import com.sharedhouse.android.ui.atmosphere.Icon
 import com.sharedhouse.android.ui.atmosphere.IconButton
 import com.sharedhouse.android.ui.theme.AtmosphereTheme
@@ -101,9 +103,8 @@ fun HouseholdHubScreen(
 ) {
     var roleTarget by remember { mutableStateOf<HouseholdMemberUi?>(null) }
     var pendingAction by remember { mutableStateOf<PendingMemberAction?>(null) }
-    Box(
+    AmbientBackground(
         modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter,
     ) {
         LazyColumn(
             modifier = Modifier
@@ -537,15 +538,12 @@ private fun HouseholdHubHeader(model: HouseholdHubUiModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = Color.White.copy(alpha = .14f),
-                    contentColor = Color.White,
-                    shape = AtmosphereTheme.shapes.medium,
-                ) {
-                    Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                        Icon(SharedHouseIcons.House, contentDescription = null, Modifier.size(23.dp))
-                    }
-                }
+                DepthIconBadge(
+                    icon = SharedHouseIcons.House,
+                    contentDescription = null,
+                    hero = true,
+                    iconSize = 23.dp,
+                )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = name,

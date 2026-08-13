@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
-import com.sharedhouse.android.ui.theme.AtmosphereTheme
-import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,12 +12,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
+import com.sharedhouse.android.ui.atmosphere.Text
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
@@ -43,11 +38,13 @@ import com.sharedhouse.android.ui.auth.RegisterScreen
 import com.sharedhouse.android.ui.auth.SignInScreen
 import com.sharedhouse.android.ui.auth.VerifyEmailScreen
 import com.sharedhouse.android.ui.auth.WelcomeScreen
+import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
 import com.sharedhouse.android.ui.calendar.CalendarContent
 import com.sharedhouse.android.ui.calendar.CalendarEventType
 import com.sharedhouse.android.ui.calendar.CalendarEventUi
 import com.sharedhouse.android.ui.calendar.CalendarScreen
 import com.sharedhouse.android.ui.chat.HouseholdChatScreen
+import com.sharedhouse.android.ui.chat.rememberChatMediaActions
 import com.sharedhouse.android.ui.guides.GuideArticleScreen
 import com.sharedhouse.android.ui.guides.GuideTopic
 import com.sharedhouse.android.ui.guides.GuidesScreen
@@ -71,11 +68,15 @@ import com.sharedhouse.android.ui.invitations.InvitationManagerScreen
 import com.sharedhouse.android.ui.onboarding.HouseholdSetupScreen
 import com.sharedhouse.android.ui.settings.SettingsRoute
 import com.sharedhouse.android.ui.settings.HouseholdCreatorSettingsScreen
+import com.sharedhouse.android.ui.startup.SharedHouseStartupScreen
+import com.sharedhouse.android.ui.startup.resolveStartupCopyKind
+import com.sharedhouse.android.ui.theme.AtmosphereTheme
 import java.time.LocalDate
 import java.time.LocalTime
 import java.text.NumberFormat
 import java.util.Currency
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun SharedHouseApp(
@@ -85,26 +86,30 @@ fun SharedHouseApp(
     googleServicesStatus: GoogleServicesStatus,
     onShowAdPrivacyOptions: () -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
+    onEnableBiometric: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    var startupComplete by rememberSaveable { mutableStateOf(false) }
 
-    if (state.isRestoringSession) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(24.dp),
-            ) {
-                CircularProgressIndicator()
-                Text(
-                    text = stringResource(R.string.session_restoring),
-                    style = AtmosphereTheme.typography.bodyLarge,
-                )
-            }
+    LaunchedEffect(state.isRestoringSession, state.account?.displayName) {
+        if (!state.isRestoringSession && !startupComplete) {
+            delay(if (state.account == null) 650L else 1_050L)
+            startupComplete = true
         }
+    }
+
+    if (state.isRestoringSession || !startupComplete) {
+        SharedHouseStartupScreen(
+            copyKind = resolveStartupCopyKind(
+                isRestoringSession = state.isRestoringSession,
+                displayName = state.account?.displayName,
+            ),
+            displayName = state.account?.displayName,
+            modifier = Modifier.fillMaxSize(),
+        )
         return
     }
 
@@ -223,6 +228,7 @@ fun SharedHouseApp(
                 googleServicesStatus = googleServicesStatus,
                 onShowAdPrivacyOptions = onShowAdPrivacyOptions,
                 onLanguageChanged = onLanguageChanged,
+                onEnableBiometric = onEnableBiometric,
             )
         }
     }
@@ -246,6 +252,7 @@ private fun AuthenticatedHouseholdExperience(
     googleServicesStatus: GoogleServicesStatus,
     onShowAdPrivacyOptions: () -> Unit,
     onLanguageChanged: (AppLanguage) -> Unit,
+    onEnableBiometric: () -> Unit,
 ) {
     LifecycleStartEffect(viewModel, state.selectedHousehold?.id) {
         viewModel.startLiveSync()
@@ -349,12 +356,17 @@ private fun AuthenticatedHouseholdExperience(
                     viewModel.startChatLive()
                     onStopOrDispose { viewModel.stopChatLive() }
                 }
+                val mediaActions=rememberChatMediaActions(context,viewModel::sendChatPhoto,viewModel::sendChatLocation)
                 HouseholdChatScreen(
                     state = state.chat,
                     onBack = { openSecondary(SecondarySurface.NONE) },
                     onDraftChanged = viewModel::updateChatDraft,
                     onSend = viewModel::sendChatMessage,
                     onRetry = viewModel::retryChat,
+                    onPinMessage = viewModel::setChatMessagePinned,
+                    onPickPhotos=mediaActions.pickPhotos,
+                    onTakePhoto=mediaActions.takePhoto,
+                    onShareLocation=mediaActions.shareLocation,
                 )
             }
 
@@ -380,6 +392,12 @@ private fun AuthenticatedHouseholdExperience(
                 accountExport = state.accountExport,
                 onExportAccount = viewModel::exportAccount,
                 onAccountExportHandled = viewModel::accountExportHandled,
+                account = state.account,
+                onUpdateDisplayName = viewModel::updateAccountDisplayName,
+                onChangePassword = viewModel::changeAccountPassword,
+                onRequestEmailChange = viewModel::requestAccountEmailChange,
+                onConfirmEmailChange = viewModel::confirmAccountEmailChange,
+                onEnableBiometric = onEnableBiometric,
                 googleServicesStatus = googleServicesStatus,
                 onShowAdPrivacyOptions = onShowAdPrivacyOptions,
                 onLanguageChanged = onLanguageChanged,

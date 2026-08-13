@@ -225,6 +225,7 @@ dependencies {
     implementation(project(":shared:network"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.biometric)
     // Lifecycle 2.11 requires compileSdk 37; this app intentionally remains on the approved SDK 36.
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

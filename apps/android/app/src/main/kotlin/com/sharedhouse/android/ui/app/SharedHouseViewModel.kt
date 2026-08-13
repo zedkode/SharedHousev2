@@ -18,6 +18,10 @@ import com.sharedhouse.android.ui.chat.ChatConnection
 import com.sharedhouse.android.ui.chat.ChatMessageUi
 import com.sharedhouse.android.ui.chat.ChatProblem
 import com.sharedhouse.android.ui.chat.ChatUiState
+import com.sharedhouse.network.ChangePasswordDto
+import com.sharedhouse.network.RequestEmailChangeDto
+import com.sharedhouse.network.UploadChatAttachmentDto
+import com.sharedhouse.network.HouseholdChatLocationDto
 import com.sharedhouse.android.ui.money.ExpenseAllocationUi
 import com.sharedhouse.android.ui.money.ExpenseAllocationStatus
 import com.sharedhouse.android.ui.money.BillingCoupleDraft
@@ -306,7 +310,7 @@ class SharedHouseViewModel(
     fun refreshMoney() = loadMoney()
 
     fun updateChatDraft(value: String) {
-        _uiState.update { it.copy(chat = it.chat.copy(draft = value.take(2000), problem = null)) }
+        _uiState.update { it.copy(chat = it.chat.copy(draft = value, problem = null)) }
     }
 
     fun retryChat() = loadChat(silent = _uiState.value.chat.messages.isNotEmpty())
@@ -354,7 +358,7 @@ class SharedHouseViewModel(
         val snapshot = _uiState.value
         val household = snapshot.selectedHousehold ?: return
         val body = snapshot.chat.draft.trim()
-        if (snapshot.chat.isSending || household.role == "read_only" || body.isEmpty() || body.length > 2000) return
+        if (snapshot.chat.isSending || household.role == "read_only" || body.isEmpty()) return
         val key = (if (chatSendBody == body) chatSendIdempotencyKey else null)
             ?: UUID.randomUUID().toString().also {
                 chatSendBody = body
@@ -362,7 +366,9 @@ class SharedHouseViewModel(
             }
         _uiState.update { it.copy(chat = it.chat.copy(isSending = true, problem = null)) }
         viewModelScope.launch {
-            when (val result = authorized { gateway.createHouseholdChatMessage(it, household.id, key, body) }) {
+            val mentioned=snapshot.chat.members.filter { member -> body.contains("@${member.displayName}",ignoreCase=true) }.map { it.userId }
+            val mentionAll=snapshot.chat.canMentionAll&&(body.contains("@toți",ignoreCase=true)||body.contains("@all",ignoreCase=true))
+            when (val result = authorized { gateway.createRichHouseholdChatMessage(it, household.id, key, body,emptyList(),mentioned,mentionAll,null) }) {
                 is ApiResult.Success -> if (_uiState.value.selectedHousehold?.id == household.id) {
                     val message = result.value.toChatUi(household.id)
                     _uiState.update { state ->
@@ -384,6 +390,38 @@ class SharedHouseViewModel(
         }
     }
 
+    fun setChatMessagePinned(messageId:String,pinned:Boolean) {
+        val household=_uiState.value.selectedHousehold?:return
+        viewModelScope.launch { when(val result=authorized { gateway.setHouseholdChatMessagePinned(it,household.id,messageId,pinned) }) {
+            is ApiResult.Success -> _uiState.update { state -> state.copy(chat=state.chat.copy(
+                messages=state.chat.messages.map { if(it.id==messageId) result.value.toChatUi(household.id) else it },
+                pinnedMessages=if(pinned) (state.chat.pinnedMessages+result.value.toChatUi(household.id)).distinctBy(ChatMessageUi::id).takeLast(5) else state.chat.pinnedMessages.filterNot { it.id==messageId },
+            )) }
+            is ApiResult.Failure -> if(_uiState.value.route!=AppRoute.SignIn) _uiState.update { it.copy(chat=it.chat.copy(problem=ChatProblem.SEND_FAILED)) }
+        } }
+    }
+
+    fun sendChatPhoto(mediaType:String,width:Int,height:Int,contentBase64:String) {
+        val household=_uiState.value.selectedHousehold?:return
+        _uiState.update { it.copy(chat=it.chat.copy(isSending=true,problem=null)) }
+        viewModelScope.launch {
+            val upload=authorized { gateway.uploadHouseholdChatAttachment(it,household.id,UploadChatAttachmentDto(mediaType,width,height,contentBase64)) }
+            if(upload is ApiResult.Success) {
+                val sent=authorized { gateway.createRichHouseholdChatMessage(it,household.id,UUID.randomUUID().toString(),"",listOf(upload.value.id),emptyList(),false,null) }
+                if(sent is ApiResult.Success) _uiState.update { state -> state.copy(chat=state.chat.copy(messages=(state.chat.messages+sent.value.toChatUi(household.id)).distinctBy(ChatMessageUi::id),isSending=false)) }
+                else _uiState.update { it.copy(chat=it.chat.copy(isSending=false,problem=ChatProblem.SEND_FAILED)) }
+            } else _uiState.update { it.copy(chat=it.chat.copy(isSending=false,problem=ChatProblem.SEND_FAILED)) }
+        }
+    }
+
+    fun sendChatLocation(latitude:Double,longitude:Double) {
+        val household=_uiState.value.selectedHousehold?:return
+        viewModelScope.launch { when(val sent=authorized { gateway.createRichHouseholdChatMessage(it,household.id,UUID.randomUUID().toString(),"",emptyList(),emptyList(),false,HouseholdChatLocationDto(latitude,longitude)) }) {
+            is ApiResult.Success -> _uiState.update { state -> state.copy(chat=state.chat.copy(messages=(state.chat.messages+sent.value.toChatUi(household.id)).distinctBy(ChatMessageUi::id))) }
+            is ApiResult.Failure -> _uiState.update { it.copy(chat=it.chat.copy(problem=ChatProblem.SEND_FAILED)) }
+        } }
+    }
+
     private fun loadChat(silent: Boolean) {
         val household = _uiState.value.selectedHousehold ?: return
         if (chatLoadJob?.isActive == true) return
@@ -395,6 +433,9 @@ class SharedHouseViewModel(
                     val incoming = result.value.messages.map { it.toChatUi(household.id) }
                     _uiState.update { state -> state.copy(chat = state.chat.copy(
                         messages = (if (after == null) incoming else state.chat.messages + incoming).distinctBy(ChatMessageUi::id).sortedBy(ChatMessageUi::createdAt),
+                        pinnedMessages = result.value.pinnedMessages.map { it.toChatUi(household.id) },
+                        members = result.value.members.map { com.sharedhouse.android.ui.chat.ChatMemberUi(it.userId,it.displayName,it.role,it.isCurrentUser) },
+                        canMentionAll = result.value.canMentionAll,
                         connection = ChatConnection.LIVE,
                         canSend = household.role != "read_only",
                         problem = null,
@@ -2002,6 +2043,38 @@ class SharedHouseViewModel(
         _uiState.update { it.copy(accountExport = null) }
     }
 
+    fun updateAccountDisplayName(displayName:String) {
+        if (_uiState.value.isSubmitting) return
+        submit { when(val result=authorized { gateway.updateAccountProfile(it,displayName) }) {
+            is ApiResult.Success -> { session=session?.copy(account=result.value); session?.let { sessionStore.save(it) }; _uiState.update { it.copy(isSubmitting=false,account=result.value,error=null) } }
+            is ApiResult.Failure -> if (_uiState.value.route!=AppRoute.SignIn) showFailure(result)
+        } }
+    }
+
+    fun changeAccountPassword(current:String,new:String,revokeOthers:Boolean) {
+        if (_uiState.value.isSubmitting) return
+        submit { when(val result=authorized { gateway.changePassword(it,ChangePasswordDto(current,new,revokeOthers)) }) {
+            is ApiResult.Success -> _uiState.update { it.copy(isSubmitting=false,account=result.value,error=null) }
+            is ApiResult.Failure -> if (_uiState.value.route!=AppRoute.SignIn) showFailure(result)
+        } }
+    }
+
+    fun requestAccountEmailChange(newEmail:String,currentPassword:String) {
+        if (_uiState.value.isSubmitting) return
+        submit { when(val result=authorized { gateway.requestEmailChange(it,RequestEmailChangeDto(newEmail,currentPassword)) }) {
+            is ApiResult.Success -> _uiState.update { it.copy(isSubmitting=false,error=null) }
+            is ApiResult.Failure -> if (_uiState.value.route!=AppRoute.SignIn) showFailure(result)
+        } }
+    }
+
+    fun confirmAccountEmailChange(code:String) {
+        if (_uiState.value.isSubmitting) return
+        submit { when(val result=authorized { gateway.confirmEmailChange(it,code) }) {
+            is ApiResult.Success -> { session=session?.copy(account=result.value); session?.let { sessionStore.save(it) }; _uiState.update { it.copy(isSubmitting=false,account=result.value,error=null) } }
+            is ApiResult.Failure -> if (_uiState.value.route!=AppRoute.SignIn) showFailure(result)
+        } }
+    }
+
     private suspend fun restoreSession() {
         when (val stored = sessionStore.load()) {
             SessionLoadResult.Missing -> {
@@ -2716,6 +2789,12 @@ class SharedHouseViewModel(
             isCurrentUser = isCurrentUser,
             body = body,
             createdAt = Instant.parse(createdAt),
+            kind = kind,
+            isPinned = isPinned,
+            pinnedByDisplayName = pinnedByDisplayName,
+            mentionedUserIds = mentionedUserIds,
+            location = location?.let { com.sharedhouse.android.ui.chat.ChatLocationUi(it.latitude,it.longitude) },
+            attachments = attachments.map { com.sharedhouse.android.ui.chat.ChatAttachmentUi(it.id,it.width,it.height) },
         )
     }
 

@@ -45,6 +45,7 @@ import com.sharedhouse.android.ui.atmosphere.Button
 import com.sharedhouse.android.ui.atmosphere.Card
 import com.sharedhouse.android.ui.atmosphere.CardDefaults
 import com.sharedhouse.android.ui.atmosphere.CircularProgressIndicator
+import com.sharedhouse.android.ui.atmosphere.DepthIconBadge
 import com.sharedhouse.android.ui.atmosphere.FilledTonalButton
 import com.sharedhouse.android.ui.atmosphere.HorizontalDivider
 import com.sharedhouse.android.ui.atmosphere.Icon
@@ -183,12 +184,12 @@ private fun ChatResumeCard(chat: ChatUiState, onOpenChat: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = AtmosphereTheme.shapes.medium,
-                color = AtmosphereTheme.colorScheme.primary.copy(alpha = .14f),
-                contentColor = AtmosphereTheme.colorScheme.primary,
-                border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .28f)),
-            ) { Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) { Icon(SharedHouseIcons.Chat, null, Modifier.size(22.dp)) } }
+            DepthIconBadge(
+                icon = SharedHouseIcons.Chat,
+                contentDescription = null,
+                badgeSize = 42.dp,
+                iconSize = 22.dp,
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     stringResource(if (chat.connection == ChatConnection.LIVE) R.string.dashboard_chat_live else R.string.dashboard_chat_open),
@@ -256,15 +257,11 @@ private fun DashboardHero(
                         color = Color.White.copy(alpha = .75f),
                     )
                 }
-                Surface(
-                    shape = AtmosphereTheme.shapes.medium,
-                    color = Color.White.copy(alpha = .14f),
-                    contentColor = Color.White,
-                ) {
-                    Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                        Icon(SharedHouseIcons.House, null, Modifier.size(22.dp))
-                    }
-                }
+                DepthIconBadge(
+                    icon = SharedHouseIcons.House,
+                    contentDescription = null,
+                    hero = true,
+                )
             }
             Text(
                 text = stringResource(R.string.dashboard_metric_due),
@@ -313,7 +310,7 @@ private fun DashboardMetric(
     Surface(
         onClick = onClick,
         modifier = modifier.heightIn(min = if (prominent) 84.dp else 70.dp),
-        shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
+        shape = RoundedCornerShape(28.dp),
         color = container,
         border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .42f) else AtmosphereTheme.colorScheme.outlineVariant),
         shadowElevation = if (prominent) 7.dp else 2.dp,
@@ -323,15 +320,13 @@ private fun DashboardMetric(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = AtmosphereTheme.shapes.small,
-                color = if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .15f) else AtmosphereTheme.colorScheme.secondaryContainer,
-                contentColor = if (attention) AtmosphereTheme.colorScheme.tertiary else AtmosphereTheme.colorScheme.primary,
-            ) {
-                Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, Modifier.size(17.dp))
-                }
-            }
+            DepthIconBadge(
+                icon = icon,
+                contentDescription = null,
+                tint = if (attention) AtmosphereTheme.colorScheme.tertiary else AtmosphereTheme.colorScheme.primary,
+                badgeSize = 34.dp,
+                iconSize = 17.dp,
+            )
             Column(Modifier.weight(1f)) {
                 Text(value, style = if (prominent) AtmosphereTheme.typography.headlineMedium else AtmosphereTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(label, style = AtmosphereTheme.typography.labelSmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant, maxLines = 1)

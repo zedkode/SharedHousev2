@@ -248,6 +248,139 @@ export class IdentityService {
     return this.repository.exportAccount(userId, new Date().toISOString());
   }
 
+  async updateDisplayName(userId: string, displayName: string): Promise<AccountSummary> {
+    const normalized = displayName.trim().replace(/\s+/gu, ' ');
+    if (Array.from(normalized).length < 2 || Array.from(normalized).length > 80)
+      throw validationProblem([
+        { field: 'displayName', message: 'Use between 2 and 80 characters.' },
+      ]);
+    const account = await this.repository.updateDisplayName(
+      userId,
+      normalized,
+      new Date().toISOString(),
+    );
+    if (account === null) throw invalidCredentials();
+    return account;
+  }
+
+  async changePassword(input: {
+    readonly userId: string;
+    readonly sessionId: string;
+    readonly currentPassword: string;
+    readonly newPassword: string;
+    readonly revokeOtherSessions: boolean;
+  }): Promise<AccountSummary> {
+    const current = await this.repository.findCredentialByUserId(input.userId);
+    if (
+      current?.status !== 'active' ||
+      !(await this.passwords.verifyPassword(input.currentPassword, current))
+    )
+      throw recentAuthenticationRequired('Confirm the current password to change it.');
+    const violations = this.passwords.validatePolicy(input.newPassword);
+    if (violations.length > 0)
+      throw validationProblem(violations.map((message) => ({ field: 'newPassword', message })));
+    if (await this.passwords.verifyPassword(input.newPassword, current))
+      throw validationProblem([
+        { field: 'newPassword', message: 'Choose a password different from the current one.' },
+      ]);
+    const credential = await this.passwords.hashPassword(input.newPassword);
+    const account = await this.repository.changePassword({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      credential,
+      revokeOtherSessions: input.revokeOtherSessions,
+      occurredAt: new Date().toISOString(),
+    });
+    if (account === null) throw invalidCredentials();
+    return account;
+  }
+
+  async requestEmailChange(input: {
+    readonly userId: string;
+    readonly newEmail: string;
+    readonly currentPassword: string;
+  }): Promise<{
+    readonly status: 'verification_required';
+    readonly account: AccountSummary;
+    readonly developmentVerificationCode?: string;
+  }> {
+    const credential = await this.repository.findCredentialByUserId(input.userId);
+    if (
+      credential?.status !== 'active' ||
+      !(await this.passwords.verifyPassword(input.currentPassword, credential))
+    )
+      throw recentAuthenticationRequired(
+        'Confirm the current password to change the email address.',
+      );
+    const email = input.newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) || email.length > 254)
+      throw validationProblem([{ field: 'newEmail', message: 'Use a valid email address.' }]);
+    if (email === credential.account.email)
+      throw validationProblem([
+        { field: 'newEmail', message: 'Use an email address different from the current one.' },
+      ]);
+    const occurredAt = new Date();
+    const code = this.tokens.createVerificationCode();
+    const changeId = newUuidV7(occurredAt.getTime());
+    const expiresAt = new Date(occurredAt.getTime() + VERIFICATION_LIFETIME_MS).toISOString();
+    const verificationEmail = this.verificationEmails.prepare({
+      challengeId: changeId,
+      recipientEmail: email,
+      locale: credential.account.preferredLocale,
+      code,
+      expiresAt,
+      occurredAt: occurredAt.toISOString(),
+      messageKind: 'email_change_verification',
+    });
+    const result = await this.repository.requestEmailChange({
+      userId: input.userId,
+      changeId,
+      newEmail: email,
+      codeHash: this.tokens.hash(code),
+      expiresAt,
+      occurredAt: occurredAt.toISOString(),
+      ...(verificationEmail === undefined ? {} : { verificationEmail }),
+    });
+    if (result === 'conflict')
+      throw new ApiProblemException({
+        status: 409,
+        code: 'EMAIL_ALREADY_IN_USE',
+        title: 'That email address is already in use.',
+      });
+    if (result === 'not_found') throw invalidCredentials();
+    const environment = readApiEnvironment(process.env);
+    return {
+      status: 'verification_required',
+      account: credential.account,
+      ...(environment.exposeDevelopmentVerificationCode
+        ? { developmentVerificationCode: code }
+        : {}),
+    };
+  }
+
+  async confirmEmailChange(userId: string, code: string): Promise<AccountSummary> {
+    if (!/^[0-9]{8}$/u.test(code))
+      throw validationProblem([{ field: 'code', message: 'Use the 8-digit verification code.' }]);
+    const result = await this.repository.confirmEmailChange(
+      userId,
+      this.tokens.hash(code),
+      new Date().toISOString(),
+    );
+    if (result === 'expired')
+      throw new ApiProblemException({
+        status: 410,
+        code: 'EMAIL_CHANGE_EXPIRED',
+        title: 'The email-change code has expired.',
+      });
+    if (result === 'invalid')
+      throw new ApiProblemException({
+        status: 400,
+        code: 'EMAIL_CHANGE_CODE_INVALID',
+        title: 'The email-change code is not valid.',
+      });
+    return result;
+  }
+
   async deleteAccountByCredentials(
     email: string,
     password: string,
@@ -316,11 +449,13 @@ export class IdentityService {
   }
 }
 
-function recentAuthenticationRequired(): ApiProblemException {
+function recentAuthenticationRequired(
+  title = 'Confirm the current password to delete this account.',
+): ApiProblemException {
   return new ApiProblemException({
     status: 401,
     code: 'RECENT_AUTHENTICATION_REQUIRED',
-    title: 'Confirm the current password to delete this account.',
+    title,
   });
 }
 

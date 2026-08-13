@@ -84,6 +84,8 @@ class AppPreferencesRepository(
 
     suspend fun setAdsEnabled(enabled: Boolean) = update(Keys.ADS_ENABLED, enabled)
 
+    suspend fun setBiometricUnlockEnabled(enabled: Boolean) = update(Keys.BIOMETRIC_UNLOCK_ENABLED, enabled)
+
     private suspend fun update(key: Preferences.Key<Boolean>, value: Boolean) {
         dataStore.edit { preferences -> preferences[key] = value }
     }
@@ -117,6 +119,7 @@ class AppPreferencesRepository(
         val ANALYTICS_ENABLED = booleanPreferencesKey("privacy_analytics_enabled")
         val CRASH_REPORTING_ENABLED = booleanPreferencesKey("privacy_crash_reporting_enabled")
         val ADS_ENABLED = booleanPreferencesKey("privacy_ads_enabled")
+        val BIOMETRIC_UNLOCK_ENABLED = booleanPreferencesKey("biometric_unlock_enabled")
 
         fun notificationCategory(category: NotificationCategory): Preferences.Key<Boolean> = when (category) {
             NotificationCategory.CHAT -> NOTIFICATION_CHAT
@@ -163,6 +166,7 @@ class AppPreferencesRepository(
                     crashReportingEnabled = preferences[Keys.CRASH_REPORTING_ENABLED] ?: false,
                     adsEnabled = preferences[Keys.ADS_ENABLED] ?: false,
                 ),
+                biometricUnlockEnabled = preferences[Keys.BIOMETRIC_UNLOCK_ENABLED] ?: false,
             )
         }
     }

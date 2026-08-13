@@ -112,6 +112,11 @@ class SharedHouseApiClient(
         }
     }
 
+    suspend fun updateAccountProfile(accessToken: String, displayName: String): ApiResult<AccountDto> = execute { client.patch("$baseUrl/v1/account/profile") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(UpdateAccountProfileDto(displayName)) } }
+    suspend fun changePassword(accessToken: String,payload: ChangePasswordDto): ApiResult<AccountDto> = execute { client.post("$baseUrl/v1/account/password") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) } }
+    suspend fun requestEmailChange(accessToken: String,payload: RequestEmailChangeDto): ApiResult<AccountSecurityResultDto> = execute { client.post("$baseUrl/v1/account/email-change") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) } }
+    suspend fun confirmEmailChange(accessToken: String,code: String): ApiResult<AccountDto> = execute { client.post("$baseUrl/v1/account/email-change/confirm") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(ConfirmEmailChangeDto(code)) } }
+
     suspend fun deleteAccount(
         accessToken: String,
         password: String,
@@ -352,14 +357,21 @@ class SharedHouseApiClient(
         householdId: String,
         idempotencyKey: String,
         body: String,
+        attachmentIds: List<String> = emptyList(),
+        mentionedUserIds: List<String> = emptyList(),
+        mentionAll: Boolean = false,
+        location: HouseholdChatLocationDto? = null,
     ): ApiResult<HouseholdChatMessageDto> = execute {
         client.post("$baseUrl/v1/households/$householdId/chat/messages") {
             bearerAuth(accessToken)
             header("Idempotency-Key", idempotencyKey)
             contentType(ContentType.Application.Json)
-            setBody(CreateHouseholdChatMessageDto(body))
+            setBody(CreateHouseholdChatMessageDto(body,attachmentIds,mentionedUserIds,mentionAll,location))
         }
     }
+
+    suspend fun uploadHouseholdChatAttachment(accessToken: String,householdId: String,payload: UploadChatAttachmentDto): ApiResult<HouseholdChatAttachmentDto> = execute { client.post("$baseUrl/v1/households/$householdId/chat/messages/attachments") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(payload) } }
+    suspend fun setHouseholdChatMessagePinned(accessToken:String,householdId:String,messageId:String,pinned:Boolean): ApiResult<HouseholdChatMessageDto> = execute { client.patch("$baseUrl/v1/households/$householdId/chat/messages/$messageId/pin") { bearerAuth(accessToken); contentType(ContentType.Application.Json); setBody(PinChatMessageDto(pinned)) } }
 
     fun streamHouseholdChatMessages(
         accessToken: String,

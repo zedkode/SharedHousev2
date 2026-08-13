@@ -94,6 +94,31 @@ export interface AccountSummary {
   readonly preferredLocale: SupportedLocale;
 }
 
+export interface UpdateAccountProfileRequest {
+  readonly displayName: string;
+}
+
+export interface ChangePasswordRequest {
+  readonly currentPassword: string;
+  readonly newPassword: string;
+  readonly revokeOtherSessions: boolean;
+}
+
+export interface RequestEmailChangeRequest {
+  readonly newEmail: string;
+  readonly currentPassword: string;
+}
+
+export interface ConfirmEmailChangeRequest {
+  readonly code: string;
+}
+
+export interface AccountSecurityResult {
+  readonly status: 'updated' | 'verification_required';
+  readonly account: AccountSummary;
+  readonly developmentVerificationCode?: string;
+}
+
 export interface DeleteAccountRequest {
   password: string;
   confirmation: 'DELETE';
@@ -248,16 +273,53 @@ export interface HouseholdChatMessage {
   readonly senderDisplayName: string;
   readonly isCurrentUser: boolean;
   readonly body: string;
+  readonly kind?: 'member' | 'system';
+  readonly attachments?: readonly HouseholdChatAttachment[];
+  readonly mentionedUserIds?: readonly string[];
+  readonly location?: HouseholdChatLocation | null;
+  readonly isPinned?: boolean;
+  readonly pinnedByDisplayName?: string | null;
+  readonly sourceChatMessageId?: string | null;
+  readonly sourceCalendarEventId?: string | null;
   readonly createdAt: string;
+}
+
+export interface HouseholdChatAttachment {
+  readonly id: string;
+  readonly mediaType: 'image/jpeg' | 'image/png' | 'image/webp';
+  readonly byteSize: number;
+  readonly width: number;
+  readonly height: number;
+  readonly downloadPath: string;
+}
+
+export interface HouseholdChatLocation {
+  readonly latitude: number;
+  readonly longitude: number;
 }
 
 export interface HouseholdChatPage {
   readonly messages: readonly HouseholdChatMessage[];
+  readonly pinnedMessages?: readonly HouseholdChatMessage[];
+  readonly members?: readonly HouseholdTaskMemberSummary[];
+  readonly canMentionAll?: boolean;
   readonly nextCursor: string | null;
 }
 
 export interface CreateHouseholdChatMessageRequest {
   readonly body: string;
+  readonly attachmentIds?: readonly string[];
+  readonly mentionedUserIds?: readonly string[];
+  readonly mentionAll?: boolean;
+  readonly location?: HouseholdChatLocation | null;
+}
+
+export interface HouseholdChatAttachmentUpload {
+  readonly attachment: HouseholdChatAttachment;
+}
+
+export interface PinHouseholdChatMessageRequest {
+  readonly pinned: boolean;
 }
 
 export interface HouseholdMemberActionRequest {
@@ -306,6 +368,7 @@ export interface CalendarEventConfiguration {
   readonly startTime?: string | null;
   readonly endTime?: string | null;
   readonly reminderMinutesBefore?: number | null;
+  readonly sourceChatMessageId?: string | null;
 }
 
 export type CreateCalendarEventRequest = CalendarEventConfiguration;
@@ -322,6 +385,7 @@ export interface CalendarEventSummary {
   readonly startTime: string | null;
   readonly endTime: string | null;
   readonly reminderMinutesBefore: number | null;
+  readonly sourceChatMessageId?: string | null;
   readonly createdByUserId: string;
   readonly version: number;
   readonly createdAt: string;

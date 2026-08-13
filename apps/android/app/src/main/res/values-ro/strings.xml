@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="startup_logo_description">Logo-ul SharedHouse</string>
+    <string name="startup_loading_description">SharedHouse se încarcă</string>
+    <string name="startup_preparing_title">Pregătim locuința ta comună</string>
+    <string name="startup_preparing_supporting">Restabilim sesiunea securizată și cele mai recente informații ale locuinței…</string>
+    <string name="startup_welcome_back">Bine ai revenit, %1$s</string>
+    <string name="startup_authenticated_supporting">Tot ce ține de locuință este pregătit pentru tine.</string>
+    <string name="startup_welcome_guest">Bine ai venit în SharedHouse</string>
+    <string name="startup_guest_supporting">Un mod mai liniștit de a organiza viața împreună.</string>
     <string name="app_name">SharedHouse</string>
     <string name="home_title">SharedHouse</string>
     <string name="household_not_configured">Neconfigurată</string>
@@ -37,7 +45,6 @@
     <string name="welcome_title">O modalitate mai calmă de a organiza locuința împreună</string>
     <string name="welcome_description">Creează un cont verificat, configurează locuința și păstrează responsabilitățile clare, fără a pretinde că SharedHouse transferă bani.</string>
     <string name="session_secure_notice">Sesiunea este criptată cu o cheie protejată de acest dispozitiv și este eliminată când te deconectezi.</string>
-    <string name="session_restoring">Verificăm sesiunea securizată…</string>
     <string name="retry_secure_session">Încearcă din nou recuperarea sesiunii</string>
     <string name="create_account">Creează contul</string>
     <string name="creating_account">Se creează contul…</string>
@@ -792,4 +799,38 @@
     </plurals>
     <string name="dashboard_tasks_next">Următoarea ta sarcină: %1$s · %2$s · %3$s</string>
     <string name="dashboard_tasks_ready">%1$s · %2$s</string>
+    <string name="biometric_locked_title">SharedHouse este blocată</string>
+    <string name="biometric_locked_description">Deblochează înainte de încărcarea banilor, mesajelor și sarcinilor locuinței.</string>
+    <string name="biometric_unlock_action">Deblochează în siguranță</string>
+    <string name="biometric_use_password">Autentifică-te cu parola</string>
+    <string name="biometric_prompt_title">Deblochează SharedHouse</string>
+    <string name="biometric_prompt_subtitle">Folosește amprenta, recunoașterea facială sau blocarea ecranului.</string>
+    <string name="my_account_title">Contul meu</string>
+    <string name="my_account_description">Identitatea, emailul, parola și deblocarea sigură a aplicației.</string>
+    <string name="my_account_name">Nume afișat</string>
+    <string name="my_account_save_name">Salvează numele</string>
+    <string name="my_account_email_current">Email curent: %1$s</string>
+    <string name="my_account_new_email">Email nou</string>
+    <string name="my_account_send_email_code">Trimite codul de verificare</string>
+    <string name="my_account_email_code">Cod de verificare din 8 cifre</string>
+    <string name="my_account_confirm_email">Confirmă noul email</string>
+    <string name="my_account_new_password">Parolă nouă</string>
+    <string name="my_account_confirm_password">Confirmă parola nouă</string>
+    <string name="my_account_change_password">Schimbă parola și deconectează celelalte dispozitive</string>
+    <string name="password_strength_weak">Puterea parolei: folosește cel puțin 15 caractere</string>
+    <string name="password_strength_medium">Puterea parolei: medie</string>
+    <string name="password_strength_strong">Puterea parolei: puternică</string>
+    <string name="my_account_biometric">Deblocare biometrică</string>
+    <string name="my_account_biometric_description">Cere amprenta, fața sau blocarea ecranului înainte de încărcarea datelor locuinței.</string>
+    <string name="chat_pinned_title">Mesaje fixate</string>
+    <string name="chat_media_message">Poză sau locație partajată</string>
+    <string name="chat_message_actions">Acțiuni mesaj</string>
+    <string name="chat_pin">Fixează mesajul</string>
+    <string name="chat_unpin">Elimină fixarea</string>
+    <string name="chat_create_event">Creează eveniment în calendar</string>
+    <string name="chat_pinned_by">Fixat de %1$s</string>
+    <string name="chat_close_actions">Închide</string>
+    <string name="notification_channel_chat_mentions">Mențiuni în chat</string>
+    <string name="notification_channel_chat_mentions_description">Mențiuni directe și alerte @toți pentru locuință.</string>
+    <plurals name="chat_photo_count"><item quantity="one">1 poză partajată</item><item quantity="few">%1$d poze partajate</item><item quantity="other">%1$d de poze partajate</item></plurals>
 </resources>

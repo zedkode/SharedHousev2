@@ -263,6 +263,7 @@ export function parseCalendarEventConfiguration(value: unknown): CalendarEventCo
     'startTime',
     'endTime',
     'reminderMinutesBefore',
+    'sourceChatMessageId',
   ]);
   const violations: FieldViolation[] = [];
   const title = readString(body.title, 'title', 1, 120, violations, true);
@@ -293,6 +294,23 @@ export function parseCalendarEventConfiguration(value: unknown): CalendarEventCo
     10_080,
     violations,
   );
+  const sourceChatMessageId = readOptionalNullableString(
+    body.sourceChatMessageId,
+    'sourceChatMessageId',
+    36,
+    36,
+    violations,
+  );
+  if (
+    typeof sourceChatMessageId === 'string' &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      sourceChatMessageId,
+    )
+  )
+    violations.push({
+      field: 'sourceChatMessageId',
+      message: 'Use a valid chat message identifier.',
+    });
   throwIfViolations(violations);
 
   return {
@@ -303,6 +321,7 @@ export function parseCalendarEventConfiguration(value: unknown): CalendarEventCo
     ...(startTime === undefined ? {} : { startTime }),
     ...(endTime === undefined ? {} : { endTime }),
     ...(reminderMinutesBefore === undefined ? {} : { reminderMinutesBefore }),
+    ...(sourceChatMessageId === undefined ? {} : { sourceChatMessageId }),
   };
 }
 

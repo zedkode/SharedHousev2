@@ -31,6 +31,24 @@
 - English and Romanian resources are updated together. Dates, times, amounts and plural forms use
   locale-aware formatters/resources rather than concatenated grammar.
 
+The v3 depth pass preserves this palette and information architecture while changing the physical
+treatment: 36 dp heroes, 28 dp metrics, 24 dp list cards, two-stage coloured/contact shadows,
+subtle neutral gradients, top-left highlights, independently lit icon badges and 120 ms pressed
+feedback. Home, Money, Tasks, Calendar and House share the same ambient background composition;
+no financial, permission, sync or API behaviour is changed by this visual layer.
+
+## Launcher identity and startup experience
+
+- The Android launcher and system splash use the SharedHouse-owned house-and-three-people mark on
+  the fixed `#0B0C16` brand background. Density-specific launcher art is derived from one
+  transparent master so adaptive and legacy icons retain the same safe-zone proportions.
+- The Compose startup surface continues the system splash with the same mark, a restrained
+  violet-purple-pink glow and a three-dot indeterminate progress indicator. Motion is removed when
+  reduced motion is enabled; progress and logo semantics remain available to TalkBack.
+- Session restoration is resolved before any account name is presented. A confirmed account sees a
+  localized personalized welcome; a missing session sees a neutral guest welcome. No stale local
+  display name is exposed while credential restoration is still in progress.
+
 ## Household chat
 
 The Android chat consumes only the implemented tenant-scoped contract:
