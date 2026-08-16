@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@sharedhouse/contracts": "0.2.0",
-    "pg": "^8.22.0"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
-    "@types/pg": "^8.20.3",
+    "@types/pg": "^8.21.0",
     "tsx": "^4.20.3",
     "vitest": "^4.1.10"
   }
