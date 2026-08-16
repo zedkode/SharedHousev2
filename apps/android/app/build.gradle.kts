@@ -259,6 +259,16 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
 
+tasks.register<Copy>("packagePublicTestingApk") {
+    group = "build"
+    description = "Builds the public debug variant and copies a named testing APK for CI."
+    dependsOn("assemblePublicDebug")
+
+    from(layout.buildDirectory.file("outputs/apk/public/debug/app-public-debug.apk"))
+    into(layout.buildDirectory.dir("outputs/apk/testing"))
+    rename("app-public-debug.apk", "SharedHouse-v$appVersionName-public-testing-signed.apk")
+}
+
 tasks.register<Copy>("packagePublicReleaseApk") {
     group = "build"
     description = "Builds the production-signed, optimized SharedHouse public release APK."
