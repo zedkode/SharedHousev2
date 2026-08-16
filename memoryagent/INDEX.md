@@ -4,6 +4,7 @@ Newest entries first.
 
 | Date | Type | Task/decision | File | Status |
 |---|---|---|---|---|
+| 2026-08-17 | progress | UI-005 SharedHouse Horizon global Android interface redesign | `progress/2026-08-17__UI-005__horizon-interface-redesign.md` | source implemented; Android SDK-backed build/device validation pending |
 | 2026-08-13 | progress | UI-004 premium v3 surface depth, organic shape hierarchy and physical feedback | `progress/2026-08-13__UI-004__premium-v3-depth.md` | implemented and visually validated as internal public-debug across five principal screens; owner-signed release remains |
 | 2026-08-13 | progress | UI-003 SharedHouse launcher identity and animated personalized startup | `progress/2026-08-13__UI-003__brand-logo-startup.md` | implemented and validated as internal public-debug on physical device; owner-signed release remains |
 | 2026-08-11 | progress | UI-002 premium v2 UI, household chat and ledger actor attribution | `progress/2026-08-11__UI-002__premium-v2-ui-chat-ledger.md` | internal public-debug installed and visually verified; real chat and actor history confirmed; owner-signed release and full device gates remain |

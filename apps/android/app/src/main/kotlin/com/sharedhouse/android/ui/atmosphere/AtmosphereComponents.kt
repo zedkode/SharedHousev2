@@ -198,8 +198,8 @@ private fun Modifier.atmosphericSurface(
                 elevation = shadow + 8.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .44f),
-                spotColor = PremiumPalette.HeroStart.copy(alpha = .22f),
+                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .30f),
+                spotColor = PremiumPalette.HeroMiddle.copy(alpha = .16f),
             )
         } else Modifier
     )
@@ -209,8 +209,8 @@ private fun Modifier.atmosphericSurface(
                 elevation = 3.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = .30f),
-                spotColor = Color.Black.copy(alpha = .30f),
+                ambientColor = Color.Black.copy(alpha = .22f),
+                spotColor = Color.Black.copy(alpha = .22f),
             )
         } else Modifier
     )
@@ -218,22 +218,22 @@ private fun Modifier.atmosphericSurface(
     .drawWithCache {
         val body = Brush.verticalGradient(
             listOf(
-                lerp(color, Color.White, if (color.alpha > .02f) .045f else 0f),
-                lerp(color, Color.Black, if (color.alpha > .02f) .06f else 0f),
+                lerp(color, Color.White, if (color.alpha > .02f) .035f else 0f),
+                lerp(color, Color.Black, if (color.alpha > .02f) .035f else 0f),
             ),
         )
         val glass = Brush.radialGradient(
-            colors = listOf(Color.White.copy(alpha = .12f), Color.Transparent),
-            center = androidx.compose.ui.geometry.Offset(size.width * .14f, 0f),
-            radius = size.maxDimension * .68f,
+            colors = listOf(Color.White.copy(alpha = .08f), Color.Transparent),
+            center = androidx.compose.ui.geometry.Offset(size.width * .18f, 0f),
+            radius = size.maxDimension * .72f,
         )
         onDrawBehind {
             drawRect(body)
             if (color.alpha > .02f) drawRect(glass)
             drawLine(
-                color = Color.White.copy(alpha = if (color.alpha > .02f) .22f else .08f),
-                start = androidx.compose.ui.geometry.Offset(size.width * .12f, 1.dp.toPx()),
-                end = androidx.compose.ui.geometry.Offset(size.width * .62f, 1.dp.toPx()),
+                color = Color.White.copy(alpha = if (color.alpha > .02f) .15f else .07f),
+                start = androidx.compose.ui.geometry.Offset(size.width * .14f, 1.dp.toPx()),
+                end = androidx.compose.ui.geometry.Offset(size.width * .54f, 1.dp.toPx()),
                 strokeWidth = 1.dp.toPx(),
             )
         }
@@ -264,8 +264,8 @@ private fun Modifier.premiumGradientSurface(
                 elevation = 4.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = .30f),
-                spotColor = Color.Black.copy(alpha = .30f),
+                ambientColor = Color.Black.copy(alpha = .22f),
+                spotColor = Color.Black.copy(alpha = .22f),
             )
         } else Modifier,
     )
@@ -347,8 +347,8 @@ fun Surface(
 }
 
 /**
- * Atmospheric Home background: exact #0B0C16 base with a restrained #1A1233 radial wash from
- * the top-left. Other screens should keep using the plain Scaffold background.
+ * Horizon Home background: a deep evergreen base with quiet teal and amber light pools.
+ * Other screens retain the same tonal family without competing with their data.
  */
 @Composable
 fun AmbientBackground(
@@ -362,16 +362,16 @@ fun AmbientBackground(
         modifier = modifier
             .background(base)
             .drawWithCache {
-                val radius = size.maxDimension * .82f
+                val radius = size.maxDimension * .92f
                 val topWash = Brush.radialGradient(
                     colors = listOf(glow.copy(alpha = if (dark) .45f else .10f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .05f, size.height * .06f),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .16f, size.height * .02f),
                     radius = radius,
                 )
                 val lowerWash = Brush.radialGradient(
-                    colors = listOf(PremiumPalette.HeroEnd.copy(alpha = if (dark) .10f else .06f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .92f, size.height * .62f),
-                    radius = size.maxDimension * .66f,
+                    colors = listOf(PremiumPalette.AmbientPink.copy(alpha = if (dark) .08f else .05f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .72f),
+                    radius = size.maxDimension * .72f,
                 )
                 onDrawBehind {
                     drawRect(topWash)
@@ -382,14 +382,14 @@ fun AmbientBackground(
     )
 }
 
-/** One-per-screen hero surface using the exact 135-degree violet-purple-pink gradient. */
+/** One-per-screen Horizon hero: a calm teal-to-sky gradient for the one primary outcome. */
 @Composable
 fun PremiumHeroCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(36.dp)
+    val shape = RoundedCornerShape(32.dp)
     val clickable = if (onClick == null) {
         Modifier
     } else {
@@ -410,19 +410,19 @@ fun PremiumHeroCard(
                         ),
                     ),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                    shadow = 24.dp,
-                    shadowAlpha = .45f,
+                    shadow = 18.dp,
+                    shadowAlpha = .28f,
                 )
                 .then(clickable)
         ) {
             Canvas(Modifier.matchParentSize()) {
                 drawCircle(
-                    color = Color.White.copy(alpha = .055f),
+                    color = Color.White.copy(alpha = .07f),
                     radius = size.minDimension * .52f,
                     center = androidx.compose.ui.geometry.Offset(size.width * 1.02f, size.height * .10f),
                 )
                 drawCircle(
-                    color = PremiumPalette.AccentSecondary.copy(alpha = .09f),
+                    color = PremiumPalette.AccentSecondary.copy(alpha = .13f),
                     radius = size.minDimension * .30f,
                     center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .88f),
                 )
@@ -455,8 +455,8 @@ fun DepthIconBadge(
                 elevation = 10.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = .35f),
-                spotColor = PremiumPalette.HeroStart.copy(alpha = .28f),
+                ambientColor = Color.Black.copy(alpha = .24f),
+                spotColor = PremiumPalette.HeroMiddle.copy(alpha = .20f),
             )
             .clip(shape)
             .drawWithCache {
@@ -531,7 +531,7 @@ fun Card(
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
         colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
-        else -> 4.dp
+        else -> 3.dp
     }
     Surface(modifier, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -552,7 +552,7 @@ fun Card(
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
         colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
-        else -> 4.dp
+        else -> 3.dp
     }
     Surface(onClick, modifier, enabled, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -632,7 +632,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(20.dp),
+    shape: Shape = RoundedCornerShape(18.dp),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
@@ -644,7 +644,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.surfaceVariant, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(20.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.surfaceVariant, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(18.dp), contentPadding, content)
 
 @Composable fun OutlinedButton(
     onClick: () -> Unit,
@@ -652,7 +652,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(20.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(18.dp), contentPadding, content)
 
 @Composable fun TextButton(
     onClick: () -> Unit,
@@ -660,7 +660,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(20.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(18.dp), contentPadding, content)
 
 @Composable fun IconButton(
     onClick: () -> Unit,
@@ -679,7 +679,7 @@ private fun BaseButton(
         modifier
             .size(48.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -695,7 +695,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
-) = Surface(onClick, modifier.size(58.dp), shape = RoundedCornerShape(20.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 10.dp) {
+) = Surface(onClick, modifier.size(58.dp), shape = RoundedCornerShape(18.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 10.dp) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
@@ -852,7 +852,7 @@ fun OutlinedTextField(
 
 @Composable fun LinearProgressIndicator(modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.cardLevel1) {
     val progressBrush = if (color == AtmosphereTheme.colorScheme.primary) {
-        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd))
+        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle, PremiumPalette.HeroEnd))
     } else Brush.horizontalGradient(listOf(color, color))
     Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(trackColor)) {
         Box(Modifier.fillMaxWidth(.66f).height(6.dp).background(progressBrush))
@@ -862,7 +862,7 @@ fun OutlinedTextField(
 @Composable fun LinearProgressIndicator(progress: () -> Float, modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.cardLevel1) {
     val fraction = progress().coerceIn(0f, 1f)
     val progressBrush = if (color == AtmosphereTheme.colorScheme.primary) {
-        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd))
+        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle, PremiumPalette.HeroEnd))
     } else Brush.horizontalGradient(listOf(color, color))
     Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(trackColor)) {
         Box(Modifier.fillMaxWidth(fraction).height(6.dp).background(progressBrush))
@@ -1152,8 +1152,8 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
     val indicatorState = remember { NavigationIndicatorState() }
     val indicatorCenter = remember { Animatable(0f) }
     val density = LocalDensity.current
-    val dockShape = RoundedCornerShape(32.dp)
-    val activeShape = RoundedCornerShape(20.dp)
+    val dockShape = RoundedCornerShape(28.dp)
+    val activeShape = RoundedCornerShape(18.dp)
     val dark = AtmosphereTheme.colorScheme.background == PremiumPalette.Base
 
     LaunchedEffect(indicatorState.targetCenterPx, motion) {
@@ -1176,19 +1176,19 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
     Box(
         modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 14.dp)
             .shadow(
-                elevation = 18.dp,
+                elevation = 14.dp,
                 shape = dockShape,
                 clip = false,
-                ambientColor = PremiumPalette.HeroStart.copy(alpha = .16f),
-                spotColor = Color.Black.copy(alpha = .32f),
+                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .22f),
+                spotColor = Color.Black.copy(alpha = .26f),
             )
             .clip(dockShape)
-            .background(containerColor.copy(alpha = if (dark) .85f else .94f))
+            .background(containerColor.copy(alpha = if (dark) .94f else .97f))
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = if (dark) .04f else .18f), Color.Transparent),
+                    listOf(Color.White.copy(alpha = if (dark) .06f else .16f), Color.Transparent),
                 ),
             )
             .border(
@@ -1199,7 +1199,7 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
             .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         if (indicatorState.initialized) {
-            val halfPillPx = with(density) { 24.dp.toPx() }
+            val halfPillPx = with(density) { 26.dp.toPx() }
             Box(
                 Modifier
                     .offset {
@@ -1208,14 +1208,14 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
                             y = 0,
                         )
                     }
-                    .width(48.dp)
-                    .height(36.dp)
+                    .width(52.dp)
+                    .height(38.dp)
                     .shadow(
-                        elevation = 10.dp,
+                        elevation = 8.dp,
                         shape = activeShape,
                         clip = false,
-                        ambientColor = PremiumPalette.AccentPrimary.copy(alpha = .40f),
-                        spotColor = PremiumPalette.AccentPrimary.copy(alpha = .40f),
+                        ambientColor = PremiumPalette.HeroMiddle.copy(alpha = .28f),
+                        spotColor = PremiumPalette.HeroMiddle.copy(alpha = .28f),
                     )
                     .clip(activeShape)
                     .background(
@@ -1288,7 +1288,7 @@ object NavigationBarItemDefaults { @Composable fun colors(indicatorColor: Color 
         ) {
             Box(
                 modifier = Modifier
-                    .height(34.dp)
+                    .height(38.dp)
                     .graphicsLayer {
                         scaleX = iconScale.value
                         scaleY = iconScale.value

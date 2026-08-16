@@ -40,20 +40,23 @@ private fun type(
     fontFeatureSettings = if (tabular) "tnum" else null,
 )
 
-/** Sans-only premium type scale. Screen headings are 28-32sp; hero amounts are 40-48sp. */
+/**
+ * A compact, humanist-feeling hierarchy. Display values are reserved for the one figure that
+ * matters on a screen; all other content uses a quieter reading scale.
+ */
 val AtmosphericTypography = SharedHouseTypography(
-    displayMedium = type(48, 52, FontWeight.ExtraBold, letterSpacing = -1.1f, tabular = true),
-    displaySmall = type(40, 45, FontWeight.ExtraBold, letterSpacing = -0.85f, tabular = true),
-    headlineLarge = type(32, 38, FontWeight.Bold, letterSpacing = -0.55f, tabular = true),
-    headlineMedium = type(28, 34, FontWeight.Bold, letterSpacing = -0.4f, tabular = true),
-    headlineSmall = type(24, 30, FontWeight.Bold, letterSpacing = -0.25f, tabular = true),
-    titleLarge = type(18, 24, FontWeight.SemiBold, letterSpacing = -0.1f),
+    displayMedium = type(46, 50, FontWeight.ExtraBold, letterSpacing = -1.0f, tabular = true),
+    displaySmall = type(38, 43, FontWeight.ExtraBold, letterSpacing = -0.75f, tabular = true),
+    headlineLarge = type(31, 37, FontWeight.Bold, letterSpacing = -0.45f, tabular = true),
+    headlineMedium = type(27, 33, FontWeight.Bold, letterSpacing = -0.32f, tabular = true),
+    headlineSmall = type(23, 29, FontWeight.Bold, letterSpacing = -0.18f, tabular = true),
+    titleLarge = type(19, 25, FontWeight.SemiBold, letterSpacing = -0.12f),
     titleMedium = type(16, 22, FontWeight.SemiBold),
-    titleSmall = type(15, 20, FontWeight.SemiBold),
+    titleSmall = type(14, 20, FontWeight.SemiBold),
     bodyLarge = type(16, 24),
-    bodyMedium = type(14, 20),
+    bodyMedium = type(14, 21),
     bodySmall = type(12, 18),
     labelLarge = type(14, 20, FontWeight.SemiBold),
-    labelMedium = type(12, 17, FontWeight.Medium, letterSpacing = .3f),
-    labelSmall = type(11, 15, FontWeight.Medium, letterSpacing = .3f),
+    labelMedium = type(12, 17, FontWeight.Medium, letterSpacing = 0.25f),
+    labelSmall = type(11, 15, FontWeight.Medium, letterSpacing = 0.25f),
 )

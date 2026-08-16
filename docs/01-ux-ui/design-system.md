@@ -1,173 +1,82 @@
-# UI Design System
+# SharedHouse Horizon design system
 
-## SharedHouse premium v3
+## Direction
 
-SharedHouse uses a product-owned Compose design system rather than stock Material components. The
-visual character is precise, contemporary and slightly playful in low-risk moments, while money, access,
-sync and destructive actions remain direct. Visual decoration must never imply that a payment,
-message delivery or household action occurred when the server has not confirmed it.
+SharedHouse Horizon is a calm, operational interface for people who share a home. It replaces the former neon-violet treatment with **deep evergreen, teal and sky** surfaces that feel organised without becoming corporate or financial. The visual hierarchy is built for the questions a member asks every day: *What needs attention? What do I owe? What do I need to do next?*
 
-The Android implementation source of truth is `ui/theme/` plus the Foundation primitives in
-`ui/atmosphere/`. External design generators are not runtime or source dependencies.
+The Android source of truth is `apps/android/app/src/main/kotlin/com/sharedhouse/android/ui/theme/` and the shared Foundation primitives in `ui/atmosphere/`. The product-owned system deliberately avoids a runtime dependency on a third-party material theme.
 
-## Exact colour tokens
+## Product principles
 
-The authored dark experience uses these fixed tokens:
+| Principle | Application |
+|---|---|
+| **Calm clarity** | One primary outcome per screen. Supporting totals, activity and actions should remain quiet until needed. |
+| **Trust before decoration** | A visual accent must never imply that a payment, invitation, message or action has been confirmed by the server. |
+| **Human household tone** | The product feels like a well-kept shared space, not a banking portal, task board or social feed. |
+| **Accessible by default** | Status always uses icon + text + colour; touch targets are at least 48 × 48 dp and text is never clipped at large font scales. |
+| **Practical depth** | Cards and navigation use restrained contrast, one soft highlight and a low contact shadow. They do not claim real backdrop blur. |
 
-| Role | Value |
-|---|---:|
-| Base background | `#0B0C16` |
-| Home ambient wash | `#1A1233` |
-| Card level 1 | `#15162B` |
-| Card level 2 | `#1B1D3A` |
-| Standard border | `#2A2B45` |
-| Active border | `#3D2E6B` |
-| Hero gradient start | `#7C3AED` |
-| Hero gradient middle | `#A855F7` |
-| Hero gradient end | `#EC4899` |
-| Alternate gradient | `#3B82F6` → `#8B5CF6` |
-| Primary text | `#F5F5FA` |
-| Secondary text | `#9599B8` |
+## Colour system
 
-The accessible light fallback uses `#F7F7FC` background, `#FFFFFF` level-1 cards,
-`#F0EFFE` secondary surfaces, `#17172B` primary text and `#5F6380` secondary text. Primary violet,
-blue and pink accents remain brand-authored. System light/dark selection is supported. The dynamic
-colour parameter is retained for source compatibility but is intentionally ignored: a device
-palette may not replace the product palette or alter financial/status meaning.
+### Dark Horizon theme
 
-High-contrast mode strengthens foregrounds and outlines without changing the semantic category of
-content.
+| Role | Token | Value |
+|---|---|---:|
+| App canvas | `Base` | `#0D1714` |
+| Ambient wash | `HomeGlow` | `#123D35` |
+| Primary card | `CardLevel1` | `#14211D` |
+| Raised card | `CardLevel2` | `#1B2B26` |
+| Standard border | `Border` | `#2B3D36` |
+| Active border | `ActiveBorder` | `#3F7564` |
+| Action / focus | `AccentPrimary` | `#2DD4BF` |
+| Orientation accent | `AccentSecondary` | `#38BDF8` |
+| Main text | `TextPrimary` | `#F2FBF6` |
+| Secondary text | `TextSecondary` | `#A8BCB3` |
 
-## Status semantics
+The single hero on a screen moves from deep teal (`#0F766E`) through teal (`#14B8A6`) to sky (`#38BDF8`). Amber is reserved for attention, while rose remains a negative/error accent. Device-derived dynamic colour remains intentionally disabled so it cannot change financial or status meaning.
 
-| Status | Dark token | Examples |
-|---|---:|---|
-| Neutral | `#6B7094` | scheduled, draft, informational |
-| Positive | `#22C55E` | confirmed, completed, live |
-| Attention | `#F59E0B` | due soon, pending, reconnecting |
-| Negative | `#F43F5E` | overdue, disputed, failed sync |
-| Disabled | `#4B4F6B` | waived, cancelled, unavailable |
+### Light Horizon theme
 
-The light fallback uses `#5A5F82`, `#16883F`, `#9B5C00`, `#D82D4E` and `#777B93` respectively.
-Every status requires an icon, a visible text label and an accessible description. Colour is only
-supporting evidence; never encode state through red/green or opacity alone.
+Light mode uses a matte paper canvas (`#F4F7F4`), white primary cards, pale mineral-green secondary surfaces (`#E8F0EC`) and dark-green text (`#17231E`). It is not a low-contrast inverse of dark mode. The same semantic labels, icons and status states apply in both modes.
 
-## Typography
+### Status semantics
 
-The current implementation uses the platform Sans family with a product-owned scale. It does not
-claim a bundled display font. Money uses tabular figures.
+| Meaning | Token | User-facing use |
+|---|---|---|
+| Neutral | `StatusNeutral` | Draft, scheduled, informational |
+| Positive | `StatusPositive` | Confirmed, completed, live |
+| Attention | `StatusAttention` | Due soon, pending, reconnecting |
+| Negative | `StatusNegative` | Overdue, disputed, failed sync |
+| Disabled | `StatusDisabled` | Waived, cancelled, unavailable |
 
-| Token | Size / line height | Weight |
-|---|---:|---|
-| Display medium | 48 / 52 sp | Extra bold |
-| Display small | 40 / 45 sp | Extra bold |
-| Headline large | 32 / 38 sp | Bold |
-| Headline medium | 28 / 34 sp | Bold |
-| Headline small | 24 / 30 sp | Bold |
-| Title large | 18 / 24 sp | Semi-bold |
-| Title medium | 16 / 22 sp | Semi-bold |
-| Title small | 15 / 20 sp | Semi-bold |
-| Body large | 16 / 24 sp | Regular |
-| Body medium | 14 / 20 sp | Regular |
-| Body small | 12 / 18 sp | Regular |
-| Label large | 14 / 20 sp | Semi-bold |
-| Label medium | 12 / 17 sp | Medium |
-| Label small | 11 / 15 sp | Medium |
+Every status must remain understandable in monochrome: a visible label and relevant icon are required alongside colour.
 
-Text must scale without clipping or hiding actions. Use a dominant number only for the screen's
-primary financial value; do not make every metric a hero.
+## Type, shape and spacing
 
-## Shape, depth and density
+The type scale uses the platform sans family, with tabular figures for monetary values. A `46sp` display is reserved for the one decisive number on a screen. Headings are 23–31sp, while body text remains 14–16sp with generous line heights. Do not promote multiple metrics to display size.
 
-- Shape radii are 8, 16, 20, 24 and 36 dp. Repeated list/secondary cards use 24 dp, metric cards use
-  28 dp explicitly, large hero cards use 36 dp, short filters remain full pills and modal sheets use
-  32–34 dp top corners. Primary buttons never use less than 20 dp.
-- Use at most one 36 dp hero surface per screen. The hero uses the exact 135-degree three-stop
-  violet–purple–pink gradient (`0%`, `55%`, `100%`), 22 dp content padding, a coloured diffuse
-  shadow plus a tighter contact shadow, a top-left radial highlight and a short white edge
-  reflection.
-- Every standard card renders at least three perceptual layers: tinted/contact shadow beneath,
-  subtly illuminated vertical body gradient, and a top-left glass-like highlight above. Level-1
-  cards default to a 4 dp elevation input and level-2/actionable cards to 8 dp; the renderer adds a
-  broader tinted shadow without changing layout bounds.
-- `DepthIconBadge` owns the physical badge treatment: radial body light, its own 10 dp shadow,
-  highlight and border. Hero badges use translucent white while neutral badges preserve semantic
-  icon tint.
-- Hero cards include low-opacity clipped circles at the upper-right/lower-right. The global
-  scaffold and Home/House ambient container draw separate violet, pink and blue radial washes so
-  every principal screen has visible composition behind its surfaces.
-- Information-first screens use compact rows and grouped sections. Do not restore equal-height card
-  grids when a list, metric strip or agenda communicates more in the first viewport.
-- Interactive targets remain at least 48 × 48 dp, including icon-only actions.
-- Content and custom overlays respect safe drawing insets and the software keyboard. Floating
-  actions may not cover ledger rows, calendar content or bottom navigation.
+Controls use a compact `10–18dp` radius scale; standard cards use `26dp` and the hero uses `32dp`. Buttons use `18dp`, filters remain pill-shaped and modal sheets use rounded top corners. The standard visual rhythm is based on 4, 8, 12, 16, 20 and 24dp spacing.
 
-### Blur limitation
+## Core components
 
-The current Android implementation does **not** provide true backdrop blur. Compose blur effects
-normally blur a component's own rendered content, while reliable sampling of content behind a
-surface varies by Android version, renderer and device cost. Therefore the floating dock and
-glass-like cards simulate depth with an 85–94% surface alpha, a subtle white wash, a 1 dp outline
-and coloured/black shadows. Documentation, screenshots and release notes must call this a
-translucent layered surface, not frosted glass or real background blur.
+| Component | Horizon behaviour |
+|---|---|
+| **Ambient background** | Deep evergreen canvas with quiet teal light from the upper edge and a very low amber pool below. |
+| **Hero card** | Exactly one per primary screen; teal–sky gradient, 32dp corners, restrained glow and a clear primary outcome. |
+| **Cards** | Matte, layered surfaces with a soft top highlight, low shadow and subtle outline. Avoid decorative gradients inside dense lists. |
+| **Primary action** | Teal–sky gradient, high-contrast label, tactile 120ms compression and no false completion state. |
+| **Input** | Raised surface, concise label, clear focus outline and room for supporting/error text. |
+| **Navigation dock** | A compact elevated island with opaque-enough background for legibility. The selected destination has a 52 × 38dp teal–sky indicator, label and explicit semantics. |
+| **Icon badge** | Circular, independently lit badge; domain icon uses semantic tint rather than arbitrary colour. |
 
-Do not add a blur dependency merely for decoration. A future backdrop implementation requires an
-API/performance fallback, large-text/high-contrast review and physical-device evidence.
+## Screen hierarchy
 
-## Iconography
+**Home** gives a short greeting, one trusted overview, an obvious household conversation entry and grouped quick actions. **Money** gives the personal outstanding balance dominance without making payment declaration look like money movement. **Tasks** separates mine, overdue and requests according to risk. **Calendar** uses type, icon, shape and label for period/event meaning, not a coloured dot. **House** separates household identity, members and settings. **Chat** preserves sender, timestamp, connection state and failure/retry information.
 
-Primary navigation, household domains and status actions use the SharedHouse vector family:
-24 × 24 viewboxes, 1.8 dp rounded strokes, rounded joins and monochrome paths that accept semantic
-tint. Domain glyphs include Home, Calendar, Money, Tasks, House, Chat, Rent, Maintenance, Utilities
-and Cleaning; status/action glyphs include Approved, Pending, Reversed, People, Add and More.
+## Motion and accessibility
 
-Prefer the domain-specific glyph over a generic clipboard, flag or wallet. Icons do not replace
-labels for status, destructive actions or unfamiliar navigation.
+Selected navigation, filters and action surfaces use short spring responses only when reduced-motion is disabled. Cards compress to `0.985`, buttons to `0.97` and icon controls to `0.94`; final financial values never wait for animation. All custom overlays honour safe drawing insets and the software keyboard. Maintain semantic headings, live regions for status messages and accessible content descriptions for icon-only controls.
 
-## Navigation and motion
+## Implementation boundary
 
-The phone navigation is a floating 32 dp dock, not a stock navigation bar. It uses a 48 × 36 dp
-gradient indicator, custom icons and an animated spring transition. Selection remains explicit in
-semantics and text. Large layouts use the equivalent product-owned rail.
-
-Chips and segmented controls animate selected colour, a 14 dp coloured shadow, highlight and scale.
-Primary buttons use the brand gradient and compress to `0.97` over 120 ms while their shadow moves
-closer; clickable card surfaces compress to `0.985`, and icon buttons to `0.94`. Calendar
-transitions, task completion and navigation may use short springs. Reduced-motion mode replaces
-these transitions with immediate state changes. Never animate totals in a way that delays or
-obscures their final value.
-
-## Core component behaviour
-
-- **Home:** one clear greeting, a prioritized overview, a distinct chat entry and hierarchical quick
-  actions. Due, task, event and request modules remain independently actionable.
-- **Money:** the user's authoritative outstanding share is the hero. Expenses use category icons,
-  status icon + label, exact minor-unit formatting and drill-down for allocations, actors and audit
-  history. Payment history keeps the declarer visible separately from a later confirmation,
-  dispute or reversal actor.
-- **Tasks:** Mine, Overdue and Requests are not visually equal when risk differs. Task cards retain
-  explicit status text and expose only server-permitted actions. Request history names the
-  server-provided requester and, after resolution, the separate decision actor.
-- **Calendar:** period selection, current day, selected day and event type use shape + icon + text,
-  not a coloured dot alone. The selected-day agenda consumes otherwise empty space.
-- **House:** household identity, member access and configuration form separate hierarchy levels.
-  Member initials/avatars are distinguishable; three-dot actions are capability-derived.
-- **Chat:** consecutive messages may group by sender and time. Sender, avatar, localized timestamp
-  and date divider remain visible. Connection status reflects the real stream state. A failed send
-  keeps the draft and offers reconnection; no read/delivery badge is shown without a server model.
-
-The reusable catalogue still includes household switcher, cycle selector, money summary, due-item
-row, avatar stack, task assignment, calendar event chip, split visualiser, payment declaration,
-help/swap/postpone sheet, shopping row, permission education, destructive confirmation and
-audit/history timeline.
-
-## Empty, loading, offline and error states
-
-Every empty state explains why it is empty and provides only actions the current role can perform.
-Loading keeps existing authoritative content when a silent refresh is in progress. Errors
-distinguish offline, permission, validation, conflict and server failure without exposing raw
-backend details.
-
-Money and membership corrections must describe their consequences. “Mark as paid” records a
-declaration; it does not move money. Expense removal is a reasoned reversal, and editing creates a
-linked revision rather than rewriting history.
+The redesign changes **presentation only**. Existing server states, permissions, financial audit behaviour, localisation keys, accessibility semantics and the product’s restriction against moving user money are preserved. A subsequent feature must extend the reusable theme/primitives first rather than recreating local colours, card treatments or navigation behaviour in a screen.

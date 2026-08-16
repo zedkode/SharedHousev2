@@ -10,9 +10,9 @@ import androidx.compose.ui.graphics.Color
 private fun highContrast(colors: SharedHouseColors, dark: Boolean) = colors.copy(
     onBackground = if (dark) Color.White else Color(0xFF101020),
     onSurface = if (dark) Color.White else Color(0xFF101020),
-    onSurfaceVariant = if (dark) Color(0xFFD8DAEC) else Color(0xFF444761),
-    outline = if (dark) Color(0xFFAAAED0) else Color(0xFF595D79),
-    outlineVariant = if (dark) Color(0xFF717697) else Color(0xFF8D90A8),
+    onSurfaceVariant = if (dark) Color(0xFFD5E7DE) else Color(0xFF3E554A),
+    outline = if (dark) Color(0xFFAEC9BD) else Color(0xFF4D665B),
+    outlineVariant = if (dark) Color(0xFF78958A) else Color(0xFF81998E),
 )
 
 private val LocalColors = staticCompositionLocalOf { PremiumDarkColors }
@@ -39,7 +39,7 @@ fun SharedHouseTheme(
     reducedMotion: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // The v2 palette is deliberately fixed. Retain the setting parameter for source compatibility,
+    // The Horizon palette is deliberately fixed. Retain the setting parameter for source compatibility,
     // but never let a device-derived colour corrupt status semantics or the authored gradients.
     @Suppress("UNUSED_VARIABLE") val deviceAccentRequested = dynamicColor
     val branded = if (darkTheme) PremiumDarkColors else PremiumLightColors
