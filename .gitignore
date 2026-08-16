@@ -1,44 +1,131 @@
-# JavaScript / TypeScript
-node_modules/
-dist/
-coverage/
-*.tsbuildinfo
+# OS / editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.orig
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
 
-# Kotlin / Android
-.gradle/
+# Node / JavaScript / TypeScript
+node_modules/
+.npm/
+.pnpm-store/
+coverage/
+dist/
 build/
+out/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Java / Kotlin / Android / Gradle
+.gradle/
+**/build/
+**/captures/
+**/generated/
 local.properties
 *.apk
 *.aab
+*.apks
+*.aar
+*.jks
+*.keystore
+*.key
+*.pem
+*.crt
+*.cer
+*.csr
+*.p12
+*.pfx
+*.mobileprovision
+*google-services.json
+**/google-services.json
+**/firebase*.json
+**/play-store-*.json
+**/secure-*.json
+keystore.properties
 
-# Apple
+# Apple / iOS
 DerivedData/
-*.xcuserstate
 xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.dSYM/
+*.ipa
 
-# IDE and operating system
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db
+# Logs / temp / runtime
+*.log
+logs/
+tmp/
+temp/
 
-# Local configuration and secrets
+# Environment / secrets / credentials
 .env
 .env.*
 !.env.example
-infra/production/production.env
-infra/production/secrets/*
-!infra/production/secrets/.gitignore
+!.env.sample
+*.env
+*.local
+*.secret
+*.token
+*.crt
 *.pem
-*.key
+*.p8
 *.p12
+*.pfx
+*.key
 *.jks
-apps/android/app/google-services.json
-apps/android/app/src/*/google-services.json
+*.keystore
+*.mobileprovision
+*.ovpn
+.git-credentials
+.netrc
+**/.ssh/
+**/id_rsa*
+**/id_ed25519*
+**/known_hosts
+**/secrets/**
+**/certs/**
+**/keys/**
+**/credentials/**
+**/private/**
+**/*.sqlite
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sql
 
-# Runtime output
-*.log
-tmp/
+# Deployment / infra local state
+infra/.env
+infra/**/*.env
+infra/**/secrets/*
+!infra/**/secrets/.gitignore
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/.aws/
+**/.kube/
+**/.docker/
 
-# Superdesign temporary component conversion files
-.superdesign/tmp/
+# Generic local config / generated files
+*.local
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Keep these example files tracked when intentionally added
+!infra/.env.example
+!**/.env.example
+!**/.env.sample
