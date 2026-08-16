@@ -13,7 +13,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@nestjs/common": "^11.1.5",
-    "@nestjs/core": "^11.1.5",
+    "@nestjs/core": "^11.1.29",
     "@nestjs/platform-express": "^11.1.5",
     "@nestjs/throttler": "^6.5.0",
     "@sharedhouse/contracts": "0.2.0",
