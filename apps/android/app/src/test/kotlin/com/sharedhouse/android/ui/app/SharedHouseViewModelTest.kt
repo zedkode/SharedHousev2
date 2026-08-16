@@ -978,6 +978,31 @@ private class FakeGateway : SharedHouseGateway {
         deleteAccountHandler(accessToken, password)
     override suspend fun exportAccount(accessToken: String, password: String) =
         exportAccountHandler(accessToken, password)
+
+    override suspend fun updateAccountProfile(
+        accessToken: String,
+        displayName: String,
+    ): ApiResult<com.sharedhouse.network.AccountDto> =
+        ApiResult.Failure("UNUSED", "Profile handler not configured")
+
+    override suspend fun changePassword(
+        accessToken: String,
+        payload: com.sharedhouse.network.ChangePasswordDto,
+    ): ApiResult<com.sharedhouse.network.AccountDto> =
+        ApiResult.Failure("UNUSED", "Password handler not configured")
+
+    override suspend fun requestEmailChange(
+        accessToken: String,
+        payload: com.sharedhouse.network.RequestEmailChangeDto,
+    ): ApiResult<com.sharedhouse.network.AccountSecurityResultDto> =
+        ApiResult.Failure("UNUSED", "Email-change handler not configured")
+
+    override suspend fun confirmEmailChange(
+        accessToken: String,
+        code: String,
+    ): ApiResult<com.sharedhouse.network.AccountDto> =
+        ApiResult.Failure("UNUSED", "Email-change confirmation handler not configured")
+
     override suspend fun listHouseholds(accessToken: String) = listHandler(accessToken)
     override suspend fun createHousehold(
         accessToken: String,
@@ -1098,6 +1123,32 @@ private class FakeGateway : SharedHouseGateway {
         householdId: String,
         after: String?,
     ) = kotlinx.coroutines.flow.emptyFlow<ApiResult<com.sharedhouse.network.HouseholdChatMessageDto>>()
+
+    override suspend fun uploadHouseholdChatAttachment(
+        accessToken: String,
+        householdId: String,
+        payload: com.sharedhouse.network.UploadChatAttachmentDto,
+    ): ApiResult<com.sharedhouse.network.HouseholdChatAttachmentDto> =
+        ApiResult.Failure("UNUSED", "Attachment handler not configured")
+
+    override suspend fun setHouseholdChatMessagePinned(
+        accessToken: String,
+        householdId: String,
+        messageId: String,
+        pinned: Boolean,
+    ): ApiResult<com.sharedhouse.network.HouseholdChatMessageDto> =
+        ApiResult.Failure("UNUSED", "Pin handler not configured")
+
+    override suspend fun createRichHouseholdChatMessage(
+        accessToken: String,
+        householdId: String,
+        idempotencyKey: String,
+        body: String,
+        attachmentIds: List<String>,
+        mentionedUserIds: List<String>,
+        mentionAll: Boolean,
+        location: com.sharedhouse.network.HouseholdChatLocationDto?,
+    ) = createChatHandler(accessToken, householdId, idempotencyKey, body)
 
     override suspend fun listExpenses(accessToken: String, householdId: String) =
         listExpensesHandler(accessToken, householdId)
