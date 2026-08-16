@@ -22,7 +22,7 @@
     "dev:workers": "npm run dev -w @sharedhouse/workers",
     "format": "prettier --write .github apps packages scripts services infra package.json tsconfig.base.json eslint.config.mjs",
     "format:check": "prettier --check .github apps packages scripts services infra package.json tsconfig.base.json eslint.config.mjs",
-    "lint": "eslint apps/admin-web/src packages/contracts/src services/api/src services/api/test services/workers/src scripts",
+    "lint": "npm run build -w @sharedhouse/contracts && eslint apps/admin-web/src packages/contracts/src services/api/src services/api/test services/workers/src scripts",
     "smoke:api": "npm run build -w @sharedhouse/contracts && npm run build -w @sharedhouse/api && node scripts/smoke-auth-household.mjs",
     "test": "npm run test -w @sharedhouse/api && npm run test -w @sharedhouse/workers && npm run test -w @sharedhouse/contracts",
     "typecheck": "npm run build -w @sharedhouse/contracts && npm run typecheck -w @sharedhouse/api && npm run typecheck -w @sharedhouse/workers && npm run typecheck -w @sharedhouse/admin-web"
