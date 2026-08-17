@@ -517,6 +517,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    containerColor: Color = Color.Transparent,
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -528,14 +529,14 @@ private fun BaseButton(
     )
     Box(
         modifier
-            .size(48.dp)
+            .size(44.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 alpha = if (pressed && enabled) .86f else 1f
             }
             .clip(CircleShape)
-            .background(AtmosphereTheme.colorScheme.surfaceVariant)
+            .background(containerColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -628,7 +629,7 @@ fun OutlinedTextField(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         label?.let { Box(Modifier.padding(horizontal = 4.dp)) { it() } }
         Row(
-            Modifier.fillMaxWidth().atmosphericSurface(AtmosphereTheme.shapes.medium, AtmosphereTheme.colorScheme.surfaceContainerHigh, BorderStroke(1.dp, borderColor), 0.dp).padding(horizontal = 16.dp, vertical = 14.dp),
+            Modifier.fillMaxWidth().atmosphericSurface(AtmosphereTheme.shapes.medium, AtmosphereTheme.colorScheme.surfaceContainerHigh, BorderStroke(1.dp, borderColor), 0.dp).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -702,11 +703,11 @@ fun TopAppBar(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 68.dp)
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .heightIn(min = 60.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(48.dp), contentAlignment = Alignment.CenterStart) { navigationIcon() }
+        Box(Modifier.width(44.dp), contentAlignment = Alignment.CenterStart) { navigationIcon() }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { title() }
         Row(content = actions)
     }

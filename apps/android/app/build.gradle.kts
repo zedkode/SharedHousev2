@@ -11,13 +11,13 @@ val sampleAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
 val sampleAdMobBannerId = "ca-app-pub-3940256099942544/9214589741"
 val appVersionCode = providers.gradleProperty("SHAREDHOUSE_VERSION_CODE")
     .orElse(providers.environmentVariable("SHAREDHOUSE_VERSION_CODE"))
-    .getOrElse("4")
+    .getOrElse("5")
     .toIntOrNull()
     ?.takeIf { it > 0 }
     ?: error("SHAREDHOUSE_VERSION_CODE must be a positive integer.")
 val appVersionName = providers.gradleProperty("SHAREDHOUSE_VERSION_NAME")
     .orElse(providers.environmentVariable("SHAREDHOUSE_VERSION_NAME"))
-    .getOrElse("0.3.1")
+    .getOrElse("0.3.2")
 require(appVersionName.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.-]+)?$"))) {
     "SHAREDHOUSE_VERSION_NAME must use semantic version syntax, for example 1.0.0."
 }

@@ -175,26 +175,30 @@ fun FormScreenScaffold(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 560.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = stringResource(title),
-                            style = AtmosphereTheme.typography.headlineLarge,
+                            style = AtmosphereTheme.typography.headlineMedium,
                             modifier = Modifier.semantics { heading() },
                         )
                         Text(
                             text = stringResource(description),
                             color = AtmosphereTheme.colorScheme.onSurfaceVariant,
-                            style = AtmosphereTheme.typography.bodyLarge,
+                            style = AtmosphereTheme.typography.bodyMedium,
                         )
                         header?.invoke(this)
                     }
                 }
                 item {
-                    GlassCard(modifier = Modifier.fillMaxWidth(), content = content)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        content = content,
+                    )
                 }
             }
         }

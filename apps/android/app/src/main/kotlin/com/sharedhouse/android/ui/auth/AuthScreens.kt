@@ -513,7 +513,10 @@ private fun PasswordField(
             .semantics { contentType = ContentType.Password },
         label = { Text(stringResource(R.string.password_label)) },
         supportingText = {
-            Text(error?.localized() ?: supportingFallback.orEmpty())
+            when {
+                error != null -> Text(error.localized())
+                !supportingFallback.isNullOrBlank() -> Text(supportingFallback)
+            }
         },
         isError = error != null,
         enabled = enabled,
@@ -581,7 +584,7 @@ private fun SubmitButton(
     Button(
         onClick = onClick,
         enabled = !loading,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
+        modifier = Modifier.fillMaxWidth().height(50.dp),
     ) {
         if (loading) {
             CircularProgressIndicator(
