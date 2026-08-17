@@ -8,13 +8,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,6 +67,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
@@ -108,7 +110,7 @@ fun HouseholdDashboardScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .widthIn(max = 960.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
@@ -142,21 +144,6 @@ fun HouseholdDashboardScreen(
                 )
             }
             item { ChatResumeCard(chat, onOpenChat) }
-            item {
-                DashboardSectionTitle(
-                    title = stringResource(R.string.dashboard_workspace_title),
-                    supporting = stringResource(R.string.dashboard_workspace_supporting),
-                )
-            }
-            item {
-                FeatureReadinessGrid(
-                    money = model.money,
-                    tasks = model.tasks,
-                    onOpenMoney = onOpenMoney,
-                    onOpenTasks = onOpenTasks,
-                    onOpenRequests = onOpenRequests,
-                )
-            }
             item {
                 GuidanceCard(onOpenGuides = onOpenGuides)
             }
@@ -217,7 +204,6 @@ private fun DashboardHero(
     val hasName = model.accountDisplayName.isNotBlank()
     val householdName = model.householdName.takeIf(String::isNotBlank)
         ?: stringResource(R.string.dashboard_household_name_unavailable)
-
     val dueValue = when (val money = model.money) {
         is DashboardMoneyContent.Ready -> dashboardMoney(money.amountDueMinor, money.currency)
         DashboardMoneyContent.Loading -> "…"
@@ -228,106 +214,124 @@ private fun DashboardHero(
     val requestValue = (model.tasks as? DashboardTasksContent.Ready)?.pendingRequests?.toString() ?: "—"
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        PremiumHeroCard(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onOpenMoney,
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = if (hasName) stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
+                else stringResource(R.string.dashboard_greeting_generic),
+                style = AtmosphereTheme.typography.headlineLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                text = stringResource(R.string.dashboard_household_context, householdName),
+                style = AtmosphereTheme.typography.bodyMedium,
+                color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        PremiumHeroCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenMoney) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = if (hasName) {
-                            stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
-                        } else {
-                            stringResource(R.string.dashboard_greeting_generic)
-                        },
-                        style = AtmosphereTheme.typography.headlineLarge,
-                        color = Color.White,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        text = stringResource(R.string.dashboard_household_context, householdName),
-                        style = AtmosphereTheme.typography.bodyMedium,
+                        text = stringResource(R.string.dashboard_metric_due),
+                        style = AtmosphereTheme.typography.labelMedium,
                         color = Color.White.copy(alpha = .75f),
                     )
+                    Text(
+                        text = dueValue,
+                        style = AtmosphereTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                DepthIconBadge(
-                    icon = SharedHouseIcons.House,
-                    contentDescription = null,
-                    hero = true,
-                )
+                DepthIconBadge(icon = SharedHouseIcons.Money, contentDescription = null, hero = true)
             }
-            Text(
-                text = stringResource(R.string.dashboard_metric_due),
-                style = AtmosphereTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = .75f),
-            )
-            Text(
-                text = dueValue,
-                style = AtmosphereTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DashboardMetric(taskValue, stringResource(R.string.dashboard_metric_tasks), SharedHouseIcons.Tasks, onOpenTasks, Modifier.weight(1f))
-            DashboardMetric(eventValue, stringResource(R.string.dashboard_metric_events), SharedHouseIcons.Calendar, onOpenCalendar, Modifier.weight(1f))
-            DashboardMetric(
-                requestValue,
+        HouseholdPulse(
+            tasks = taskValue,
+            events = eventValue,
+            requests = requestValue,
+            onOpenTasks = onOpenTasks,
+            onOpenCalendar = onOpenCalendar,
+            onOpenRequests = onOpenRequests,
+        )
+    }
+}
+
+@Composable
+private fun HouseholdPulse(
+    tasks: String,
+    events: String,
+    requests: String,
+    onOpenTasks: () -> Unit,
+    onOpenCalendar: () -> Unit,
+    onOpenRequests: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = AtmosphereTheme.shapes.medium,
+        color = AtmosphereTheme.colorScheme.surface,
+        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            HouseholdPulseMetric(tasks, stringResource(R.string.dashboard_metric_tasks), onOpenTasks, Modifier.weight(1f))
+            HouseholdPulseMetric(events, stringResource(R.string.dashboard_metric_events), onOpenCalendar, Modifier.weight(1f))
+            HouseholdPulseMetric(
+                requests,
                 stringResource(R.string.dashboard_metric_requests),
-                SharedHouseIcons.Pending,
                 onOpenRequests,
                 Modifier.weight(1f),
-                attention = requestValue !in setOf("0", "—"),
+                attention = requests !in setOf("0", "—"),
             )
         }
     }
 }
 
 @Composable
-private fun DashboardMetric(
+private fun HouseholdPulseMetric(
     value: String,
     label: String,
-    icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    prominent: Boolean = false,
     attention: Boolean = false,
 ) {
-    val container = when {
-        prominent -> AtmosphereTheme.colorScheme.primaryContainer
-        attention -> AtmosphereTheme.colorScheme.tertiaryContainer
-        else -> AtmosphereTheme.colorScheme.surfaceContainer
-    }
+    val accent = if (attention) AtmosphereTheme.colorScheme.tertiary else AtmosphereTheme.colorScheme.primary
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 80.dp else 74.dp),
-        shape = AtmosphereTheme.shapes.medium,
-        color = container,
-        border = BorderStroke(.75.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .28f) else AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .72f)),
-        shadowElevation = 0.dp,
+        modifier = modifier.heightIn(min = 64.dp),
+        shape = AtmosphereTheme.shapes.small,
+        color = if (attention) AtmosphereTheme.colorScheme.tertiaryContainer else Color.Transparent,
+        contentColor = accent,
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            DepthIconBadge(
-                icon = icon,
-                contentDescription = null,
-                tint = if (attention) AtmosphereTheme.colorScheme.tertiary else AtmosphereTheme.colorScheme.primary,
-                badgeSize = 34.dp,
-                iconSize = 17.dp,
+            Text(
+                value,
+                style = AtmosphereTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Column(Modifier.weight(1f)) {
-                Text(value, style = if (prominent) AtmosphereTheme.typography.headlineMedium else AtmosphereTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(label, style = AtmosphereTheme.typography.labelSmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
+            Text(
+                label,
+                style = AtmosphereTheme.typography.labelSmall,
+                color = if (attention) accent else AtmosphereTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -369,50 +373,57 @@ private fun QuickActions(
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(R.string.dashboard_action_add_expense, Icons.Outlined.AddCard, onOpenMoney, Modifier.weight(1f), prominent = true)
-            QuickAction(R.string.dashboard_action_add_task, Icons.Outlined.AddTask, onOpenTasks, Modifier.weight(1f), prominent = true)
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
-            QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        QuickAction(R.string.dashboard_action_add_expense, Icons.Outlined.AddCard, onOpenMoney, prominent = true)
+        QuickAction(R.string.dashboard_action_add_task, Icons.Outlined.AddTask, onOpenTasks, prominent = true)
+        QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar)
+        QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold)
     }
 }
 
 @Composable
-private fun RowScope.QuickAction(
+private fun QuickAction(
     @StringRes title: Int,
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
     prominent: Boolean = false,
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 78.dp else 82.dp),
-        shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
-        color = if (prominent) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(.75.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .24f) else AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .70f)),
+        modifier = Modifier.widthIn(min = 148.dp, max = 180.dp).heightIn(min = 56.dp),
+        shape = AtmosphereTheme.shapes.medium,
+        color = if (prominent) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surface,
+        border = BorderStroke(
+            .75.dp,
+            if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .28f)
+            else AtmosphereTheme.colorScheme.outlineVariant,
+        ),
         shadowElevation = 0.dp,
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 14.dp else 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-            horizontalAlignment = Alignment.Start,
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
                 shape = AtmosphereTheme.shapes.small,
-                color = AtmosphereTheme.colorScheme.secondaryContainer,
-                contentColor = AtmosphereTheme.colorScheme.secondary,
-            ) { Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(17.dp)) } }
+                color = if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .14f)
+                else AtmosphereTheme.colorScheme.surfaceContainerHigh,
+                contentColor = if (prominent) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.secondary,
+            ) {
+                Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(18.dp))
+                }
+            }
             Text(
                 text = stringResource(title),
-                style = if (prominent) AtmosphereTheme.typography.labelLarge else AtmosphereTheme.typography.labelSmall,
+                modifier = Modifier.weight(1f),
+                style = AtmosphereTheme.typography.labelLarge,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

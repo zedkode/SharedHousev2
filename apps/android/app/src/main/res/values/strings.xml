@@ -509,6 +509,8 @@
     <string name="money_empty_explanation">Every amount shown here comes from your household ledger.</string>
     <string name="money_due_value">Due %1$s</string>
     <string name="money_your_share_value">Your share: %1$s</string>
+    <string name="money_expense_total">Total</string>
+    <string name="money_your_share_label">Your share</string>
     <string name="money_new_expense">New household expense</string>
     <string name="money_edit_expense">Edit expense</string>
     <string name="money_section_details">Expense details</string>

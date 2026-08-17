@@ -102,21 +102,10 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.calendar_title),
-                            style = AtmosphereTheme.typography.headlineMedium,
-                        )
-                        Text(
-                            text = calendarPeriodTitle(
-                                view = state.view,
-                                anchorDate = state.anchorDate,
-                                firstDayOfWeek = state.firstDayOfWeek,
-                            ),
-                            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
-                            style = AtmosphereTheme.typography.labelMedium,
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.calendar_title),
+                        style = AtmosphereTheme.typography.headlineMedium,
+                    )
                 },
                 actions = {
                     if (state.content is CalendarContent.Ready && state.canCreateEvents) {
@@ -261,55 +250,33 @@ private fun CalendarControls(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            CalendarView.entries.forEachIndexed { index, view ->
-                val viewDescription = stringResource(view.descriptionResource)
-                SegmentedButton(
-                    modifier = Modifier.semantics {
-                        contentDescription = viewDescription
-                    },
-                    selected = state.view == view,
-                    onClick = { onAction(CalendarAction.ChangeView(view)) },
-                    shape = SegmentedButtonDefaults.itemShape(index, CalendarView.entries.size),
-                    label = {
-                        Text(
-                            text = stringResource(view.labelResource),
-                            maxLines = 1,
-                        )
-                    },
-                )
-            }
-        }
-
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                onClick = {
-                    onAction(CalendarAction.MovePeriod(CalendarPeriodDirection.PREVIOUS))
-                },
+                onClick = { onAction(CalendarAction.MovePeriod(CalendarPeriodDirection.PREVIOUS)) },
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.calendar_previous_period),
                 )
             }
-            TextButton(onClick = { onAction(CalendarAction.GoToToday) }) {
-                Icon(
-                    imageVector = SharedHouseIcons.Calendar,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    text = stringResource(R.string.calendar_today),
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
+            Text(
+                text = calendarPeriodTitle(
+                    view = state.view,
+                    anchorDate = state.anchorDate,
+                    firstDayOfWeek = state.firstDayOfWeek,
+                ),
+                modifier = Modifier.weight(1f),
+                style = AtmosphereTheme.typography.titleMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
             IconButton(
                 onClick = { onAction(CalendarAction.MovePeriod(CalendarPeriodDirection.NEXT)) },
             ) {
@@ -317,6 +284,27 @@ private fun CalendarControls(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
                     contentDescription = stringResource(R.string.calendar_next_period),
                 )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                CalendarView.entries.forEachIndexed { index, view ->
+                    val viewDescription = stringResource(view.descriptionResource)
+                    SegmentedButton(
+                        modifier = Modifier.semantics { contentDescription = viewDescription },
+                        selected = state.view == view,
+                        onClick = { onAction(CalendarAction.ChangeView(view)) },
+                        shape = SegmentedButtonDefaults.itemShape(index, CalendarView.entries.size),
+                        label = { Text(text = stringResource(view.labelResource), maxLines = 1) },
+                    )
+                }
+            }
+            TextButton(onClick = { onAction(CalendarAction.GoToToday) }) {
+                Text(text = stringResource(R.string.calendar_today))
             }
         }
     }

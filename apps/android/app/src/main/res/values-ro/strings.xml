@@ -514,6 +514,8 @@
     <string name="money_empty_explanation">Fiecare sumă afișată aici provine din registrul real al gospodăriei.</string>
     <string name="money_due_value">Scadentă la %1$s</string>
     <string name="money_your_share_value">Partea ta: %1$s</string>
+    <string name="money_expense_total">Total</string>
+    <string name="money_your_share_label">Partea ta</string>
     <string name="money_new_expense">Cheltuială nouă a gospodăriei</string>
     <string name="money_edit_expense">Modifică cheltuiala</string>
     <string name="money_section_details">Detaliile cheltuielii</string>

@@ -260,9 +260,10 @@ private fun MonthCalendar(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        shape = AtmosphereTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = AtmosphereTheme.colorScheme.cardLevel1,
+            containerColor = AtmosphereTheme.colorScheme.surface,
         ),
     ) {
         Column(
@@ -479,16 +480,9 @@ private fun CalendarDayCell(
                 role = Role.Button
             }
             .clickable(onClick = onClick),
-        color = when {
-            selected -> AtmosphereTheme.colorScheme.primaryContainer
-            else -> Color.Transparent
-        },
+        color = if (selected) AtmosphereTheme.colorScheme.primaryContainer else Color.Transparent,
         shape = AtmosphereTheme.shapes.small,
-        border = when {
-            today -> BorderStroke(2.dp, AtmosphereTheme.colorScheme.primary)
-            selected -> BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .65f))
-            else -> null
-        },
+        border = if (selected) BorderStroke(.75.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .45f)) else null,
     ) {
         Column(
             modifier = Modifier
@@ -497,30 +491,25 @@ private fun CalendarDayCell(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
         ) {
-            Text(
-                text = summary.date.dayOfMonth.toString(),
-                color = if (inPrimaryMonth) {
-                    AtmosphereTheme.colorScheme.onSurface
-                } else {
-                    AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            Surface(
+                modifier = Modifier.size(28.dp),
+                shape = CircleShape,
+                color = if (today) AtmosphereTheme.colorScheme.primary else Color.Transparent,
+                contentColor = if (today) AtmosphereTheme.colorScheme.onPrimary else {
+                    if (inPrimaryMonth) AtmosphereTheme.colorScheme.onSurface
+                    else AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 },
-                fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Normal,
-                style = AtmosphereTheme.typography.bodyMedium,
-            )
-            if (summary.eventCount > 0) {
-                val type = summary.events.first().type
-                val typeColor = eventTypeColor(type)
-                Surface(
-                    color = typeColor.copy(alpha = .16f),
-                    contentColor = typeColor,
-                    shape = AtmosphereTheme.shapes.extraSmall,
-                ) {
-                    Row(Modifier.padding(horizontal = 4.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(type.icon, contentDescription = null, Modifier.size(11.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text(text = summary.eventCount.toString(), style = AtmosphereTheme.typography.labelSmall)
-                    }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = summary.date.dayOfMonth.toString(),
+                        fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Normal,
+                        style = AtmosphereTheme.typography.bodyMedium,
+                    )
                 }
+            }
+            if (summary.eventCount > 0) {
+                EventDot(summary.events.first().type)
             }
         }
     }

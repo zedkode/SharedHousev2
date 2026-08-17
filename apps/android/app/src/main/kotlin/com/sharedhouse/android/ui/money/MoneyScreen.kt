@@ -143,11 +143,6 @@ fun MoneyScreen(
                     }
                 },
                 actions = {
-                    if (state.canCreate && state.content is MoneyContent.Ready) {
-                        IconButton(onClick = { createOpen = true }) {
-                            Icon(SharedHouseIcons.Add, stringResource(R.string.money_add_expense))
-                        }
-                    }
                     if (state.canManageTemplates) {
                         IconButton(onClick = { templateAdminOpen = true }) {
                             Icon(Icons.Outlined.Settings, stringResource(R.string.money_manage_costs))
@@ -176,34 +171,31 @@ fun MoneyScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SummaryCard(
-                            icon = SharedHouseIcons.Money,
-                            label = stringResource(R.string.money_your_outstanding),
-                            value = formatMoney(personalTotal, state.currency),
+                    MoneyBalanceSummary(
+                        personalTotal = formatMoney(personalTotal, state.currency),
+                        householdTotal = formatMoney(householdTotal, state.currency),
+                    )
+                }
+                if (state.canCreate) {
+                    item {
+                        Button(
+                            onClick = { createOpen = true },
                             modifier = Modifier.fillMaxWidth(),
-                            prominent = true,
-                        )
-                        SummaryCard(
-                            icon = SharedHouseIcons.People,
-                            label = stringResource(R.string.money_household_total),
-                            value = formatMoney(householdTotal, state.currency),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        ) {
+                            Icon(SharedHouseIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.money_add_expense))
+                        }
                     }
                 }
                 val activeTemplates = state.templates.filter { it.active }
                 if (state.billingRoster != null || activeTemplates.isNotEmpty()) {
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             state.billingRoster?.let { roster ->
                                 BillingRosterOverview(
                                     roster = roster,
                                     onManage = { billingRosterOpen = true },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                             if (activeTemplates.isNotEmpty()) {
@@ -215,7 +207,7 @@ fun MoneyScreen(
                                         createOpen = true
                                     },
                                     onManage = { templateAdminOpen = true },
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                         }
@@ -373,6 +365,64 @@ fun MoneyScreen(
 }
 
 @Composable
+private fun MoneyBalanceSummary(
+    personalTotal: String,
+    householdTotal: String,
+) {
+    PremiumHeroCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    stringResource(R.string.money_your_outstanding),
+                    style = AtmosphereTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = .75f),
+                )
+                Text(
+                    personalTotal,
+                    style = AtmosphereTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DepthIconBadge(
+                icon = SharedHouseIcons.Money,
+                contentDescription = null,
+                hero = true,
+            )
+        }
+        HorizontalDivider(color = Color.White.copy(alpha = .18f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.money_household_total),
+                style = AtmosphereTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = .75f),
+            )
+            Text(
+                householdTotal,
+                style = AtmosphereTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 private fun BillingRosterOverview(
     roster: BillingRosterUi,
     onManage: () -> Unit,
@@ -499,60 +549,112 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
 
 @Composable
 private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Card(
+        onClick = onClick,
+        shape = AtmosphereTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 DepthIconBadge(
                     icon = expense.category.icon(),
                     contentDescription = null,
                     tint = AtmosphereTheme.colorScheme.secondary,
-                    badgeSize = 38.dp,
+                    badgeSize = 40.dp,
                     iconSize = 21.dp,
                 )
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(expense.title, style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(expense.category.displayName(expense.customCategoryName), style = AtmosphereTheme.typography.bodySmall, color = AtmosphereTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        expense.title,
+                        style = AtmosphereTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        expense.category.displayName(expense.customCategoryName),
+                        style = AtmosphereTheme.typography.bodySmall,
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     if (expense.sourceTemplateId != null) {
                         Text(
                             stringResource(R.string.money_generated_cost),
                             style = AtmosphereTheme.typography.labelSmall,
                             color = AtmosphereTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                Text(
-                    formatMoney(expense.amountMinor, expense.currency),
-                    modifier = Modifier.widthIn(min = 76.dp, max = 112.dp),
-                    style = AtmosphereTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Surface(shape = AtmosphereTheme.shapes.small, color = AtmosphereTheme.colorScheme.surfaceVariant) {
-                    Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Icon(SharedHouseIcons.More, stringResource(R.string.money_section_details), Modifier.size(17.dp)) }
-                }
+                ExpenseStatusBadge(expense.status)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.height(18.dp))
-                Spacer(Modifier.width(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(18.dp))
                 Text(
                     stringResource(R.string.money_due_value, expense.dueDate.toString()),
                     modifier = Modifier.weight(1f),
                     style = AtmosphereTheme.typography.bodySmall,
+                    color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                ExpenseStatusBadge(expense.status)
             }
             HorizontalDivider()
-            Text(
-                stringResource(R.string.money_your_share_value, formatMoney(expense.currentUserShareMinor, expense.currency)),
-                style = AtmosphereTheme.typography.bodyMedium,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                MoneyValue(
+                    label = stringResource(R.string.money_expense_total),
+                    value = formatMoney(expense.amountMinor, expense.currency),
+                    modifier = Modifier.weight(1f),
+                )
+                MoneyValue(
+                    label = stringResource(R.string.money_your_share_label),
+                    value = formatMoney(expense.currentUserShareMinor, expense.currency),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun MoneyValue(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            label,
+            style = AtmosphereTheme.typography.labelSmall,
+            color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+            textAlign = textAlign,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            value,
+            style = AtmosphereTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Bold,
+            textAlign = textAlign,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
