@@ -294,13 +294,14 @@ fun AmbientBackground(
 ) {
     val dark = AtmosphereTheme.colorScheme.background == PremiumPalette.Base
     val base = AtmosphereTheme.colorScheme.background
+    val primary = AtmosphereTheme.colorScheme.primary
     Box(
         modifier = modifier
             .background(base)
             .drawWithCache {
                 val upperGlow = Brush.radialGradient(
                     colors = listOf(
-                        AtmosphereTheme.colorScheme.primary.copy(alpha = if (dark) .16f else .07f),
+                        primary.copy(alpha = if (dark) .16f else .07f),
                         Color.Transparent,
                     ),
                     center = androidx.compose.ui.geometry.Offset(size.width * .84f, -size.height * .04f),
