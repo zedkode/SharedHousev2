@@ -1,6 +1,6 @@
 {
   "name": "@sharedhouse/workers",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@sharedhouse/contracts": "0.3.3",
+    "@sharedhouse/contracts": "0.3.4",
     "pg": "^8.23.0"
   },
   "devDependencies": {

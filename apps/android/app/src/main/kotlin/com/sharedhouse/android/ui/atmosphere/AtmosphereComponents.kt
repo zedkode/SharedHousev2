@@ -125,7 +125,7 @@ fun Text(
     textDecoration: TextDecoration? = null,
     textAlign: TextAlign? = null,
     lineHeight: TextUnit = TextUnit.Unspecified,
-    overflow: TextOverflow = TextOverflow.Clip,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
     minLines: Int = 1,
@@ -453,7 +453,7 @@ private fun BaseButton(
     CompositionLocalProvider(LocalAtmosphereContentColor provides contentColor) {
         Row(
             modifier = modifier
-                .height(50.dp)
+                .heightIn(min = 48.dp)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale

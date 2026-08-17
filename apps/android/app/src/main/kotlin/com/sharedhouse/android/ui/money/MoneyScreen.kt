@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
@@ -67,6 +68,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sharedhouse.android.R
@@ -461,7 +463,7 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
         !hero -> AtmosphereTheme.typography.titleMedium
         value.length <= 8 -> AtmosphereTheme.typography.displayMedium
         else -> AtmosphereTheme.typography.displaySmall
-    }
+    }.copy(fontFeatureSettings = "tnum")
     Row(
         Modifier.padding(if (hero) 2.dp else 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -519,7 +521,16 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
                         )
                     }
                 }
-                Text(formatMoney(expense.amountMinor, expense.currency), style = AtmosphereTheme.typography.titleMedium, maxLines = 1)
+                Text(
+                    formatMoney(expense.amountMinor, expense.currency),
+                    modifier = Modifier.widthIn(min = 76.dp, max = 112.dp),
+                    style = AtmosphereTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Surface(shape = AtmosphereTheme.shapes.small, color = AtmosphereTheme.colorScheme.surfaceVariant) {
                     Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { Icon(SharedHouseIcons.More, stringResource(R.string.money_section_details), Modifier.size(17.dp)) }
                 }
@@ -527,8 +538,13 @@ private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.height(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.money_due_value, expense.dueDate.toString()), style = AtmosphereTheme.typography.bodySmall)
-                Spacer(Modifier.weight(1f))
+                Text(
+                    stringResource(R.string.money_due_value, expense.dueDate.toString()),
+                    modifier = Modifier.weight(1f),
+                    style = AtmosphereTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 ExpenseStatusBadge(expense.status)
             }
             HorizontalDivider()
@@ -566,6 +582,8 @@ private fun ExpenseStatusBadge(status: ExpenseStatus) {
                 stringResource(status.labelResource),
                 style = AtmosphereTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

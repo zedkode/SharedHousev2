@@ -220,13 +220,37 @@ private fun TaskCard(task: HouseholdTaskUi, onClick: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(task.status.icon(), null, Modifier.size(14.dp))
-                        Text(stringResource(task.status.labelRes), style = AtmosphereTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            stringResource(task.status.labelRes),
+                            style = AtmosphereTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(formatDue(task), color = if (overdue) AtmosphereTheme.colorScheme.error else AtmosphereTheme.colorScheme.onSurfaceVariant, fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal)
-                task.zone?.let { Text("• $it", color = AtmosphereTheme.colorScheme.onSurfaceVariant) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    formatDue(task),
+                    modifier = Modifier.weight(1f),
+                    color = if (overdue) AtmosphereTheme.colorScheme.error else AtmosphereTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (overdue) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                task.zone?.let {
+                    Text(
+                        "• $it",
+                        modifier = Modifier.weight(.75f),
+                        color = AtmosphereTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (task.recurrence != TaskRecurrence.ONCE) {
                 Text(stringResource(task.recurrence.labelRes), color = AtmosphereTheme.colorScheme.secondary)
