@@ -4,7 +4,6 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.outlined.AddCard
 import androidx.compose.material.icons.outlined.AddTask
 import androidx.compose.material.icons.outlined.AdminPanelSettings
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -34,7 +32,6 @@ import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
@@ -122,7 +119,6 @@ fun HouseholdDashboardScreen(
                     onOpenRequests = onOpenRequests,
                 )
             }
-            item { ChatResumeCard(chat, onOpenChat) }
             item {
                 DashboardSectionTitle(
                     title = stringResource(R.string.dashboard_quick_actions_title),
@@ -133,7 +129,6 @@ fun HouseholdDashboardScreen(
                 QuickActions(
                     onOpenCalendar = onOpenCalendar,
                     onEditHousehold = onEditHousehold,
-                    onOpenSettings = onOpenSettings,
                     onOpenMoney = onOpenMoney,
                     onOpenTasks = onOpenTasks,
                 )
@@ -145,6 +140,7 @@ fun HouseholdDashboardScreen(
                     onRetry = onRetryCalendar,
                 )
             }
+            item { ChatResumeCard(chat, onOpenChat) }
             item {
                 DashboardSectionTitle(
                     title = stringResource(R.string.dashboard_workspace_title),
@@ -174,10 +170,10 @@ private fun ChatResumeCard(chat: ChatUiState, onOpenChat: () -> Unit) {
         onClick = onOpenChat,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = AtmosphereTheme.colorScheme.cardLevel2,
+        color = AtmosphereTheme.colorScheme.surface,
         contentColor = AtmosphereTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
-        shadowElevation = 8.dp,
+        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .70f)),
+        shadowElevation = 0.dp,
     ) {
         Row(
             Modifier.fillMaxWidth().padding(14.dp),
@@ -240,8 +236,7 @@ private fun DashboardHero(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = if (hasName) {
                             stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
@@ -370,35 +365,17 @@ private fun DashboardSectionTitle(
 private fun QuickActions(
     onOpenCalendar: () -> Unit,
     onEditHousehold: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction(R.string.dashboard_action_add_expense, Icons.Outlined.AddCard, onOpenMoney, Modifier.weight(1f), prominent = true)
             QuickAction(R.string.dashboard_action_add_task, Icons.Outlined.AddTask, onOpenTasks, Modifier.weight(1f), prominent = true)
         }
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            if (maxWidth >= 600.dp) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickAction(R.string.dashboard_action_record_payment, Icons.Outlined.Payments, onOpenMoney, Modifier.weight(1f))
-                    QuickAction(R.string.dashboard_action_add_bill, Icons.AutoMirrored.Outlined.ReceiptLong, onOpenMoney, Modifier.weight(1f))
-                    QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
-                    QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        QuickAction(R.string.dashboard_action_record_payment, Icons.Outlined.Payments, onOpenMoney, Modifier.weight(1f))
-                        QuickAction(R.string.dashboard_action_add_bill, Icons.AutoMirrored.Outlined.ReceiptLong, onOpenMoney, Modifier.weight(1f))
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
-                        QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
-                    }
-                }
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(R.string.dashboard_action_calendar, Icons.Outlined.CalendarMonth, onOpenCalendar, Modifier.weight(1f))
+            QuickAction(R.string.dashboard_action_household_settings, Icons.Outlined.AdminPanelSettings, onEditHousehold, Modifier.weight(1f))
         }
     }
 }

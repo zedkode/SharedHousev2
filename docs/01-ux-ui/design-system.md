@@ -16,6 +16,12 @@ The Android source of truth is `apps/android/app/src/main/kotlin/com/sharedhouse
 | **Accessible by default** | Status combines label, icon and colour; touch targets are at least 48 × 48 dp; text must accommodate large font scales. |
 | **Light and dark parity** | Both themes preserve the same hierarchy and semantic state meaning, rather than treating dark mode as a filtered light theme. |
 
+## Experience hierarchy
+
+Every primary surface should answer three questions in order: **what needs attention now, what can I do next, and what can wait**. Home leads with the balance or priority state, then the four actions members use most often: add an expense, add a task, view the calendar and open household settings. Calendar appears before chat and workspace content because it directly affects the current day; chat remains available as a concise continuity card rather than competing with the next action.
+
+The money and tasks areas use the same pattern. A personal summary or attention count appears first, then filters and operational rows. Each row presents a readable title, one key supporting detail and an explicit status; secondary metadata is delayed or collapsed. Controls that lead to a distinct outcome use solid blue, while management and recovery routes use tonal or outline controls.
+
 ## Colour system
 
 ### Grouped surfaces
@@ -56,7 +62,7 @@ Controls use an `8–14dp` radius scale. Standard cards use `18dp`, feature card
 | **Grouped background** | Neutral system canvas with no ambient gradient or decorative light pool. |
 | **Feature card** | One optional, system-blue card per primary screen. It uses a solid surface, white type and restrained depth. |
 | **Cards** | White or dark-grouped panels with a subtle separator. Dense lists should use grouped rows rather than nested cards. |
-| **Primary action** | Solid system-blue control, 50dp high, 14dp radius, short press compression and no gradient. |
+| **Primary action** | Solid system-blue control, 50dp high, 14dp radius, short press compression and an immediate opacity response; no gradient. |
 | **Tonal action** | Blue-tinted panel with dark-blue text; reserved for a useful secondary route. |
 | **Inputs** | Secondary grouped surface with concise label, focused outline and room for support/error text. |
 | **Tab bar** | Screen-edge tab bar with a soft top contour, system-blue selected icon and label, and no floating island indicator. |

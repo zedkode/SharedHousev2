@@ -170,8 +170,8 @@ fun MoneyScreen(
 
             is MoneyContent.Ready -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -445,9 +445,9 @@ private fun SummaryCard(icon: ImageVector, label: String, value: String, modifie
     } else {
         Card(
             modifier,
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            shape = AtmosphereTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             SummaryCardContent(icon = icon, label = label, value = value, hero = false)
         }
@@ -463,7 +463,7 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
         else -> AtmosphereTheme.typography.displaySmall
     }
     Row(
-        Modifier.padding(if (hero) 4.dp else 12.dp),
+        Modifier.padding(if (hero) 2.dp else 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -479,7 +479,7 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
             Text(
                 value,
                 style = valueStyle,
-                fontWeight = if (hero) FontWeight.ExtraBold else FontWeight.Bold,
+                fontWeight = FontWeight.Bold,
                 color = contentColor,
                 maxLines = 1,
                 softWrap = false,
@@ -497,8 +497,8 @@ private fun SummaryCardContent(icon: ImageVector, label: String, value: String, 
 
 @Composable
 private fun ExpenseCard(expense: ExpenseUi, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 DepthIconBadge(
                     icon = expense.category.icon(),

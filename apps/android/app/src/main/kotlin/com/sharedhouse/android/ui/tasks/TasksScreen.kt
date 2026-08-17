@@ -123,7 +123,7 @@ fun TasksScreen(
                 Spacer(Modifier.height(12.dp)); Button(onClick = { onAction(TasksAction.Retry) }) { Text(stringResource(R.string.action_retry)) }
             }
             is TasksContent.Ready -> LazyColumn(
-                Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item { TaskSummary(tasks, onFilter = { filterName = it.name }) }
                 item {
@@ -181,11 +181,11 @@ private fun SummaryTile(icon: androidx.compose.ui.graphics.vector.ImageVector, l
     Card(
         onClick = onClick,
         modifier = modifier,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        shape = AtmosphereTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = container),
-        elevation = CardDefaults.cardElevation(if (urgent || attention) 7.dp else 4.dp),
+        elevation = CardDefaults.cardElevation(0.dp),
     ) {
-        Row(Modifier.padding(horizontal = 10.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             DepthIconBadge(icon, null, tint = accent, badgeSize = 34.dp, iconSize = 18.dp)
             Column { Text(count.toString(), style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text(label, style = AtmosphereTheme.typography.labelSmall) }
         }
@@ -203,7 +203,7 @@ private fun TaskCard(task: HouseholdTaskUi, onClick: () -> Unit) {
             containerColor = if (task.isMine) AtmosphereTheme.colorScheme.cardLevel2 else AtmosphereTheme.colorScheme.cardLevel1,
         ),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(task.title, style = AtmosphereTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -215,7 +215,7 @@ private fun TaskCard(task: HouseholdTaskUi, onClick: () -> Unit) {
                     shape = AtmosphereTheme.shapes.extraLarge,
                 ) {
                     Row(
-                        Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

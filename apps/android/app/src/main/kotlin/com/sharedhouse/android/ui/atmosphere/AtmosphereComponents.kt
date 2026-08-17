@@ -268,7 +268,11 @@ fun Surface(
     )
     Surface(
         modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = if (pressed && enabled) .90f else 1f
+                }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -450,7 +454,11 @@ private fun BaseButton(
         Row(
             modifier = modifier
                 .height(50.dp)
-                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = if (pressed && enabled) .90f else 1f
+                }
                 .atmosphericSurface(
                     shape = shape,
                     color = container,
@@ -521,7 +529,11 @@ private fun BaseButton(
     Box(
         modifier
             .size(48.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = if (pressed && enabled) .86f else 1f
+            }
             .clip(CircleShape)
             .background(AtmosphereTheme.colorScheme.surfaceVariant)
             .clickable(
@@ -651,22 +663,16 @@ fun OutlinedTextField(
     Canvas(modifier.size(34.dp)) { drawArc(color, -90f, 270f, false, style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth.toPx())) }
 }
 
-@Composable fun LinearProgressIndicator(modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.cardLevel1) {
-    val progressBrush = if (color == AtmosphereTheme.colorScheme.primary) {
-        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle, PremiumPalette.HeroEnd))
-    } else Brush.horizontalGradient(listOf(color, color))
+@Composable fun LinearProgressIndicator(modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.surfaceVariant) {
     Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(trackColor)) {
-        Box(Modifier.fillMaxWidth(.66f).height(6.dp).background(progressBrush))
+        Box(Modifier.fillMaxWidth(.66f).height(6.dp).background(color))
     }
 }
 
-@Composable fun LinearProgressIndicator(progress: () -> Float, modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.cardLevel1) {
+@Composable fun LinearProgressIndicator(progress: () -> Float, modifier: Modifier = Modifier, color: Color = AtmosphereTheme.colorScheme.primary, trackColor: Color = AtmosphereTheme.colorScheme.surfaceVariant) {
     val fraction = progress().coerceIn(0f, 1f)
-    val progressBrush = if (color == AtmosphereTheme.colorScheme.primary) {
-        Brush.horizontalGradient(listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle, PremiumPalette.HeroEnd))
-    } else Brush.horizontalGradient(listOf(color, color))
     Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(trackColor)) {
-        Box(Modifier.fillMaxWidth(fraction).height(6.dp).background(progressBrush))
+        Box(Modifier.fillMaxWidth(fraction).height(6.dp).background(color))
     }
 }
 
@@ -675,7 +681,7 @@ fun OutlinedTextField(
 
 @Composable private fun ToggleGlyph(active: Boolean, onChange: ((Boolean) -> Unit)?, modifier: Modifier, enabled: Boolean, round: Boolean) {
     val shape = if (round) CircleShape else RoundedCornerShape(7.dp)
-    Box(modifier.size(26.dp).atmosphericSurface(shape, if (active) AtmosphereTheme.colorScheme.primary else Color.Transparent, BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), 0.dp).clickable(enabled = enabled && onChange != null) { onChange?.invoke(!active) }, contentAlignment = Alignment.Center) {
+    Box(modifier.size(32.dp).atmosphericSurface(shape, if (active) AtmosphereTheme.colorScheme.primary else Color.Transparent, BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outline), 0.dp).clickable(enabled = enabled && onChange != null) { onChange?.invoke(!active) }, contentAlignment = Alignment.Center) {
         if (active) Text(if (round) "•" else "✓", color = AtmosphereTheme.colorScheme.onPrimary, fontSize = 17.sp)
     }
 }
@@ -696,8 +702,8 @@ fun TopAppBar(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .heightIn(min = 68.dp)
+            .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(48.dp), contentAlignment = Alignment.CenterStart) { navigationIcon() }
