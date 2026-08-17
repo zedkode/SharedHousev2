@@ -88,21 +88,21 @@ fun WelcomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 560.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp),
+                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 48.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 item {
                     Surface(
-                        shape = AtmosphereTheme.shapes.extraLarge,
-                        color = AtmosphereTheme.colorScheme.primaryContainer,
+                        shape = AtmosphereTheme.shapes.large,
+                        color = AtmosphereTheme.colorScheme.surface,
                         contentColor = AtmosphereTheme.colorScheme.primary,
-                        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .18f)),
+                        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .70f)),
                     ) {
-                        Box(Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
                             Image(
                                 painter = painterResource(R.drawable.ic_launcher_foreground_art),
                                 contentDescription = null,
-                                modifier = Modifier.size(72.dp),
+                                modifier = Modifier.size(64.dp),
                             )
                         }
                     }
@@ -137,11 +137,11 @@ fun WelcomeScreen(
                 }
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surfaceContainerHigh),
-                        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
+                        colors = CardDefaults.cardColors(containerColor = AtmosphereTheme.colorScheme.surface),
+                        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .70f)),
                     ) {
                         Row(
-                            modifier = Modifier.padding(18.dp),
+                            modifier = Modifier.padding(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -151,7 +151,7 @@ fun WelcomeScreen(
                                 tint = AtmosphereTheme.colorScheme.primary,
                             )
                             Text(
-                            text = stringResource(R.string.session_secure_notice),
+                                text = stringResource(R.string.session_secure_notice),
                                 color = AtmosphereTheme.colorScheme.onSurfaceVariant,
                                 style = AtmosphereTheme.typography.bodyMedium,
                             )
@@ -163,20 +163,20 @@ fun WelcomeScreen(
                         if (state.canRetrySessionRestore) {
                             FilledTonalButton(
                                 onClick = onRetrySession,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                modifier = Modifier.fillMaxWidth().height(50.dp),
                             ) {
                                 Text(text = stringResource(R.string.retry_secure_session))
                             }
                         }
                         Button(
                             onClick = onRegister,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
                         ) {
                             Text(text = stringResource(R.string.create_account))
                         }
                         OutlinedButton(
                             onClick = onSignIn,
-                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
                         ) {
                             Text(text = stringResource(R.string.sign_in))
                         }

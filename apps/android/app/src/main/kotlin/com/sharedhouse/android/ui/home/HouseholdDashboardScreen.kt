@@ -230,7 +230,7 @@ private fun DashboardHero(
     val eventValue = (model.calendar as? DashboardCalendarContent.Ready)?.events?.size?.toString() ?: "—"
     val requestValue = (model.tasks as? DashboardTasksContent.Ready)?.pendingRequests?.toString() ?: "—"
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PremiumHeroCard(
             modifier = Modifier.fillMaxWidth(),
             onClick = onOpenMoney,
@@ -240,7 +240,8 @@ private fun DashboardHero(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+
                     Text(
                         text = if (hasName) {
                             stringResource(R.string.dashboard_greeting_named, model.accountDisplayName)
@@ -271,7 +272,7 @@ private fun DashboardHero(
             Text(
                 text = dueValue,
                 style = AtmosphereTheme.typography.displayMedium,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -309,14 +310,14 @@ private fun DashboardMetric(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 82.dp else 72.dp),
+        modifier = modifier.heightIn(min = if (prominent) 80.dp else 74.dp),
         shape = AtmosphereTheme.shapes.medium,
         color = container,
-        border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .42f) else AtmosphereTheme.colorScheme.outlineVariant),
-        shadowElevation = if (prominent) 2.dp else 1.dp,
+        border = BorderStroke(.75.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .28f) else AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .72f)),
+        shadowElevation = 0.dp,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(11.dp),
+            Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -373,7 +374,7 @@ private fun QuickActions(
     onOpenMoney: () -> Unit,
     onOpenTasks: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction(R.string.dashboard_action_add_expense, Icons.Outlined.AddCard, onOpenMoney, Modifier.weight(1f), prominent = true)
             QuickAction(R.string.dashboard_action_add_task, Icons.Outlined.AddTask, onOpenTasks, Modifier.weight(1f), prominent = true)
@@ -412,14 +413,14 @@ private fun RowScope.QuickAction(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 76.dp else 80.dp),
+        modifier = modifier.heightIn(min = if (prominent) 78.dp else 82.dp),
         shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
         color = if (prominent) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .38f) else AtmosphereTheme.colorScheme.outlineVariant),
-        shadowElevation = if (prominent) 2.dp else 1.dp,
+        border = BorderStroke(.75.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .24f) else AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .70f)),
+        shadowElevation = 0.dp,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 14.dp else 10.dp, vertical = 11.dp),
+            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 14.dp else 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
             horizontalAlignment = Alignment.Start,
         ) {

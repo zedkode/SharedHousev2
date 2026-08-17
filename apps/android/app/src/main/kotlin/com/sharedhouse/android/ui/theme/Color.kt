@@ -4,41 +4,40 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * SharedHouse Nova palette.
+ * SharedHouse Cupertino palette.
  *
- * A crisp product system built for dense household coordination: ink surfaces keep data calm,
- * electric indigo makes the primary path unmistakable, and lilac accents add energy without
- * turning the interface into a gradient-led dashboard. Semantic colors remain stable in both
- * themes so money, task and account states never depend on decorative color.
+ * The system favours iOS-inspired grouped surfaces, a restrained system-blue action colour and
+ * stable semantic statuses. It is intentionally functional rather than decorative: content and
+ * hierarchy stay dominant in every household workflow.
  */
 object PremiumPalette {
-    val Base = Color(0xFF0B0D14)
-    val HomeGlow = Color(0xFF161B33)
-    val CardLevel1 = Color(0xFF151927)
-    val CardLevel2 = Color(0xFF1D2234)
-    val Border = Color(0xFF2B3148)
-    val ActiveBorder = Color(0xFF6676FF)
+    val Base = Color(0xFF000000)
+    val HomeGlow = Color(0xFF1C1C1E)
+    val CardLevel1 = Color(0xFF1C1C1E)
+    val CardLevel2 = Color(0xFF2C2C2E)
+    val Border = Color(0xFF38383A)
+    val ActiveBorder = Color(0xFF0A84FF)
 
-    val HeroStart = Color(0xFF5B5CEB)
-    val HeroMiddle = Color(0xFF6D5DFB)
-    val HeroEnd = Color(0xFF8A7DFF)
-    val HeroAlternateStart = Color(0xFF1565D8)
-    val HeroAlternateEnd = Color(0xFF6676FF)
-    val AmbientPink = Color(0xFFFFA6D7)
-    val AccentPrimary = Color(0xFF8E8CFF)
-    val AccentSecondary = Color(0xFF55B7FF)
-    val AccentTertiary = Color(0xFFF3B7FF)
+    val HeroStart = Color(0xFF0A84FF)
+    val HeroMiddle = Color(0xFF0A84FF)
+    val HeroEnd = Color(0xFF0A84FF)
+    val HeroAlternateStart = Color(0xFF5E5CE6)
+    val HeroAlternateEnd = Color(0xFF0A84FF)
+    val AmbientPink = Color(0xFFFF9F0A)
+    val AccentPrimary = Color(0xFF0A84FF)
+    val AccentSecondary = Color(0xFF64D2FF)
+    val AccentTertiary = Color(0xFFBF5AF2)
 
-    val TextPrimary = Color(0xFFF7F7FC)
-    val TextSecondary = Color(0xFFB8BECE)
+    val TextPrimary = Color(0xFFFFFFFF)
+    val TextSecondary = Color(0xFFAEAEB2)
     val TextOnGradient = Color(0xFFFFFFFF)
     val TextOnGradientSecondary = Color.White.copy(alpha = .82f)
 
-    val StatusNeutral = Color(0xFF9FA8BC)
-    val StatusPositive = Color(0xFF4DD8A2)
-    val StatusAttention = Color(0xFFFFC269)
-    val StatusNegative = Color(0xFFFF809D)
-    val StatusDisabled = Color(0xFF6F778B)
+    val StatusNeutral = Color(0xFF8E8E93)
+    val StatusPositive = Color(0xFF30D158)
+    val StatusAttention = Color(0xFFFF9F0A)
+    val StatusNegative = Color(0xFFFF453A)
+    val StatusDisabled = Color(0xFF636366)
 }
 
 @Immutable
@@ -91,27 +90,27 @@ internal val PremiumDarkColors = SharedHouseColors(
     onSurface = PremiumPalette.TextPrimary,
     surfaceVariant = PremiumPalette.CardLevel2,
     onSurfaceVariant = PremiumPalette.TextSecondary,
-    surfaceContainer = Color(0xFF111521),
-    surfaceContainerLow = Color(0xFF0F121C),
+    surfaceContainer = PremiumPalette.CardLevel1,
+    surfaceContainerLow = Color(0xFF0B0B0D),
     surfaceContainerHigh = PremiumPalette.CardLevel2,
-    surfaceContainerHighest = Color(0xFF272D41),
+    surfaceContainerHighest = Color(0xFF3A3A3C),
     primary = PremiumPalette.AccentPrimary,
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFF292762),
-    onPrimaryContainer = Color(0xFFE5E4FF),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF003F7D),
+    onPrimaryContainer = Color(0xFFD9ECFF),
     secondary = PremiumPalette.AccentSecondary,
-    onSecondary = Color(0xFF001E35),
-    secondaryContainer = Color(0xFF123858),
-    onSecondaryContainer = Color(0xFFD9EFFF),
+    onSecondary = Color(0xFF00344B),
+    secondaryContainer = Color(0xFF0B3C58),
+    onSecondaryContainer = Color(0xFFCEFAFF),
     tertiary = PremiumPalette.AccentTertiary,
-    tertiaryContainer = Color(0xFF4A244F),
-    onTertiaryContainer = Color(0xFFFFD7F8),
-    outline = PremiumPalette.ActiveBorder,
+    tertiaryContainer = Color(0xFF502066),
+    onTertiaryContainer = Color(0xFFF2D7FF),
+    outline = Color(0xFF636366),
     outlineVariant = PremiumPalette.Border,
     error = PremiumPalette.StatusNegative,
-    errorContainer = Color(0xFF4B1F31),
-    onError = Color(0xFFFFFFFF),
-    onErrorContainer = Color(0xFFFFD9E2),
+    errorContainer = Color(0xFF5A1D1A),
+    onError = Color.White,
+    onErrorContainer = Color(0xFFFFDAD6),
     cardLevel1 = PremiumPalette.CardLevel1,
     cardLevel2 = PremiumPalette.CardLevel2,
     heroStart = PremiumPalette.HeroStart,
@@ -126,45 +125,45 @@ internal val PremiumDarkColors = SharedHouseColors(
     statusDisabled = PremiumPalette.StatusDisabled,
 )
 
-/** Light mode uses soft mineral surfaces and saturated controls rather than a washed-out dark theme. */
+/** Light mode uses the grouped system surfaces familiar from focused, content-first mobile apps. */
 internal val PremiumLightColors = SharedHouseColors(
-    background = Color(0xFFF8F8FC),
-    onBackground = Color(0xFF171923),
+    background = Color(0xFFF2F2F7),
+    onBackground = Color(0xFF000000),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF171923),
-    surfaceVariant = Color(0xFFF0F1F8),
-    onSurfaceVariant = Color(0xFF5E6476),
+    onSurface = Color(0xFF000000),
+    surfaceVariant = Color(0xFFE5E5EA),
+    onSurfaceVariant = Color(0xFF6C6C70),
     surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFDFDFF),
-    surfaceContainerHigh = Color(0xFFF0F1F8),
-    surfaceContainerHighest = Color(0xFFE4E6F0),
-    primary = Color(0xFF5548D9),
+    surfaceContainerLow = Color(0xFFF2F2F7),
+    surfaceContainerHigh = Color(0xFFEFEFF4),
+    surfaceContainerHighest = Color(0xFFE5E5EA),
+    primary = Color(0xFF007AFF),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE8E5FF),
-    onPrimaryContainer = Color(0xFF2D247D),
-    secondary = Color(0xFF1677C5),
+    primaryContainer = Color(0xFFD9ECFF),
+    onPrimaryContainer = Color(0xFF003A75),
+    secondary = Color(0xFF007AFF),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFDDECFF),
-    onSecondaryContainer = Color(0xFF003257),
-    tertiary = Color(0xFF9B3FAB),
-    tertiaryContainer = Color(0xFFFFD8F7),
-    onTertiaryContainer = Color(0xFF57205F),
-    outline = Color(0xFF7B8299),
-    outlineVariant = Color(0xFFD5D8E6),
-    error = Color(0xFFBE3154),
-    errorContainer = Color(0xFFFFE0E7),
+    secondaryContainer = Color(0xFFE0F0FF),
+    onSecondaryContainer = Color(0xFF00355E),
+    tertiary = Color(0xFFAF52DE),
+    tertiaryContainer = Color(0xFFF5D9FF),
+    onTertiaryContainer = Color(0xFF5B197F),
+    outline = Color(0xFF8E8E93),
+    outlineVariant = Color(0xFFC6C6C8),
+    error = Color(0xFFFF3B30),
+    errorContainer = Color(0xFFFFE5E3),
     onError = Color.White,
-    onErrorContainer = Color(0xFF680A28),
-    cardLevel1 = Color(0xFFFFFFFF),
-    cardLevel2 = Color(0xFFF0F1F8),
-    heroStart = PremiumPalette.HeroStart,
-    heroMiddle = PremiumPalette.HeroMiddle,
-    heroEnd = PremiumPalette.HeroEnd,
-    accentBlue = PremiumPalette.AccentSecondary,
-    accentPink = PremiumPalette.AccentTertiary,
-    statusNeutral = Color(0xFF60677A),
-    statusPositive = Color(0xFF087853),
-    statusAttention = Color(0xFF8A5800),
-    statusNegative = Color(0xFFBE3154),
-    statusDisabled = Color(0xFF7B8299),
+    onErrorContainer = Color(0xFF8A1009),
+    cardLevel1 = Color.White,
+    cardLevel2 = Color(0xFFEFEFF4),
+    heroStart = Color(0xFF007AFF),
+    heroMiddle = Color(0xFF007AFF),
+    heroEnd = Color(0xFF007AFF),
+    accentBlue = Color(0xFF007AFF),
+    accentPink = Color(0xFFAF52DE),
+    statusNeutral = Color(0xFF8E8E93),
+    statusPositive = Color(0xFF34C759),
+    statusAttention = Color(0xFFFF9500),
+    statusNegative = Color(0xFFFF3B30),
+    statusDisabled = Color(0xFF8E8E93),
 )

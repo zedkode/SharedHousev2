@@ -286,69 +286,42 @@ fun Surface(
     )
 }
 
-/** Nova background: one quiet indigo light source for orientation, never a decorative dashboard. */
+/** Cupertino grouped background: quiet, neutral and deliberately free of decorative lighting. */
 @Composable
 fun AmbientBackground(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
-) {
-    val dark = AtmosphereTheme.colorScheme.background == PremiumPalette.Base
-    val base = AtmosphereTheme.colorScheme.background
-    val primary = AtmosphereTheme.colorScheme.primary
-    Box(
-        modifier = modifier
-            .background(base)
-            .drawWithCache {
-                val upperGlow = Brush.radialGradient(
-                    colors = listOf(
-                        primary.copy(alpha = if (dark) .16f else .07f),
-                        Color.Transparent,
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .84f, -size.height * .04f),
-                    radius = size.maxDimension * .72f,
-                )
-                onDrawBehind { drawRect(upperGlow) }
-            },
-        content = content,
-    )
-}
+) = Box(
+    modifier = modifier.background(AtmosphereTheme.colorScheme.background),
+    content = content,
+)
 
-/** Nova hero: a focused indigo surface reserved for the single priority on a screen. */
+/** Cupertino feature card: one focused system-blue surface reserved for the main next action. */
 @Composable
 fun PremiumHeroCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(24.dp)
-    val clickable = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
-    CompositionLocalProvider(LocalAtmosphereContentColor provides PremiumPalette.TextOnGradient) {
+    val shape = RoundedCornerShape(22.dp)
+    val interactive = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
+    CompositionLocalProvider(LocalAtmosphereContentColor provides AtmosphereTheme.colorScheme.onPrimary) {
         Box(
             modifier = modifier
-                .premiumGradientSurface(
+                .atmosphericSurface(
                     shape = shape,
-                    brush = Brush.linearGradient(
-                        colors = listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd),
-                    ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = .14f)),
-                    shadow = 12.dp,
-                    shadowAlpha = .22f,
+                    color = AtmosphereTheme.colorScheme.primary,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = .16f)),
+                    shadow = 2.dp,
                 )
-                .then(clickable),
+                .then(interactive),
         ) {
-            Canvas(Modifier.matchParentSize()) {
-                drawCircle(
-                    color = Color.White.copy(alpha = .08f),
-                    radius = size.minDimension * .48f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * 1.04f, -size.height * .04f),
-                )
-            }
-            Column(modifier = Modifier.padding(24.dp), content = content)
+            Column(modifier = Modifier.padding(22.dp), content = content)
         }
     }
 }
 
-/** A compact Nova icon tile used for cards, empty states and fast actions. */
+/** A compact system icon tile used for cards, empty states and fast actions. */
 @Composable
 fun DepthIconBadge(
     icon: ImageVector,
@@ -359,8 +332,8 @@ fun DepthIconBadge(
     badgeSize: Dp = 44.dp,
     iconSize: Dp = 22.dp,
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    val base = if (hero) Color.White.copy(alpha = .18f) else AtmosphereTheme.colorScheme.primaryContainer
+    val shape = RoundedCornerShape(12.dp)
+    val base = if (hero) Color.White.copy(alpha = .20f) else AtmosphereTheme.colorScheme.primaryContainer
     Box(
         modifier = modifier
             .size(badgeSize)
@@ -390,11 +363,11 @@ object CardDefaults {
     ) = CardColors(containerColor, contentColor)
 
     @Composable fun cardBorder(containerColor: Color): BorderStroke = BorderStroke(
-        1.dp,
+        .75.dp,
         if (containerColor == AtmosphereTheme.colorScheme.cardLevel1) {
-            AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .72f)
+            AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .62f)
         } else {
-            AtmosphereTheme.colorScheme.outlineVariant
+            AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .78f)
         },
     )
 
@@ -413,8 +386,8 @@ fun Card(
 ) {
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
-        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 2.dp
-        else -> 1.dp
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 1.dp
+        else -> 0.dp
     }
     Surface(modifier, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -434,8 +407,8 @@ fun Card(
 ) {
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
-        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 2.dp
-        else -> 1.dp
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 1.dp
+        else -> 0.dp
     }
     Surface(onClick, modifier, enabled, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -478,20 +451,11 @@ private fun BaseButton(
             modifier = modifier
                 .height(50.dp)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .then(
-                    if (container == AtmosphereTheme.colorScheme.primary && enabled) {
-                        Modifier.premiumGradientSurface(
-                            shape = shape,
-                            brush = Brush.linearGradient(
-                                listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd),
-                            ),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = if (pressed) .10f else .16f)),
-                            shadow = if (pressed) 1.dp else 6.dp,
-                            shadowAlpha = .20f,
-                        )
-                    } else {
-                        Modifier.atmosphericSurface(shape, container, border, if (enabled && !pressed) 1.dp else 0.dp)
-                    },
+                .atmosphericSurface(
+                    shape = shape,
+                    color = container,
+                    border = border,
+                    shadow = if (container == AtmosphereTheme.colorScheme.primary && enabled && !pressed) 1.dp else 0.dp,
                 )
                 .clickable(
                     interactionSource = interactionSource,
@@ -511,7 +475,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(14.dp),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
@@ -523,7 +487,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.primaryContainer, AtmosphereTheme.colorScheme.onPrimaryContainer), BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.primaryContainer, AtmosphereTheme.colorScheme.onPrimaryContainer), BorderStroke(.75.dp, Color.Transparent), RoundedCornerShape(14.dp), contentPadding, content)
 
 @Composable fun OutlinedButton(
     onClick: () -> Unit,
@@ -531,7 +495,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant), RoundedCornerShape(14.dp), contentPadding, content)
 
 @Composable fun TextButton(
     onClick: () -> Unit,
@@ -539,7 +503,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(16.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(14.dp), contentPadding, content)
 
 @Composable fun IconButton(
     onClick: () -> Unit,
@@ -558,8 +522,8 @@ private fun BaseButton(
         modifier
             .size(48.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(RoundedCornerShape(14.dp))
-            .background(AtmosphereTheme.colorScheme.surfaceVariant.copy(alpha = .72f))
+            .clip(CircleShape)
+            .background(AtmosphereTheme.colorScheme.surfaceVariant)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -575,7 +539,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
-) = Surface(onClick, modifier.size(56.dp), shape = RoundedCornerShape(18.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 8.dp) {
+) = Surface(onClick, modifier.size(56.dp), shape = CircleShape, color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 3.dp) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
@@ -601,7 +565,7 @@ private fun BaseButton(
         label = "chip content",
     )
     val containerColor by animateColorAsState(
-        targetValue = if (selected) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainerHigh,
+        targetValue = if (selected) AtmosphereTheme.colorScheme.surface else AtmosphereTheme.colorScheme.surfaceContainerHigh,
         animationSpec = if (motion) tween(140) else snap(),
         label = "chip container",
     )
@@ -614,7 +578,7 @@ private fun BaseButton(
             modifier
                 .clip(shape)
                 .background(containerColor)
-                .border(1.dp, if (selected) Color.Transparent else AtmosphereTheme.colorScheme.outlineVariant, shape)
+                .border(.75.dp, if (selected) AtmosphereTheme.colorScheme.outlineVariant else Color.Transparent, shape)
                 .semantics { this.selected = selected }
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 9.dp),
@@ -757,23 +721,7 @@ fun Scaffold(
     Box(
         modifier
             .fillMaxSize()
-            .background(containerColor)
-            .drawWithCache {
-                val upperBlob = Brush.radialGradient(
-                    listOf(PremiumPalette.HeroStart.copy(alpha = .10f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .12f, size.height * .08f),
-                    radius = size.maxDimension * .52f,
-                )
-                val lowerBlob = Brush.radialGradient(
-                    listOf(PremiumPalette.AccentSecondary.copy(alpha = .075f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .94f, size.height * .72f),
-                    radius = size.maxDimension * .48f,
-                )
-                onDrawBehind {
-                    drawRect(upperBlob)
-                    drawRect(lowerBlob)
-                }
-            },
+            .background(containerColor),
     ) {
         Column(Modifier.fillMaxSize()) {
             topBar()
@@ -806,7 +754,7 @@ fun Scaffold(
             modifier
                 .fillMaxWidth(.9f)
                 .widthIn(max = 560.dp)
-                .atmosphericSurface(AtmosphereTheme.shapes.extraLarge, AtmosphereTheme.colorScheme.surfaceContainer, BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), 24.dp)
+                .atmosphericSurface(AtmosphereTheme.shapes.extraLarge, AtmosphereTheme.colorScheme.surfaceContainer, BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant), 8.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -843,7 +791,7 @@ fun Scaffold(
             Column(
                 modifier
                     .fillMaxWidth()
-                    .atmosphericSurface(RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp), AtmosphereTheme.colorScheme.surfaceContainer, BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), 24.dp)
+                    .atmosphericSurface(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp), AtmosphereTheme.colorScheme.surfaceContainer, BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant), 8.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -889,7 +837,7 @@ enum class SnackbarResult { Dismissed, ActionPerformed }
 object SegmentedButtonDefaults {
     @Composable fun itemShape(index: Int, count: Int): Shape {
         @Suppress("UNUSED_VARIABLE") val stablePosition = index to count
-        return CircleShape
+        return RoundedCornerShape(10.dp)
     }
 }
 @Composable fun SingleChoiceSegmentedButtonRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) = Row(
@@ -899,70 +847,26 @@ object SegmentedButtonDefaults {
 )
 @Composable fun RowScope.SegmentedButton(selected: Boolean, onClick: () -> Unit, shape: Shape, modifier: Modifier = Modifier, label: @Composable () -> Unit) {
     val motion = AtmosphereTheme.motionEnabled
-    val selectedProgress by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = if (motion) spring(
-            dampingRatio = .76f,
-            stiffness = Spring.StiffnessMediumLow,
-        ) else snap(),
-        label = "segment gradient",
-    )
     val foreground by animateColorAsState(
-        targetValue = if (selected) Color.White else AtmosphereTheme.colorScheme.onSurfaceVariant,
-        animationSpec = if (motion) spring() else snap(),
+        targetValue = if (selected) AtmosphereTheme.colorScheme.onSurface else AtmosphereTheme.colorScheme.onSurfaceVariant,
+        animationSpec = if (motion) tween(120) else snap(),
         label = "segment content",
     )
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) Color.Transparent else AtmosphereTheme.colorScheme.outlineVariant,
-        animationSpec = if (motion) spring() else snap(),
-        label = "segment border",
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.02f else 1f,
-        animationSpec = if (motion) spring(
-            dampingRatio = .72f,
-            stiffness = Spring.StiffnessMediumLow,
-        ) else snap(),
-        label = "segment scale",
+    val container by animateColorAsState(
+        targetValue = if (selected) AtmosphereTheme.colorScheme.surface else AtmosphereTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = if (motion) tween(120) else snap(),
+        label = "segment container",
     )
     CompositionLocalProvider(
         LocalAtmosphereContentColor provides foreground,
-        LocalAtmosphereFontWeight provides if (selected) FontWeight.Bold else FontWeight.Medium,
+        LocalAtmosphereFontWeight provides if (selected) FontWeight.SemiBold else FontWeight.Medium,
     ) {
         Box(
             modifier
                 .weight(1f)
-                .graphicsLayer { scaleX = scale; scaleY = scale }
-                .then(
-                    if (selected) Modifier.shadow(
-                        elevation = 14.dp,
-                        shape = shape,
-                        clip = false,
-                        ambientColor = PremiumPalette.HeroStart.copy(alpha = .30f),
-                        spotColor = PremiumPalette.HeroStart.copy(alpha = .30f),
-                    ) else Modifier,
-                )
                 .clip(shape)
-                .background(AtmosphereTheme.colorScheme.cardLevel1)
-                .drawWithCache {
-                    val activeBrush = Brush.horizontalGradient(
-                        listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle),
-                    )
-                    val idleBrush = Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = .045f), Color.Transparent),
-                    )
-                    onDrawBehind {
-                        drawRect(idleBrush)
-                        drawRect(activeBrush, alpha = selectedProgress)
-                        drawLine(
-                            Color.White.copy(alpha = .18f * selectedProgress),
-                            androidx.compose.ui.geometry.Offset(size.width * .18f, 1.dp.toPx()),
-                            androidx.compose.ui.geometry.Offset(size.width * .72f, 1.dp.toPx()),
-                            1.dp.toPx(),
-                        )
-                    }
-                }
-                .border(1.dp, borderColor, shape)
+                .background(container)
+                .border(.75.dp, if (selected) AtmosphereTheme.colorScheme.outlineVariant else Color.Transparent, shape)
                 .semantics { this.selected = selected }
                 .clickable(onClick = onClick)
                 .padding(horizontal = 8.dp, vertical = 9.dp),
@@ -985,16 +889,15 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
 
 @Composable fun NavigationBar(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, tonalElevation: Dp = 0.dp, content: @Composable RowScope.() -> Unit) {
     @Suppress("UNUSED_VARIABLE") val noTonalElevation = tonalElevation
-    val dockShape = RoundedCornerShape(22.dp)
+    val tabShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
     Row(
         modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp)
-            .shadow(8.dp, dockShape, clip = false, ambientColor = Color.Black.copy(alpha = .14f), spotColor = Color.Black.copy(alpha = .18f))
-            .clip(dockShape)
+            .shadow(1.dp, tabShape, clip = false, ambientColor = Color.Black.copy(alpha = .12f), spotColor = Color.Black.copy(alpha = .12f))
+            .clip(tabShape)
             .background(containerColor)
-            .border(1.dp, AtmosphereTheme.colorScheme.outlineVariant, dockShape)
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            .border(.75.dp, AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .72f), tabShape)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -1011,11 +914,11 @@ object NavigationBarItemDefaults { @Composable fun colors(indicatorColor: Color 
         label = "navigation content",
     )
     val indicator by animateColorAsState(
-        targetValue = if (selected) AtmosphereTheme.colorScheme.primaryContainer else Color.Transparent,
+        targetValue = Color.Transparent,
         animationSpec = if (motion) tween(140) else snap(),
         label = "navigation indicator",
     )
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(10.dp)
     CompositionLocalProvider(
         LocalAtmosphereContentColor provides foreground,
         LocalAtmosphereFontWeight provides if (selected) FontWeight.Bold else FontWeight.Medium,
@@ -1027,7 +930,7 @@ object NavigationBarItemDefaults { @Composable fun colors(indicatorColor: Color 
                 .background(indicator)
                 .semantics { this.selected = selected }
                 .clickable(enabled = enabled, role = Role.Tab, onClick = onClick)
-                .padding(vertical = 7.dp),
+                .padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
         ) {
@@ -1036,7 +939,7 @@ object NavigationBarItemDefaults { @Composable fun colors(indicatorColor: Color 
         }
     }
 }
-@Composable fun NavigationRail(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, content: @Composable ColumnScope.() -> Unit) = Column(modifier.background(containerColor).border(1.dp, AtmosphereTheme.colorScheme.outlineVariant).padding(horizontal = 8.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+@Composable fun NavigationRail(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, content: @Composable ColumnScope.() -> Unit) = Column(modifier.background(containerColor).border(.75.dp, AtmosphereTheme.colorScheme.outlineVariant).padding(horizontal = 8.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
 @Composable fun ColumnScope.NavigationRailItem(selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, label: (@Composable () -> Unit)? = null) {
     val foreground = if (selected) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.onSurfaceVariant
     CompositionLocalProvider(LocalAtmosphereContentColor provides foreground) {
