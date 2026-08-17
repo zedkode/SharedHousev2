@@ -86,7 +86,7 @@ identity once and build the optimized production APK:
 
 ```powershell
 .\scripts\initialize-direct-android-signing.ps1
-.\scripts\build-direct-production-android.ps1 -VersionCode 2 -VersionName 0.2.0
+.\scripts\build-direct-production-android.ps1 -VersionCode 3 -VersionName 0.3.0
 ```
 
 The signing material is stored below `%USERPROFILE%\.sharedhouse\release`, outside the repository;
@@ -104,8 +104,8 @@ $env:SHAREDHOUSE_RELEASE_STORE_FILE = "C:\secure\sharedhouse-upload.jks"
 $env:SHAREDHOUSE_RELEASE_STORE_PASSWORD = "<from-secret-manager>"
 $env:SHAREDHOUSE_RELEASE_KEY_ALIAS = "<upload-key-alias>"
 $env:SHAREDHOUSE_RELEASE_KEY_PASSWORD = "<from-secret-manager>"
-$env:SHAREDHOUSE_VERSION_CODE = "2"
-$env:SHAREDHOUSE_VERSION_NAME = "0.2.0"
+$env:SHAREDHOUSE_VERSION_CODE = "3"
+$env:SHAREDHOUSE_VERSION_NAME = "0.3.0"
 $env:SHAREDHOUSE_ADMOB_APP_ID = "<real-AdMob-app-id>"
 $env:SHAREDHOUSE_ADMOB_BANNER_ID = "<real-banner-unit-id>"
 
