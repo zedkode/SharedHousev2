@@ -219,15 +219,15 @@ fun GlassCard(
             ),
             border = BorderStroke(1.dp, borderColor),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 5.dp,
-                pressedElevation = 1.dp,
+                defaultElevation = 1.dp,
+                pressedElevation = 0.dp,
             ),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 content = content,
             )
         }
@@ -240,14 +240,14 @@ fun GlassCard(
             ),
             border = BorderStroke(1.dp, borderColor),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 5.dp,
+                defaultElevation = 1.dp,
             ),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 content = content,
             )
         }

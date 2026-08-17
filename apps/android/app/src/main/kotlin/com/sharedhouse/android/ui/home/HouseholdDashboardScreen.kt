@@ -309,11 +309,11 @@ private fun DashboardMetric(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 84.dp else 70.dp),
-        shape = RoundedCornerShape(28.dp),
+        modifier = modifier.heightIn(min = if (prominent) 82.dp else 72.dp),
+        shape = AtmosphereTheme.shapes.medium,
         color = container,
         border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .42f) else AtmosphereTheme.colorScheme.outlineVariant),
-        shadowElevation = if (prominent) 7.dp else 2.dp,
+        shadowElevation = if (prominent) 2.dp else 1.dp,
     ) {
         Row(
             Modifier.fillMaxWidth().padding(11.dp),
@@ -412,14 +412,14 @@ private fun RowScope.QuickAction(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = if (prominent) 72.dp else 76.dp),
+        modifier = modifier.heightIn(min = if (prominent) 76.dp else 80.dp),
         shape = if (prominent) AtmosphereTheme.shapes.large else AtmosphereTheme.shapes.medium,
         color = if (prominent) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, if (prominent) AtmosphereTheme.colorScheme.primary.copy(alpha = .38f) else AtmosphereTheme.colorScheme.outlineVariant),
-        shadowElevation = if (prominent) 5.dp else 1.dp,
+        shadowElevation = if (prominent) 2.dp else 1.dp,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 12.dp else 7.dp, vertical = 9.dp),
+            Modifier.fillMaxWidth().padding(horizontal = if (prominent) 14.dp else 10.dp, vertical = 11.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
             horizontalAlignment = Alignment.Start,
         ) {

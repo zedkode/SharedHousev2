@@ -41,22 +41,22 @@ private fun type(
 )
 
 /**
- * A compact, humanist-feeling hierarchy. Display values are reserved for the one figure that
- * matters on a screen; all other content uses a quieter reading scale.
+ * Nova typography pairs sharp display rhythm with pragmatic reading styles. Numeric styles retain
+ * tabular figures so household balances and schedules remain stable while values update.
  */
 val AtmosphericTypography = SharedHouseTypography(
-    displayMedium = type(46, 50, FontWeight.ExtraBold, letterSpacing = -1.0f, tabular = true),
-    displaySmall = type(38, 43, FontWeight.ExtraBold, letterSpacing = -0.75f, tabular = true),
-    headlineLarge = type(31, 37, FontWeight.Bold, letterSpacing = -0.45f, tabular = true),
-    headlineMedium = type(27, 33, FontWeight.Bold, letterSpacing = -0.32f, tabular = true),
-    headlineSmall = type(23, 29, FontWeight.Bold, letterSpacing = -0.18f, tabular = true),
-    titleLarge = type(19, 25, FontWeight.SemiBold, letterSpacing = -0.12f),
+    displayMedium = type(44, 50, FontWeight.Black, letterSpacing = -1.15f, tabular = true),
+    displaySmall = type(36, 42, FontWeight.ExtraBold, letterSpacing = -0.85f, tabular = true),
+    headlineLarge = type(30, 36, FontWeight.ExtraBold, letterSpacing = -0.55f, tabular = true),
+    headlineMedium = type(25, 31, FontWeight.Bold, letterSpacing = -0.35f, tabular = true),
+    headlineSmall = type(21, 27, FontWeight.Bold, letterSpacing = -0.18f, tabular = true),
+    titleLarge = type(19, 25, FontWeight.Bold, letterSpacing = -0.10f),
     titleMedium = type(16, 22, FontWeight.SemiBold),
-    titleSmall = type(14, 20, FontWeight.SemiBold),
-    bodyLarge = type(16, 24),
-    bodyMedium = type(14, 21),
-    bodySmall = type(12, 18),
-    labelLarge = type(14, 20, FontWeight.SemiBold),
-    labelMedium = type(12, 17, FontWeight.Medium, letterSpacing = 0.25f),
-    labelSmall = type(11, 15, FontWeight.Medium, letterSpacing = 0.25f),
+    titleSmall = type(14, 19, FontWeight.SemiBold),
+    bodyLarge = type(16, 24, FontWeight.Normal),
+    bodyMedium = type(14, 21, FontWeight.Normal),
+    bodySmall = type(12, 18, FontWeight.Normal),
+    labelLarge = type(14, 20, FontWeight.Bold, letterSpacing = 0.05f),
+    labelMedium = type(12, 17, FontWeight.SemiBold, letterSpacing = 0.18f),
+    labelSmall = type(11, 15, FontWeight.SemiBold, letterSpacing = 0.22f),
 )

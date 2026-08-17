@@ -8,11 +8,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 private fun highContrast(colors: SharedHouseColors, dark: Boolean) = colors.copy(
-    onBackground = if (dark) Color.White else Color(0xFF101020),
-    onSurface = if (dark) Color.White else Color(0xFF101020),
-    onSurfaceVariant = if (dark) Color(0xFFD5E7DE) else Color(0xFF3E554A),
-    outline = if (dark) Color(0xFFAEC9BD) else Color(0xFF4D665B),
-    outlineVariant = if (dark) Color(0xFF78958A) else Color(0xFF81998E),
+    onBackground = if (dark) Color.White else Color(0xFF11121A),
+    onSurface = if (dark) Color.White else Color(0xFF11121A),
+    onSurfaceVariant = if (dark) Color(0xFFE0E3F2) else Color(0xFF3F4558),
+    outline = if (dark) Color(0xFFC8CFFF) else Color(0xFF505873),
+    outlineVariant = if (dark) Color(0xFF969FCA) else Color(0xFF737C99),
 )
 
 private val LocalColors = staticCompositionLocalOf { PremiumDarkColors }
@@ -39,8 +39,8 @@ fun SharedHouseTheme(
     reducedMotion: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // The Horizon palette is deliberately fixed. Retain the setting parameter for source compatibility,
-    // but never let a device-derived colour corrupt status semantics or the authored gradients.
+    // The Nova palette is deliberately fixed. Retain the setting parameter for source compatibility,
+    // but never let a device-derived colour alter finance, task or account status semantics.
     @Suppress("UNUSED_VARIABLE") val deviceAccentRequested = dynamicColor
     val branded = if (darkTheme) PremiumDarkColors else PremiumLightColors
     CompositionLocalProvider(

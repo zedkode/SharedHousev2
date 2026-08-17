@@ -195,49 +195,16 @@ private fun Modifier.atmosphericSurface(
     .then(
         if (shadow > 0.dp) {
             Modifier.shadow(
-                elevation = shadow + 8.dp,
+                elevation = shadow,
                 shape = shape,
                 clip = false,
-                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .30f),
-                spotColor = PremiumPalette.HeroMiddle.copy(alpha = .16f),
-            )
-        } else Modifier
-    )
-    .then(
-        if (shadow > 0.dp) {
-            Modifier.shadow(
-                elevation = 3.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = Color.Black.copy(alpha = .22f),
-                spotColor = Color.Black.copy(alpha = .22f),
+                ambientColor = Color.Black.copy(alpha = .14f),
+                spotColor = Color.Black.copy(alpha = .18f),
             )
         } else Modifier
     )
     .clip(shape)
-    .drawWithCache {
-        val body = Brush.verticalGradient(
-            listOf(
-                lerp(color, Color.White, if (color.alpha > .02f) .035f else 0f),
-                lerp(color, Color.Black, if (color.alpha > .02f) .035f else 0f),
-            ),
-        )
-        val glass = Brush.radialGradient(
-            colors = listOf(Color.White.copy(alpha = .08f), Color.Transparent),
-            center = androidx.compose.ui.geometry.Offset(size.width * .18f, 0f),
-            radius = size.maxDimension * .72f,
-        )
-        onDrawBehind {
-            drawRect(body)
-            if (color.alpha > .02f) drawRect(glass)
-            drawLine(
-                color = Color.White.copy(alpha = if (color.alpha > .02f) .15f else .07f),
-                start = androidx.compose.ui.geometry.Offset(size.width * .14f, 1.dp.toPx()),
-                end = androidx.compose.ui.geometry.Offset(size.width * .54f, 1.dp.toPx()),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-    }
+    .background(color)
     .then(if (border != null) Modifier.border(border, shape) else Modifier)
 
 private fun Modifier.premiumGradientSurface(
@@ -250,43 +217,16 @@ private fun Modifier.premiumGradientSurface(
     .then(
         if (shadow > 0.dp) {
             Modifier.shadow(
-                elevation = shadow + 12.dp,
+                elevation = shadow,
                 shape = shape,
                 clip = false,
                 ambientColor = PremiumPalette.HeroStart.copy(alpha = shadowAlpha),
-                spotColor = PremiumPalette.HeroStart.copy(alpha = shadowAlpha),
-            )
-        } else Modifier,
-    )
-    .then(
-        if (shadow > 0.dp) {
-            Modifier.shadow(
-                elevation = 4.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = Color.Black.copy(alpha = .22f),
-                spotColor = Color.Black.copy(alpha = .22f),
+                spotColor = Color.Black.copy(alpha = .18f),
             )
         } else Modifier,
     )
     .clip(shape)
     .background(brush)
-    .drawWithCache {
-        val glass = Brush.radialGradient(
-            colors = listOf(Color.White.copy(alpha = .18f), Color.Transparent),
-            center = androidx.compose.ui.geometry.Offset(size.width * .08f, 0f),
-            radius = size.maxDimension * .72f,
-        )
-        onDrawBehind {
-            drawRect(glass)
-            drawLine(
-                color = Color.White.copy(alpha = .30f),
-                start = androidx.compose.ui.geometry.Offset(size.width * .10f, 1.dp.toPx()),
-                end = androidx.compose.ui.geometry.Offset(size.width * .64f, 1.dp.toPx()),
-                strokeWidth = 1.dp.toPx(),
-            )
-        }
-    }
     .then(if (border != null) Modifier.border(border, shape) else Modifier)
 
 @Composable
@@ -346,10 +286,7 @@ fun Surface(
     )
 }
 
-/**
- * Horizon Home background: a deep evergreen base with quiet teal and amber light pools.
- * Other screens retain the same tonal family without competing with their data.
- */
+/** Nova background: one quiet indigo light source for orientation, never a decorative dashboard. */
 @Composable
 fun AmbientBackground(
     modifier: Modifier = Modifier,
@@ -357,85 +294,60 @@ fun AmbientBackground(
 ) {
     val dark = AtmosphereTheme.colorScheme.background == PremiumPalette.Base
     val base = AtmosphereTheme.colorScheme.background
-    val glow = if (dark) PremiumPalette.HomeGlow else AtmosphereTheme.colorScheme.primary.copy(alpha = .10f)
     Box(
         modifier = modifier
             .background(base)
             .drawWithCache {
-                val radius = size.maxDimension * .92f
-                val topWash = Brush.radialGradient(
-                    colors = listOf(glow.copy(alpha = if (dark) .45f else .10f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .16f, size.height * .02f),
-                    radius = radius,
-                )
-                val lowerWash = Brush.radialGradient(
-                    colors = listOf(PremiumPalette.AmbientPink.copy(alpha = if (dark) .08f else .05f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .72f),
+                val upperGlow = Brush.radialGradient(
+                    colors = listOf(
+                        AtmosphereTheme.colorScheme.primary.copy(alpha = if (dark) .16f else .07f),
+                        Color.Transparent,
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .84f, -size.height * .04f),
                     radius = size.maxDimension * .72f,
                 )
-                onDrawBehind {
-                    drawRect(topWash)
-                    drawRect(lowerWash)
-                }
+                onDrawBehind { drawRect(upperGlow) }
             },
         content = content,
     )
 }
 
-/** One-per-screen Horizon hero: a calm teal-to-sky gradient for the one primary outcome. */
+/** Nova hero: a focused indigo surface reserved for the single priority on a screen. */
 @Composable
 fun PremiumHeroCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(32.dp)
-    val clickable = if (onClick == null) {
-        Modifier
-    } else {
-        Modifier.clickable(role = Role.Button, onClick = onClick)
-    }
-    CompositionLocalProvider(
-        LocalAtmosphereContentColor provides PremiumPalette.TextOnGradient,
-    ) {
+    val shape = RoundedCornerShape(24.dp)
+    val clickable = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
+    CompositionLocalProvider(LocalAtmosphereContentColor provides PremiumPalette.TextOnGradient) {
         Box(
             modifier = modifier
                 .premiumGradientSurface(
                     shape = shape,
                     brush = Brush.linearGradient(
-                        colorStops = arrayOf(
-                            0f to PremiumPalette.HeroStart,
-                            .55f to PremiumPalette.HeroMiddle,
-                            1f to PremiumPalette.HeroEnd,
-                        ),
+                        colors = listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd),
                     ),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                    shadow = 18.dp,
-                    shadowAlpha = .28f,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = .14f)),
+                    shadow = 12.dp,
+                    shadowAlpha = .22f,
                 )
-                .then(clickable)
+                .then(clickable),
         ) {
             Canvas(Modifier.matchParentSize()) {
                 drawCircle(
-                    color = Color.White.copy(alpha = .07f),
-                    radius = size.minDimension * .52f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * 1.02f, size.height * .10f),
-                )
-                drawCircle(
-                    color = PremiumPalette.AccentSecondary.copy(alpha = .13f),
-                    radius = size.minDimension * .30f,
-                    center = androidx.compose.ui.geometry.Offset(size.width * .86f, size.height * .88f),
+                    color = Color.White.copy(alpha = .08f),
+                    radius = size.minDimension * .48f,
+                    center = androidx.compose.ui.geometry.Offset(size.width * 1.04f, -size.height * .04f),
                 )
             }
-            Column(
-                modifier = Modifier.padding(22.dp),
-                content = content,
-            )
+            Column(modifier = Modifier.padding(24.dp), content = content)
         }
     }
 }
 
-/** A physical, independently-lit icon badge for cards and empty states. */
+/** A compact Nova icon tile used for cards, empty states and fast actions. */
 @Composable
 fun DepthIconBadge(
     icon: ImageVector,
@@ -446,38 +358,14 @@ fun DepthIconBadge(
     badgeSize: Dp = 44.dp,
     iconSize: Dp = 22.dp,
 ) {
-    val shape = CircleShape
+    val shape = RoundedCornerShape(14.dp)
     val base = if (hero) Color.White.copy(alpha = .18f) else AtmosphereTheme.colorScheme.primaryContainer
     Box(
         modifier = modifier
             .size(badgeSize)
-            .shadow(
-                elevation = 10.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = Color.Black.copy(alpha = .24f),
-                spotColor = PremiumPalette.HeroMiddle.copy(alpha = .20f),
-            )
             .clip(shape)
-            .drawWithCache {
-                val body = Brush.radialGradient(
-                    colors = listOf(
-                        lerp(base, Color.White, if (hero) .22f else .10f),
-                        lerp(base, Color.Black, .14f),
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .42f, size.height * .28f),
-                    radius = size.maxDimension * .68f,
-                )
-                val shine = Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = .24f), Color.Transparent),
-                    endY = size.height * .55f,
-                )
-                onDrawBehind {
-                    drawCircle(body)
-                    drawCircle(shine)
-                }
-            }
-            .border(1.dp, Color.White.copy(alpha = if (hero) .24f else .10f), shape),
+            .background(base)
+            .border(1.dp, Color.White.copy(alpha = if (hero) .18f else .06f), shape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription, Modifier.size(iconSize), tint = tint)
@@ -500,20 +388,14 @@ object CardDefaults {
         contentColor: Color = AtmosphereTheme.colorScheme.onSurface,
     ) = CardColors(containerColor, contentColor)
 
-    @Composable fun cardBorder(containerColor: Color): BorderStroke = if (
-        containerColor == AtmosphereTheme.colorScheme.cardLevel2 ||
-        containerColor == AtmosphereTheme.colorScheme.surfaceContainerHigh ||
-        containerColor == AtmosphereTheme.colorScheme.surfaceVariant
-    ) {
-        BorderStroke(
-            1.dp,
-            Brush.linearGradient(
-                listOf(PremiumPalette.ActiveBorder, PremiumPalette.Border),
-            ),
-        )
-    } else {
-        BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant)
-    }
+    @Composable fun cardBorder(containerColor: Color): BorderStroke = BorderStroke(
+        1.dp,
+        if (containerColor == AtmosphereTheme.colorScheme.cardLevel1) {
+            AtmosphereTheme.colorScheme.outlineVariant.copy(alpha = .72f)
+        } else {
+            AtmosphereTheme.colorScheme.outlineVariant
+        },
+    )
 
     fun cardElevation(defaultElevation: Dp = 0.dp, pressedElevation: Dp = defaultElevation + 2.dp) =
         CardElevation(defaultElevation, pressedElevation)
@@ -530,8 +412,8 @@ fun Card(
 ) {
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
-        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
-        else -> 3.dp
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 2.dp
+        else -> 1.dp
     }
     Surface(modifier, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -551,8 +433,8 @@ fun Card(
 ) {
     val resolvedElevation = when {
         elevation.defaultElevation > 0.dp -> elevation.defaultElevation
-        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 8.dp
-        else -> 3.dp
+        colors.containerColor == AtmosphereTheme.colorScheme.cardLevel2 -> 2.dp
+        else -> 1.dp
     }
     Surface(onClick, modifier, enabled, shape, colors.containerColor, colors.contentColor, shadowElevation = resolvedElevation, border = border) {
         Column(content = content)
@@ -584,7 +466,7 @@ private fun BaseButton(
     val pressed by interactionSource.collectIsPressedAsState()
     val motion = AtmosphereTheme.motionEnabled
     val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) .97f else 1f,
+        targetValue = if (pressed && enabled) .98f else 1f,
         animationSpec = if (motion) tween(120) else snap(),
         label = "button press scale",
     )
@@ -593,25 +475,21 @@ private fun BaseButton(
     CompositionLocalProvider(LocalAtmosphereContentColor provides contentColor) {
         Row(
             modifier = modifier
-                .height(52.dp)
+                .height(50.dp)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .then(
                     if (container == AtmosphereTheme.colorScheme.primary && enabled) {
                         Modifier.premiumGradientSurface(
                             shape = shape,
                             brush = Brush.linearGradient(
-                                colorStops = arrayOf(
-                                    0f to PremiumPalette.HeroStart,
-                                    .55f to PremiumPalette.HeroMiddle,
-                                    1f to PremiumPalette.HeroEnd,
-                                ),
+                                listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd),
                             ),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = if (pressed) .12f else .22f)),
-                            shadow = if (pressed) 2.dp else 10.dp,
-                            shadowAlpha = if (pressed) .18f else .38f,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = if (pressed) .10f else .16f)),
+                            shadow = if (pressed) 1.dp else 6.dp,
+                            shadowAlpha = .20f,
                         )
                     } else {
-                        Modifier.atmosphericSurface(shape, container, border, if (enabled && !pressed) 5.dp else 1.dp)
+                        Modifier.atmosphericSurface(shape, container, border, if (enabled && !pressed) 1.dp else 0.dp)
                     },
                 )
                 .clickable(
@@ -632,7 +510,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(18.dp),
+    shape: Shape = RoundedCornerShape(16.dp),
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
@@ -644,7 +522,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.surfaceVariant, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(18.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(AtmosphereTheme.colorScheme.primaryContainer, AtmosphereTheme.colorScheme.onPrimaryContainer), BorderStroke(1.dp, Color.Transparent), RoundedCornerShape(16.dp), contentPadding, content)
 
 @Composable fun OutlinedButton(
     onClick: () -> Unit,
@@ -652,7 +530,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(18.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.onSurface), BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline), RoundedCornerShape(16.dp), contentPadding, content)
 
 @Composable fun TextButton(
     onClick: () -> Unit,
@@ -660,7 +538,7 @@ private fun BaseButton(
     enabled: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
     content: @Composable RowScope.() -> Unit,
-) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(18.dp), contentPadding, content)
+) = BaseButton(onClick, modifier, enabled, ButtonColors(Color.Transparent, AtmosphereTheme.colorScheme.primary), null, RoundedCornerShape(16.dp), contentPadding, content)
 
 @Composable fun IconButton(
     onClick: () -> Unit,
@@ -680,6 +558,7 @@ private fun BaseButton(
             .size(48.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(14.dp))
+            .background(AtmosphereTheme.colorScheme.surfaceVariant.copy(alpha = .72f))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -695,7 +574,7 @@ private fun BaseButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
-) = Surface(onClick, modifier.size(58.dp), shape = RoundedCornerShape(18.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 10.dp) {
+) = Surface(onClick, modifier.size(56.dp), shape = RoundedCornerShape(18.dp), color = AtmosphereTheme.colorScheme.primary, contentColor = AtmosphereTheme.colorScheme.onPrimary, shadowElevation = 8.dp) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
 }
 
@@ -715,74 +594,31 @@ private fun BaseButton(
     label: @Composable () -> Unit,
 ) {
     val motion = AtmosphereTheme.motionEnabled
-    val selectedProgress by animateFloatAsState(
-        targetValue = if (selected) 1f else 0f,
-        animationSpec = if (motion) spring(
-            dampingRatio = .76f,
-            stiffness = Spring.StiffnessMediumLow,
-        ) else snap(),
-        label = "chip gradient",
-    )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) Color.White else AtmosphereTheme.colorScheme.onSurfaceVariant,
-        animationSpec = if (motion) spring() else snap(),
+        targetValue = if (selected) AtmosphereTheme.colorScheme.onPrimaryContainer else AtmosphereTheme.colorScheme.onSurfaceVariant,
+        animationSpec = if (motion) tween(140) else snap(),
         label = "chip content",
     )
-    val borderColor by animateColorAsState(
-        targetValue = if (selected) Color.Transparent else AtmosphereTheme.colorScheme.outlineVariant,
-        animationSpec = if (motion) spring() else snap(),
-        label = "chip border",
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) AtmosphereTheme.colorScheme.primaryContainer else AtmosphereTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = if (motion) tween(140) else snap(),
+        label = "chip container",
     )
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.025f else 1f,
-        animationSpec = if (motion) spring(
-            dampingRatio = .7f,
-            stiffness = Spring.StiffnessMediumLow,
-        ) else snap(),
-        label = "chip scale",
-    )
-    val shape = CircleShape
+    val shape = RoundedCornerShape(12.dp)
     CompositionLocalProvider(
         LocalAtmosphereContentColor provides contentColor,
         LocalAtmosphereFontWeight provides if (selected) FontWeight.Bold else FontWeight.Medium,
     ) {
         Row(
             modifier
-                .graphicsLayer { scaleX = scale; scaleY = scale }
-                .then(
-                    if (selected) Modifier.shadow(
-                        elevation = 14.dp,
-                        shape = shape,
-                        clip = false,
-                        ambientColor = PremiumPalette.HeroStart.copy(alpha = .30f),
-                        spotColor = PremiumPalette.HeroStart.copy(alpha = .30f),
-                    ) else Modifier,
-                )
                 .clip(shape)
-                .background(AtmosphereTheme.colorScheme.cardLevel1)
-                .drawWithCache {
-                    val activeBrush = Brush.horizontalGradient(
-                        listOf(PremiumPalette.HeroStart, PremiumPalette.HeroMiddle),
-                    )
-                    val idleBrush = Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = .045f), Color.Transparent),
-                    )
-                    onDrawBehind {
-                        drawRect(idleBrush)
-                        drawRect(activeBrush, alpha = selectedProgress)
-                        drawLine(
-                            Color.White.copy(alpha = .18f * selectedProgress),
-                            androidx.compose.ui.geometry.Offset(size.width * .16f, 1.dp.toPx()),
-                            androidx.compose.ui.geometry.Offset(size.width * .70f, 1.dp.toPx()),
-                            1.dp.toPx(),
-                        )
-                    }
-                }
-                .border(1.dp, borderColor, shape)
+                .background(containerColor)
+                .border(1.dp, if (selected) Color.Transparent else AtmosphereTheme.colorScheme.outlineVariant, shape)
                 .semantics { this.selected = selected }
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-                .padding(horizontal = 15.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) { leadingIcon?.invoke(); label() }
     }
 }
@@ -815,7 +651,7 @@ fun OutlinedTextField(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         label?.let { Box(Modifier.padding(horizontal = 4.dp)) { it() } }
         Row(
-            Modifier.fillMaxWidth().atmosphericSurface(AtmosphereTheme.shapes.medium, AtmosphereTheme.colorScheme.surfaceContainerHigh, BorderStroke(1.dp, borderColor), 2.dp).padding(horizontal = 14.dp, vertical = 13.dp),
+            Modifier.fillMaxWidth().atmosphericSurface(AtmosphereTheme.shapes.medium, AtmosphereTheme.colorScheme.surfaceContainerHigh, BorderStroke(1.dp, borderColor), 0.dp).padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -1148,158 +984,58 @@ private val LocalNavigationIndicatorState = compositionLocalOf<NavigationIndicat
 
 @Composable fun NavigationBar(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, tonalElevation: Dp = 0.dp, content: @Composable RowScope.() -> Unit) {
     @Suppress("UNUSED_VARIABLE") val noTonalElevation = tonalElevation
-    val motion = AtmosphereTheme.motionEnabled
-    val indicatorState = remember { NavigationIndicatorState() }
-    val indicatorCenter = remember { Animatable(0f) }
-    val density = LocalDensity.current
-    val dockShape = RoundedCornerShape(28.dp)
-    val activeShape = RoundedCornerShape(18.dp)
-    val dark = AtmosphereTheme.colorScheme.background == PremiumPalette.Base
-
-    LaunchedEffect(indicatorState.targetCenterPx, motion) {
-        val target = indicatorState.targetCenterPx
-        if (!target.isFinite()) return@LaunchedEffect
-        if (!indicatorState.initialized || !motion) {
-            indicatorCenter.snapTo(target)
-            indicatorState.initialized = true
-        } else {
-            indicatorCenter.animateTo(
-                targetValue = target,
-                animationSpec = spring(
-                    dampingRatio = .72f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            )
-        }
-    }
-
-    Box(
+    val dockShape = RoundedCornerShape(22.dp)
+    Row(
         modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 14.dp)
-            .shadow(
-                elevation = 14.dp,
-                shape = dockShape,
-                clip = false,
-                ambientColor = PremiumPalette.HomeGlow.copy(alpha = .22f),
-                spotColor = Color.Black.copy(alpha = .26f),
-            )
+            .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp)
+            .shadow(8.dp, dockShape, clip = false, ambientColor = Color.Black.copy(alpha = .14f), spotColor = Color.Black.copy(alpha = .18f))
             .clip(dockShape)
-            .background(containerColor.copy(alpha = if (dark) .94f else .97f))
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = if (dark) .06f else .16f), Color.Transparent),
-                ),
-            )
-            .border(
-                width = 1.dp,
-                color = if (dark) Color.White.copy(alpha = .08f) else AtmosphereTheme.colorScheme.outlineVariant,
-                shape = dockShape,
-            )
+            .background(containerColor)
+            .border(1.dp, AtmosphereTheme.colorScheme.outlineVariant, dockShape)
             .padding(horizontal = 6.dp, vertical = 6.dp),
-    ) {
-        if (indicatorState.initialized) {
-            val halfPillPx = with(density) { 26.dp.toPx() }
-            Box(
-                Modifier
-                    .offset {
-                        IntOffset(
-                            x = (indicatorCenter.value - halfPillPx).roundToInt(),
-                            y = 0,
-                        )
-                    }
-                    .width(52.dp)
-                    .height(38.dp)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = activeShape,
-                        clip = false,
-                        ambientColor = PremiumPalette.HeroMiddle.copy(alpha = .28f),
-                        spotColor = PremiumPalette.HeroMiddle.copy(alpha = .28f),
-                    )
-                    .clip(activeShape)
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(PremiumPalette.HeroStart, PremiumPalette.HeroEnd),
-                        ),
-                    ),
-            )
-        }
-        CompositionLocalProvider(LocalNavigationIndicatorState provides indicatorState) {
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically,
-                content = content,
-            )
-        }
-    }
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
 }
 @Immutable data class NavigationItemColors(val indicatorColor: Color)
 object NavigationBarItemDefaults { @Composable fun colors(indicatorColor: Color = AtmosphereTheme.colorScheme.primaryContainer) = NavigationItemColors(indicatorColor) }
 @Composable fun RowScope.NavigationBarItem(selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, label: (@Composable () -> Unit)? = null, colors: NavigationItemColors = NavigationBarItemDefaults.colors()) {
     @Suppress("UNUSED_VARIABLE") val retainedIndicatorColorApi = colors.indicatorColor
     val motion = AtmosphereTheme.motionEnabled
-    val coordinator = LocalNavigationIndicatorState.current
-    var centerInParent by remember { mutableFloatStateOf(Float.NaN) }
-    val iconScale = remember { Animatable(1f) }
     val foreground by animateColorAsState(
-        targetValue = if (selected) Color.White else AtmosphereTheme.colorScheme.statusNeutral,
-        animationSpec = if (motion) spring() else snap(),
+        targetValue = if (selected) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.statusNeutral,
+        animationSpec = if (motion) tween(140) else snap(),
         label = "navigation content",
     )
-
-    LaunchedEffect(selected, centerInParent) {
-        if (selected && centerInParent.isFinite()) coordinator?.report(centerInParent)
-    }
-    LaunchedEffect(selected, motion) {
-        if (selected && motion) {
-            iconScale.snapTo(1f)
-            iconScale.animateTo(
-                1.15f,
-                spring(dampingRatio = .58f, stiffness = Spring.StiffnessMedium),
-            )
-            iconScale.animateTo(
-                1f,
-                spring(dampingRatio = .72f, stiffness = Spring.StiffnessMediumLow),
-            )
-        } else {
-            iconScale.snapTo(1f)
-        }
-    }
-
+    val indicator by animateColorAsState(
+        targetValue = if (selected) AtmosphereTheme.colorScheme.primaryContainer else Color.Transparent,
+        animationSpec = if (motion) tween(140) else snap(),
+        label = "navigation indicator",
+    )
+    val shape = RoundedCornerShape(14.dp)
     CompositionLocalProvider(
         LocalAtmosphereContentColor provides foreground,
-        LocalAtmosphereFontWeight provides if (selected) FontWeight.Bold else FontWeight.Normal,
+        LocalAtmosphereFontWeight provides if (selected) FontWeight.Bold else FontWeight.Medium,
     ) {
         Column(
             modifier
                 .weight(1f)
-                .heightIn(min = 58.dp)
-                .onGloballyPositioned { coordinates ->
-                    centerInParent = coordinates.boundsInParent().center.x
-                    if (selected) coordinator?.report(centerInParent)
-                }
+                .clip(shape)
+                .background(indicator)
                 .semantics { this.selected = selected }
                 .clickable(enabled = enabled, role = Role.Tab, onClick = onClick)
-                .padding(vertical = 4.dp),
+                .padding(vertical = 7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
         ) {
-            Box(
-                modifier = Modifier
-                    .height(38.dp)
-                    .graphicsLayer {
-                        scaleX = iconScale.value
-                        scaleY = iconScale.value
-                    },
-                contentAlignment = Alignment.Center,
-            ) { icon() }
+            Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) { icon() }
             label?.invoke()
         }
     }
 }
-@Composable fun NavigationRail(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, content: @Composable ColumnScope.() -> Unit) = Column(modifier.background(containerColor).padding(horizontal = 8.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+@Composable fun NavigationRail(modifier: Modifier = Modifier, containerColor: Color = AtmosphereTheme.colorScheme.surfaceContainer, content: @Composable ColumnScope.() -> Unit) = Column(modifier.background(containerColor).border(1.dp, AtmosphereTheme.colorScheme.outlineVariant).padding(horizontal = 8.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
 @Composable fun ColumnScope.NavigationRailItem(selected: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, label: (@Composable () -> Unit)? = null) {
     val foreground = if (selected) AtmosphereTheme.colorScheme.primary else AtmosphereTheme.colorScheme.onSurfaceVariant
     CompositionLocalProvider(LocalAtmosphereContentColor provides foreground) {
