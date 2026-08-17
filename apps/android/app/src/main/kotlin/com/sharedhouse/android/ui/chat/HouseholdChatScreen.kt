@@ -38,13 +38,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -116,15 +119,7 @@ fun HouseholdChatScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                modifier = Modifier.background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            AtmosphereTheme.colorScheme.cardLevel1,
-                            AtmosphereTheme.colorScheme.primaryContainer.copy(alpha = .55f),
-                            AtmosphereTheme.colorScheme.cardLevel1,
-                        ),
-                    ),
-                ),
+                modifier = Modifier.background(AtmosphereTheme.colorScheme.background),
                 navigationIcon = {
                     IconButton(onBack) {
                         Icon(ChatIcons.Back, stringResource(R.string.action_back), Modifier.size(23.dp))
@@ -165,19 +160,16 @@ fun HouseholdChatScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            AtmosphereTheme.colorScheme.primaryContainer.copy(alpha = .18f),
-                            AtmosphereTheme.colorScheme.background,
-                            AtmosphereTheme.colorScheme.background,
-                        ),
-                    ),
-                ),
+                .background(AtmosphereTheme.colorScheme.background),
         ) {
             if (state.pinnedMessages.isNotEmpty()) {
-                Surface(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=8.dp),shape=RoundedCornerShape(18.dp),color=AtmosphereTheme.colorScheme.primaryContainer,border=BorderStroke(1.dp,AtmosphereTheme.colorScheme.primary.copy(alpha=.35f))) {
-                    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                    shape = AtmosphereTheme.shapes.medium,
+                    color = AtmosphereTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(stringResource(R.string.chat_pinned_title),style=AtmosphereTheme.typography.labelLarge,color=AtmosphereTheme.colorScheme.primary)
                         state.pinnedMessages.take(5).forEach { Text(it.body.ifBlank { stringResource(R.string.chat_media_message) },maxLines=1,style=AtmosphereTheme.typography.bodySmall) }
                     }
@@ -204,8 +196,8 @@ fun HouseholdChatScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(timeline, key = ChatTimelineItem::key) { item ->
                             when (item) {
@@ -751,14 +743,14 @@ private fun ChatComposer(
 
     Surface(
         modifier = Modifier.fillMaxWidth().imePadding(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = AtmosphereTheme.colorScheme.cardLevel1.copy(alpha = .98f),
-        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outlineVariant),
-        shadowElevation = 16.dp,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        color = AtmosphereTheme.colorScheme.surface,
+        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp,
     ) {
         Column(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement=Arrangement.spacedBy(8.dp),
+            Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
         if (mentionQuery != null) {
             val suggestions=state.members.filter { !it.isCurrentUser && it.displayName.lowercase().contains(mentionQuery) }.take(3)
@@ -767,8 +759,16 @@ private fun ChatComposer(
                 suggestions.forEach { member -> TextButton(onClick={onDraftChanged(state.draft.substringBeforeLast("@")+"@${member.displayName} ")}){Text("@${member.displayName}")}}
             }
         }
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            IconButton(onPickPhotos){ Text("🖼️") }; IconButton(onTakePhoto){Text("📷")}; IconButton(onShareLocation){Text("📍")}
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(onClick = onPickPhotos) {
+                Icon(Icons.Outlined.AddPhotoAlternate, stringResource(R.string.chat_media_message), Modifier.size(20.dp))
+            }
+            IconButton(onClick = onTakePhoto) {
+                Icon(Icons.Outlined.PhotoCamera, stringResource(R.string.chat_media_message), Modifier.size(20.dp))
+            }
+            IconButton(onClick = onShareLocation) {
+                Icon(Icons.Outlined.LocationOn, stringResource(R.string.chat_media_message), Modifier.size(20.dp))
+            }
         }
         Row(
             Modifier.fillMaxWidth(),
@@ -831,8 +831,8 @@ private fun ChatComposer(
             Surface(
                 onClick = onSend,
                 enabled = canSubmit,
-                modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(20.dp, 20.dp, 8.dp, 20.dp),
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
                 color = if (canSubmit || state.isSending) {
                     AtmosphereTheme.colorScheme.primary
                 } else {
@@ -843,7 +843,7 @@ private fun ChatComposer(
                 } else {
                     AtmosphereTheme.colorScheme.statusDisabled
                 },
-                shadowElevation = if (canSubmit) 9.dp else 0.dp,
+                shadowElevation = 0.dp,
                 border = BorderStroke(
                     1.dp,
                     if (canSubmit) {
@@ -864,7 +864,7 @@ private fun ChatComposer(
                         Icon(
                             ChatIcons.Send,
                             contentDescription = stringResource(R.string.chat_send),
-                            modifier = Modifier.size(23.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }

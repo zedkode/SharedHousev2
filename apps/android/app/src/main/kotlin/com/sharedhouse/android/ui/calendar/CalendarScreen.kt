@@ -261,9 +261,9 @@ private fun CalendarControls(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             CalendarView.entries.forEachIndexed { index, view ->
                 val viewDescription = stringResource(view.descriptionResource)
@@ -390,7 +390,7 @@ private fun CalendarReadyContent(
         if (events.isEmpty()) {
             CalendarEmptyBanner(
                 canCreateEvents = state.canCreateEvents,
-                modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
             )
         }
         if (state.view == CalendarView.MONTH) {
@@ -424,14 +424,14 @@ private fun SelectedDayPreview(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        color = AtmosphereTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        color = AtmosphereTheme.colorScheme.surface,
         shape = AtmosphereTheme.shapes.medium,
-        border = BorderStroke(1.dp, AtmosphereTheme.colorScheme.outline),
-        shadowElevation = 8.dp,
+        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant),
+        shadowElevation = 0.dp,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -462,15 +462,15 @@ private fun CalendarEmptyBanner(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = AtmosphereTheme.colorScheme.surfaceVariant,
-        shape = AtmosphereTheme.shapes.large,
+        color = AtmosphereTheme.colorScheme.surfaceContainerLow,
+        shape = AtmosphereTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DepthIconBadge(SharedHouseIcons.Calendar, null, badgeSize = 56.dp, iconSize = 27.dp)
+            DepthIconBadge(SharedHouseIcons.Calendar, null, badgeSize = 48.dp, iconSize = 24.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = stringResource(R.string.calendar_empty_title),
