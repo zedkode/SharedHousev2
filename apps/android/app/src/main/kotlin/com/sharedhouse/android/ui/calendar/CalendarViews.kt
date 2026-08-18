@@ -484,33 +484,27 @@ private fun CalendarDayCell(
         color = Color.Transparent,
         shape = AtmosphereTheme.shapes.small,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
-        ) {
-            Surface(
-                modifier = Modifier.size(28.dp),
-                shape = CircleShape,
-                color = if (selected) AtmosphereTheme.colorScheme.primary else Color.Transparent,
-                contentColor = if (selected) AtmosphereTheme.colorScheme.onPrimary else {
-                    if (inPrimaryMonth) AtmosphereTheme.colorScheme.onSurface
-                    else AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = summary.date.dayOfMonth.toString(),
+                modifier = Modifier.align(Alignment.Center),
+                color = when {
+                    selected || today -> AtmosphereTheme.colorScheme.primary
+                    inPrimaryMonth -> AtmosphereTheme.colorScheme.onSurface
+                    else -> AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 },
-                border = if (today && !selected) BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary) else null,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = summary.date.dayOfMonth.toString(),
-                        fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Normal,
-                        style = AtmosphereTheme.typography.bodyMedium,
-                    )
-                }
-            }
+                fontWeight = if (today || selected) FontWeight.Bold else FontWeight.Normal,
+                style = AtmosphereTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
             if (summary.eventCount > 0) {
-                EventDot(summary.events.first().type)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 5.dp),
+                ) {
+                    EventDot(summary.events.first().type)
+                }
             }
         }
     }

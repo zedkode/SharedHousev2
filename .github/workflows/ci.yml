@@ -95,11 +95,11 @@ jobs:
       - name: Verify named public testing APK output
         run: >-
           test -s
-          apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.6-public-testing-signed.apk
+          apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.7-public-testing-signed.apk
 
       - name: Upload public testing APK
         uses: actions/upload-artifact@v4
         with:
-          name: SharedHouse-v0.3.6-public-testing-apk
-          path: apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.6-public-testing-signed.apk
+          name: SharedHouse-v0.3.7-public-testing-apk
+          path: apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.7-public-testing-signed.apk
           if-no-files-found: error
