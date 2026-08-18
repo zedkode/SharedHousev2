@@ -1,6 +1,6 @@
 {
   "name": "@sharedhouse/admin-web",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@sharedhouse/contracts": "0.3.5",
+    "@sharedhouse/contracts": "0.3.6",
     "@vitejs/plugin-react": "^6.0.5",
     "vite": "^8.2.1",
     "react": "^19.2.8",

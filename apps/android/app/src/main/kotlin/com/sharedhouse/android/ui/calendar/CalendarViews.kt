@@ -284,7 +284,8 @@ private fun MonthCalendar(
                             onClick = { onDateSelected(summary.date) },
                             modifier = Modifier
                                 .weight(1f)
-                                .aspectRatio(1f),
+                                .heightIn(min = 42.dp)
+                                .aspectRatio(1.3f),
                         )
                     }
                 }
@@ -480,9 +481,8 @@ private fun CalendarDayCell(
                 role = Role.Button
             }
             .clickable(onClick = onClick),
-        color = if (selected) AtmosphereTheme.colorScheme.primaryContainer else Color.Transparent,
+        color = Color.Transparent,
         shape = AtmosphereTheme.shapes.small,
-        border = if (selected) BorderStroke(.75.dp, AtmosphereTheme.colorScheme.primary.copy(alpha = .45f)) else null,
     ) {
         Column(
             modifier = Modifier
@@ -494,11 +494,12 @@ private fun CalendarDayCell(
             Surface(
                 modifier = Modifier.size(28.dp),
                 shape = CircleShape,
-                color = if (today) AtmosphereTheme.colorScheme.primary else Color.Transparent,
-                contentColor = if (today) AtmosphereTheme.colorScheme.onPrimary else {
+                color = if (selected) AtmosphereTheme.colorScheme.primary else Color.Transparent,
+                contentColor = if (selected) AtmosphereTheme.colorScheme.onPrimary else {
                     if (inPrimaryMonth) AtmosphereTheme.colorScheme.onSurface
                     else AtmosphereTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 },
+                border = if (today && !selected) BorderStroke(1.dp, AtmosphereTheme.colorScheme.primary) else null,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(

@@ -1,6 +1,5 @@
 package com.sharedhouse.android.ui.calendar
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,7 +27,6 @@ import com.sharedhouse.android.ui.atmosphere.SnackbarHost
 import com.sharedhouse.android.ui.atmosphere.SnackbarHostState
 import com.sharedhouse.android.ui.atmosphere.Surface
 import com.sharedhouse.android.ui.atmosphere.Text
-import com.sharedhouse.android.ui.atmosphere.TextButton
 import com.sharedhouse.android.ui.atmosphere.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -303,8 +301,19 @@ private fun CalendarControls(
                     )
                 }
             }
-            TextButton(onClick = { onAction(CalendarAction.GoToToday) }) {
-                Text(text = stringResource(R.string.calendar_today))
+            Surface(
+                onClick = { onAction(CalendarAction.GoToToday) },
+                modifier = Modifier.size(width = 68.dp, height = 48.dp),
+                shape = AtmosphereTheme.shapes.small,
+                color = AtmosphereTheme.colorScheme.primaryContainer,
+                contentColor = AtmosphereTheme.colorScheme.primary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(R.string.calendar_today),
+                        style = AtmosphereTheme.typography.labelMedium,
+                    )
+                }
             }
         }
     }
@@ -412,33 +421,36 @@ private fun SelectedDayPreview(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-        color = AtmosphereTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        color = AtmosphereTheme.colorScheme.surfaceContainerLow,
         shape = AtmosphereTheme.shapes.medium,
-        border = BorderStroke(.75.dp, AtmosphereTheme.colorScheme.outlineVariant),
         shadowElevation = 0.dp,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DepthIconBadge(
-                icon = SharedHouseIcons.Calendar,
-                contentDescription = null,
-                badgeSize = 38.dp,
-                iconSize = 20.dp,
-            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(localizedDate(date, java.time.format.FormatStyle.MEDIUM), style = AtmosphereTheme.typography.titleSmall)
+                Text(
+                    localizedDate(date, java.time.format.FormatStyle.MEDIUM),
+                    style = AtmosphereTheme.typography.titleSmall,
+                    maxLines = 1,
+                )
                 Text(
                     events.take(2).joinToString(" · ") { it.title }.ifEmpty { stringResource(R.string.calendar_day_no_events) },
                     style = AtmosphereTheme.typography.bodySmall,
                     color = AtmosphereTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = stringResource(R.string.calendar_day_agenda), Modifier.size(20.dp))
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = stringResource(R.string.calendar_day_agenda),
+                modifier = Modifier.size(20.dp),
+                tint = AtmosphereTheme.colorScheme.primary,
+            )
         }
     }
 }
