@@ -98,7 +98,7 @@ jobs:
           apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.7-public-testing-signed.apk
 
       - name: Upload public testing APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SharedHouse-v0.3.7-public-testing-apk
           path: apps/android/app/build/outputs/apk/testing/SharedHouse-v0.3.7-public-testing-signed.apk
