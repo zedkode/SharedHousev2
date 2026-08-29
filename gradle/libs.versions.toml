@@ -16,7 +16,7 @@ firebase-bom = "34.17.0"
 google-mobile-ads = "1.3.0"
 google-ump = "4.0.0"
 google-services-plugin = "4.5.0"
-firebase-crashlytics-plugin = "3.0.7"
+firebase-crashlytics-plugin = "3.0.8"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
